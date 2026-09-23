@@ -29,18 +29,6 @@ So: every change must be traceable to evidence, and no one edits release history
   compute the wrong history.
 - Finish: PR into `dev`, never push to `main`.
 
-**One-time exception, 2026-09-23 — before the first release.** `main` was force-pushed once. The
-repository started as a template import, so `main` (`Initial commit`) and `dev` (`Initialize dev`)
-were two unrelated root commits holding identical trees. Nothing could merge: GitHub's compare
-endpoint answered `404 No common ancestor between main and dev`, which made
-`open_pull_request.yml` fail on every push to `dev`, `gh pr create` had no diff to build, and git
-itself refuses an unrelated-history merge — so both the `dev → main` PR and the `main → dev`
-backmerge after a stable release were dead. `main` was moved onto `dev`'s root (`48f927b`), a
-zero-content change because the trees were already identical. The `Release` workflow was disabled
-for that push and re-enabled right after, and it was checked that no tag and no release was created
-(`Analysis of 1 commits complete: no release`). `main`'s root commit is therefore titled
-"Initialize dev" — historical, not a mistake. From here the rule above holds: no force-push.
-
 ## 2. Commit convention
 
 `type(scope): summary` — Conventional Commits. The release effect is configured in `.releaserc`:
