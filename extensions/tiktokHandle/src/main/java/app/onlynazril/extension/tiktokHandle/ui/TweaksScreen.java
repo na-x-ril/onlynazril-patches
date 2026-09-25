@@ -2,6 +2,7 @@ package app.onlynazril.extension.tiktokHandle.ui;
 
 import android.content.Context;
 import android.graphics.Typeface;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import app.onlynazril.extension.tiktokHandle.Surfaces;
+import app.onlynazril.extension.tiktokHandle.internal.RestartPrompt;
 import app.onlynazril.extension.tiktokHandle.settings.HandleSettings;
 
 /**
@@ -92,13 +94,17 @@ public final class TweaksScreen {
     }
 
     private static View header(Context context) {
-        LinearLayout block = new LinearLayout(context);
-        block.setOrientation(LinearLayout.VERTICAL);
-        block.setPadding(
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.TOP);
+        row.setPadding(
                 Tokens.dp(context, Tokens.SPACE_4),
                 Tokens.dp(context, Tokens.SPACE_12),
                 Tokens.dp(context, Tokens.SPACE_4),
                 Tokens.dp(context, Tokens.SPACE_6));
+
+        LinearLayout block = new LinearLayout(context);
+        block.setOrientation(LinearLayout.VERTICAL);
 
         TextView title = new TextView(context);
         title.setText("Tweaks");
@@ -116,7 +122,15 @@ public final class TweaksScreen {
         params.topMargin = Tokens.dp(context, Tokens.SPACE_1);
         subtitle.setLayoutParams(params);
         block.addView(subtitle);
-        return block;
+        row.addView(block, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        // In the corner rather than in the list: the list is the settings, and this acts on the app.
+        row.addView(new ActionView(context, "Restart", () -> RestartPrompt.restartNow(context)),
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+        return row;
     }
 
     private static View section(Context context, String label) {
