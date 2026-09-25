@@ -2,6 +2,7 @@ package app.onlynazril.extension.tiktokHandle.ui;
 
 import android.content.Context;
 import android.graphics.Typeface;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import app.onlynazril.extension.tiktokHandle.Surfaces;
+import app.onlynazril.extension.tiktokHandle.internal.RestartPrompt;
 import app.onlynazril.extension.tiktokHandle.settings.HandleSettings;
 
 /**
@@ -72,7 +74,8 @@ public final class TweaksScreen {
         column.addView(new RowView(
                 context,
                 "Post time",
-                "Always show when the video was posted, even when TikTok hides it.",
+                "Show when the video was posted, even when TikTok hides it. Off removes the time, "
+                        + "including TikTok's own.",
                 toggle(context, HandleSettings.isPostTimeEnabled(context),
                         checked -> HandleSettings.setPostTimeEnabled(context, checked))));
 
@@ -86,8 +89,26 @@ public final class TweaksScreen {
         column.addView(description(
                 context,
                 "Tweaks for TikTok 47.0.3. The display name is read, never rewritten."));
+        column.addView(actions(context));
 
         return column;
+    }
+
+    /**
+     * The screen's one control that acts on the app rather than on a setting, set at the bottom
+     * right where a thumb reaches it. It is not a row: the list is the settings.
+     */
+    private static View actions(Context context) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.END);
+        row.setPadding(
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_2),
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_6));
+        row.addView(new ActionView(context, "Restart", () -> RestartPrompt.restartNow(context)));
+        return row;
     }
 
     private static View header(Context context) {

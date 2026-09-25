@@ -29,6 +29,13 @@ import java.util.Locale;
  */
 public final class Debug {
     public static final String PREFIX = "TIKTOK_HANDLE";
+
+    /**
+     * Bumped by hand with every change worth telling apart on a device. Printed once at startup, so
+     * a log says which build is actually installed: without it, "the change did nothing" and "the
+     * APK was never replaced" look exactly the same.
+     */
+    public static final String BUILD = "b3";
     private static final String TAG = "tiktokHandle";
     private static final String FILE_NAME = "tiktokhandle.log";
     /** Writes stop past this size so a probing session cannot fill the device. */
