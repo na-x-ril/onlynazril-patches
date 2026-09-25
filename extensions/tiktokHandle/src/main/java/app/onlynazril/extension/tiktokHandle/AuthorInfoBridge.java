@@ -13,6 +13,7 @@ import java.util.WeakHashMap;
 
 import app.onlynazril.extension.tiktokHandle.internal.Debug;
 import app.onlynazril.extension.tiktokHandle.internal.Reflect;
+import app.onlynazril.extension.tiktokHandle.internal.RestartPrompt;
 import app.onlynazril.extension.tiktokHandle.settings.HandleSettings;
 
 /**
@@ -57,6 +58,9 @@ public final class AuthorInfoBridge {
     public static void onHeaderView(Object assem, View root) {
         try {
             if (assem == null || root == null) return;
+            // The first header of a freshly patched install is where a restart is asked for: it is
+            // the earliest point in the app's own UI where an Activity is in hand.
+            RestartPrompt.maybeShow(root);
             int id = timeViewId(root.getContext());
             if (id == 0) return;
             View time = root.findViewById(id);
