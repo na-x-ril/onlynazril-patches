@@ -13,6 +13,7 @@ import java.util.WeakHashMap;
 
 import app.onlynazril.extension.tiktokHandle.internal.Debug;
 import app.onlynazril.extension.tiktokHandle.internal.Reflect;
+import app.onlynazril.extension.tiktokHandle.internal.RestartPrompt;
 import app.onlynazril.extension.tiktokHandle.settings.HandleSettings;
 
 /**
@@ -47,9 +48,9 @@ public final class AuthorInfoBridge {
     private static int timeViewId;
     private static boolean idResolved;
     private static int reported;
-    private static int reportedSkips;
+    private static int reportedHides;
     private static final int MAX_REPORTS = 12;
-    private static final int MAX_SKIPS = 4;
+    private static final int MAX_HIDES = 4;
 
     private AuthorInfoBridge() {}
 
@@ -57,6 +58,9 @@ public final class AuthorInfoBridge {
     public static void onHeaderView(Object assem, View root) {
         try {
             if (assem == null || root == null) return;
+            // The first header of a freshly patched install is where a restart is asked for: it is
+            // the earliest point in the app's own UI where an Activity is in hand.
+            RestartPrompt.maybeShow(root);
             int id = timeViewId(root.getContext());
             if (id == 0) return;
             View time = root.findViewById(id);
@@ -87,18 +91,22 @@ public final class AuthorInfoBridge {
         try {
             if (!(view instanceof TextView)) return;
             if (!HandleSettings.surfaceEnabled(Surfaces.FEED)) return;
-            boolean showTime = HandleSettings.timeOn(Surfaces.FEED);
-            boolean showRegion = HandleSettings.regionOn(Surfaces.FEED);
-            if (!showTime && !showRegion) return;
 
             TextView timeView = (TextView) view;
+            boolean showTime = HandleSettings.timeOn(Surfaces.FEED);
+            boolean showRegion = HandleSettings.regionOn(Surfaces.FEED);
             long createTime = createTimeOf(aweme);
+
+            // The time element switched off means TikTok's own time goes as well: this view is where
+            // that text lives, and the element that keeps it is the one that is off. Writing nothing
+            // here would leave TikTok's time on screen, which is what a switch called "post time"
+            // cannot look like. What may remain is the region, which is a separate switch.
             String current = currentText(timeView);
-            String base = StampText.timeText(timeView, current, createTime, showTime);
+            String base = showTime ? StampText.timeText(timeView, current, createTime, true) : "";
             String region = showRegion ? RegionSource.forAweme(aweme) : null;
             if (base.isEmpty() && region == null) {
-                // No time on screen to keep and no region to place: nothing this view can say.
-                reportSkip(showTime, showRegion);
+                hide(timeView);
+                reportHide(showTime, showRegion);
                 return;
             }
 
@@ -107,7 +115,7 @@ public final class AuthorInfoBridge {
             // left as TikTok wrote it.
             String target = StampText.headerTime(base, region);
             report(aweme, region, createTime, showTime, showRegion, current, target);
-            if (target.equals(current)) return;
+            if (target.equals(current) && timeView.getVisibility() == View.VISIBLE) return;
             timeView.setText(target);
             timeView.setVisibility(View.VISIBLE);
             // Exactly what was rendered, and the time text it was built from. The base is
@@ -118,6 +126,19 @@ public final class AuthorInfoBridge {
         } catch (Throwable t) {
             Log.w(TAG, "post-time / region write failed", t);
         }
+    }
+
+    /**
+     * Takes TikTok's own time off this view, and its copy with it. Called when the time element is
+     * off and there is no region to keep, so nothing on the view belongs to the extension and
+     * TikTok's text is not left behind. The tags go too: a view that carries no render must not be
+     * read as one, or turning the switch back on rebuilds from a base that was never on screen.
+     */
+    private static void hide(TextView timeView) {
+        if (!currentText(timeView).isEmpty()) timeView.setText("");
+        if (timeView.getVisibility() != View.GONE) timeView.setVisibility(View.GONE);
+        timeView.setTag(StampText.TARGET_TAG, null);
+        timeView.setTag(StampText.BASE_TAG, null);
     }
 
     /**
@@ -145,13 +166,13 @@ public final class AuthorInfoBridge {
     }
 
     /**
-     * A render with nothing to write, printed so that a silent header is never ambiguous: no line
-     * and an empty report look the same otherwise, and they mean different things.
+     * A view left with nothing on it, printed so that a time removed from the screen is readable in
+     * the log as well: an empty view and a hook that never ran look the same otherwise.
      */
-    private static void reportSkip(boolean showTime, boolean showRegion) {
-        if (reportedSkips >= MAX_SKIPS) return;
-        reportedSkips++;
-        Debug.print("header skip: no time on screen (time=" + onOff(showTime)
+    private static void reportHide(boolean showTime, boolean showRegion) {
+        if (reportedHides >= MAX_HIDES) return;
+        reportedHides++;
+        Debug.print("header hide: time off, nothing to keep (time=" + onOff(showTime)
                 + " region=" + onOff(showRegion) + ")");
     }
 

@@ -16,6 +16,9 @@ public final class Tokens {
     public static final int SURFACE_PRESSED = 0xFF191919;
     public static final int HAIRLINE = 0xFF1C1C1C;
 
+    /** The prompt's own panel, one step lighter than the rows it sits above. */
+    public static final int PANEL = 0xFF101010;
+
     public static final int TEXT_PRIMARY = 0xFFF5F5F5;
     public static final int TEXT_SECONDARY = 0xFF9A9A9A;
     public static final int TEXT_DISABLED = 0xFF5A5A5A;
@@ -42,8 +45,12 @@ public final class Tokens {
     public static final float TITLE_SP = 28f;
     public static final float SUBTITLE_SP = 14f;
     public static final float SECTION_SP = 13f;
-    public static final float ROW_TITLE_SP = 17f;
+    public static final float ROW_TITLE_SP = 18f;
     public static final float ROW_SUMMARY_SP = 13f;
+    /** A control's own label: one step up from a row summary, one below a row title. */
+    public static final float ACTION_SP = 15f;
+    /** The prompt's title: one step above a row title, below the screen's own title. */
+    public static final float PANEL_TITLE_SP = 20f;
 
     private Tokens() {}
 
