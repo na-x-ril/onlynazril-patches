@@ -1,15 +1,23 @@
 package app.onlynazril.extension.tiktokHandle.internal;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.util.Log;
-import android.view.ContextThemeWrapper;
+import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import app.onlynazril.extension.tiktokHandle.ui.ActionView;
 import app.onlynazril.extension.tiktokHandle.ui.Tokens;
@@ -61,58 +69,6 @@ public final class RestartPrompt {
         }
     }
 
-    /**
-     * The dialog is built dark on purpose, whatever theme the app is running: a platform Material
-     * dialog rather than the app's own dialog style, whose shape follows the app's theme and would
-     * come out as whatever that theme says. Material's corners are square-ish and its title and
-     * message are light on a dark panel, which is the shape this needs. The buttons keep the screen's
-     * monochrome instead of the theme's accent.
-     */
-    private static void show(Activity activity) {
-        try {
-            Context dark = new ContextThemeWrapper(
-                    activity, android.R.style.Theme_Material_Dialog_Alert);
-            AlertDialog prompt = new AlertDialog.Builder(dark)
-                    .setTitle("Restart TikTok once")
-                    .setMessage("This app was just patched. Until it is started again it can draw a"
-                            + " name twice — a restart clears that, and nothing else is needed.")
-                    .setPositiveButton("Restart now", (dialog, which) -> restart(activity))
-                    .setNegativeButton("Later", null)
-                    .create();
-            prompt.setOnShowListener(shown -> monochrome(prompt));
-            prompt.show();
-        } catch (Throwable t) {
-            Log.w(TAG, "restart prompt failed", t);
-        }
-    }
-
-    /**
-     * The dialog's own buttons are borderless text, which next to the screen's controls reads as a
-     * different kind of thing. They wear the same rounded outline instead, in the prompt's own
-     * palette, and in the sentence case the rest of the screen uses.
-     */
-    private static void monochrome(AlertDialog dialog) {
-        try {
-            Context context = dialog.getContext();
-            style(dialog, AlertDialog.BUTTON_POSITIVE, context, Tokens.ACCENT);
-            style(dialog, AlertDialog.BUTTON_NEGATIVE, context, Tokens.TEXT_SECONDARY);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private static void style(AlertDialog dialog, int which, Context context, int color) {
-        Button button = dialog.getButton(which);
-        if (button == null) return;
-        button.setTextColor(color);
-        button.setAllCaps(false);
-        button.setBackground(ActionView.outline(context));
-        button.setPadding(
-                Tokens.dp(context, Tokens.SPACE_6),
-                Tokens.dp(context, Tokens.SPACE_2),
-                Tokens.dp(context, Tokens.SPACE_6),
-                Tokens.dp(context, Tokens.SPACE_2));
-    }
-
     /** Restarts now, from any context that leads to an Activity. */
     public static void restartNow(Context context) {
         try {
@@ -122,6 +78,112 @@ public final class RestartPrompt {
         } catch (Throwable t) {
             Log.w(TAG, "restart failed", t);
         }
+    }
+
+    /**
+     * The panel is built here rather than taken from a dialog theme: a theme brings its own corner
+     * radius, its own panel colour and its own button chrome, and the app's preferred theme decides
+     * all three. This one is the screen's own palette — a `PANEL` background, a small radius, a
+     * hairline — with the same rounded controls the screen uses, so the prompt and the screen read as
+     * one thing rather than two.
+     */
+    private static void show(Activity activity) {
+        try {
+            Dialog dialog = new Dialog(activity);
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            dialog.setContentView(panel(activity, dialog));
+
+            Window window = dialog.getWindow();
+            if (window != null) {
+                window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+                WindowManager.LayoutParams attributes = window.getAttributes();
+                attributes.dimAmount = 0.6f;
+                window.setAttributes(attributes);
+                int width = Math.min(
+                        Tokens.dp(activity, 320),
+                        (int) (activity.getResources().getDisplayMetrics().widthPixels * 0.86f));
+                window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT);
+            }
+            dialog.show();
+        } catch (Throwable t) {
+            Log.w(TAG, "restart prompt failed", t);
+        }
+    }
+
+    private static View panel(Activity activity, Dialog dialog) {
+        Context context = activity;
+        LinearLayout column = new LinearLayout(context);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setBackground(panelBackground(context));
+        column.setPadding(
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_4));
+
+        // Title and message run the panel's full width and centre their text in it, so the content
+        // reads as one centred block while the actions keep the bottom-right corner.
+        TextView title = new TextView(context);
+        title.setText("Restart TikTok once");
+        title.setTextSize(Tokens.PANEL_TITLE_SP);
+        title.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        title.setTextColor(Tokens.TEXT_PRIMARY);
+        title.setGravity(Gravity.CENTER);
+        title.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        column.addView(title);
+
+        TextView message = new TextView(context);
+        message.setText("Restart to finish setting up.");
+        message.setTextSize(Tokens.SUBTITLE_SP);
+        message.setTextColor(Tokens.TEXT_SECONDARY);
+        message.setGravity(Gravity.CENTER);
+        message.setLineSpacing(Tokens.dp(context, Tokens.SPACE_1), 1f);
+
+        LinearLayout.LayoutParams messageParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        messageParams.topMargin = Tokens.dp(context, Tokens.SPACE_2);
+        messageParams.bottomMargin = Tokens.dp(context, Tokens.SPACE_2);
+        message.setLayoutParams(messageParams);
+        column.addView(message);
+
+        // Right-aligned, the same as the screen's own control, and on the panel's own fill. Only the
+        // gap above the row is tight: the title and the message keep the panel's full padding.
+        LinearLayout actions = new LinearLayout(context);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setLayoutParams(new LinearLayout.LayoutParams(
+              LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        actions.setPadding(0, Tokens.dp(context, Tokens.SPACE_2), 0, 0);
+
+        // LayoutParams untuk membagi 50% (weight = 1f, width = 0)
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(
+              0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+
+        // Tombol kiri (Later)
+        ActionView later = new ActionView(
+                context, "Later", Tokens.PANEL, Tokens.TEXT_SECONDARY, dialog::dismiss);
+        actions.addView(later, actionParams);
+
+        // Tombol kanan (Restart now) dengan margin kiri sebagai pemisah
+        ActionView restart = new ActionView(
+                context, "Restart now", Tokens.PANEL, Tokens.ACCENT, () -> restart(activity));
+        LinearLayout.LayoutParams restartParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        restartParams.leftMargin = Tokens.dp(context, Tokens.SPACE_2);
+        actions.addView(restart, restartParams);
+
+        column.addView(actions);
+        return column;
+    }
+
+    private static Drawable panelBackground(Context context) {
+        GradientDrawable panel = new GradientDrawable();
+        panel.setShape(GradientDrawable.RECTANGLE);
+        panel.setCornerRadius(Tokens.dp(context, 14));
+        panel.setColor(Tokens.PANEL);
+        panel.setStroke(Tokens.dp(context, 1), Tokens.HAIRLINE);
+        return panel;
     }
 
     /**

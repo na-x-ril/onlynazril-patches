@@ -11,39 +11,47 @@ import android.widget.TextView;
 /**
  * A pressable action, drawn to match the screen: hairline outline, no elevation, no platform
  * button chrome that would bring its own colour and shape between Android versions.
+ *
+ * The padding is only what a label needs — a platform button adds its own, and that is what makes a
+ * small word sit in a large pill. The fill is a parameter because the prompt's panel is a step
+ * lighter than the rows, and a button on it should read as part of that panel.
  */
 public final class ActionView extends TextView {
     public ActionView(Context context, String label, Runnable action) {
+        this(context, label, Tokens.SURFACE, Tokens.ACCENT, action);
+    }
+
+    public ActionView(Context context, String label, int fill, int textColor, Runnable action) {
         super(context);
         setText(label);
-        setTextSize(Tokens.SUBTITLE_SP);
-        setTextColor(Tokens.ACCENT);
+        setTextSize(Tokens.ACTION_SP);
+        setTextColor(textColor);
         setGravity(Gravity.CENTER);
-        setMinWidth(Tokens.dp(context, 96));
         setPadding(
-                Tokens.dp(context, Tokens.SPACE_6),
-                Tokens.dp(context, Tokens.SPACE_3),
-                Tokens.dp(context, Tokens.SPACE_6),
-                Tokens.dp(context, Tokens.SPACE_3));
-        setBackground(outline(context));
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_2),
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_2));
+        setBackground(outline(context, fill));
         setClickable(true);
         setFocusable(true);
         setOnClickListener(view -> action.run());
     }
 
+    public static Drawable outline(Context context) {
+        return outline(context, Tokens.SURFACE);
+    }
+
     /**
      * The mask is what bounds the ripple, so it carries the same rounded shape as the outline: a
      * rectangular mask lets the press colour run past the corners and out of the button.
-     *
-     * Public because a dialog button can wear the same shape, so the prompt and the screen do not
-     * end up with two different kinds of control.
      */
-    public static Drawable outline(Context context) {
+    public static Drawable outline(Context context, int fill) {
         int radius = Tokens.dp(context, 1000);
         GradientDrawable shape = new GradientDrawable();
         shape.setShape(GradientDrawable.RECTANGLE);
         shape.setCornerRadius(radius);
-        shape.setColor(Tokens.SURFACE);
+        shape.setColor(fill);
         shape.setStroke(Tokens.dp(context, 1), Tokens.HAIRLINE);
 
         GradientDrawable mask = new GradientDrawable();

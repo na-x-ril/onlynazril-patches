@@ -89,22 +89,36 @@ public final class TweaksScreen {
         column.addView(description(
                 context,
                 "Tweaks for TikTok 47.0.3. The display name is read, never rewritten."));
+        column.addView(actions(context));
 
         return column;
     }
 
-    private static View header(Context context) {
+    /**
+     * The screen's one control that acts on the app rather than on a setting, set at the bottom
+     * right where a thumb reaches it. It is not a row: the list is the settings.
+     */
+    private static View actions(Context context) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.TOP);
+        row.setGravity(Gravity.END);
         row.setPadding(
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_2),
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_6));
+        row.addView(new ActionView(context, "Restart", () -> RestartPrompt.restartNow(context)));
+        return row;
+    }
+
+    private static View header(Context context) {
+        LinearLayout block = new LinearLayout(context);
+        block.setOrientation(LinearLayout.VERTICAL);
+        block.setPadding(
                 Tokens.dp(context, Tokens.SPACE_4),
                 Tokens.dp(context, Tokens.SPACE_12),
                 Tokens.dp(context, Tokens.SPACE_4),
                 Tokens.dp(context, Tokens.SPACE_6));
-
-        LinearLayout block = new LinearLayout(context);
-        block.setOrientation(LinearLayout.VERTICAL);
 
         TextView title = new TextView(context);
         title.setText("Tweaks");
@@ -122,15 +136,7 @@ public final class TweaksScreen {
         params.topMargin = Tokens.dp(context, Tokens.SPACE_1);
         subtitle.setLayoutParams(params);
         block.addView(subtitle);
-        row.addView(block, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-        // In the corner rather than in the list: the list is the settings, and this acts on the app.
-        row.addView(new ActionView(context, "Restart", () -> RestartPrompt.restartNow(context)),
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT));
-        return row;
+        return block;
     }
 
     private static View section(Context context, String label) {
