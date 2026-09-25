@@ -11,9 +11,10 @@ public final class AppContext {
     public static void set(Context c) {
         ctx = c;
         // The one line that proves the installed APK carries this extension and hooks early enough.
+        // It carries the build marker too, so a stale APK is visible in the log rather than guessed at.
         if (!announced) {
             announced = true;
-            Debug.print("extension attached");
+            Debug.print("extension attached (" + Debug.BUILD + ")");
         }
     }
 
