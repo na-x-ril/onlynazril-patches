@@ -72,7 +72,8 @@ public final class TweaksScreen {
         column.addView(new RowView(
                 context,
                 "Post time",
-                "Always show when the video was posted, even when TikTok hides it.",
+                "Show when the video was posted, even when TikTok hides it. Off removes the time, "
+                        + "including TikTok's own.",
                 toggle(context, HandleSettings.isPostTimeEnabled(context),
                         checked -> HandleSettings.setPostTimeEnabled(context, checked))));
 
