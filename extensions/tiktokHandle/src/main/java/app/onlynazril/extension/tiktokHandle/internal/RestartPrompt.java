@@ -3,7 +3,6 @@ package app.onlynazril.extension.tiktokHandle.internal;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -57,7 +56,7 @@ public final class RestartPrompt {
                 return;
             }
 
-            Activity activity = activityOf(context);
+            Activity activity = Activities.of(context);
             if (activity == null || activity.isFinishing()) return;
 
             handled = true;
@@ -72,7 +71,7 @@ public final class RestartPrompt {
     /** Restarts now, from any context that leads to an Activity. */
     public static void restartNow(Context context) {
         try {
-            Activity activity = activityOf(context);
+            Activity activity = Activities.of(context);
             if (activity == null) return;
             restart(activity);
         } catch (Throwable t) {
@@ -236,17 +235,5 @@ public final class RestartPrompt {
         } catch (Throwable t) {
             return 0;
         }
-    }
-
-    /** The Activity behind a view's context, if the chain leads to one. */
-    private static Activity activityOf(Context context) {
-        Context current = context;
-        for (int i = 0; i < 10 && current instanceof ContextWrapper; i++) {
-            if (current instanceof Activity) return (Activity) current;
-            Context base = ((ContextWrapper) current).getBaseContext();
-            if (base == null || base == current) break;
-            current = base;
-        }
-        return current instanceof Activity ? (Activity) current : null;
     }
 }
