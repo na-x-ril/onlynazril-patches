@@ -14,7 +14,6 @@ import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.onlynazril.patches.shared.Constants
-import app.onlynazril.patches.tiktok.handle.settings.*
 import app.morphe.patches.tiktok.shared.requireLocals
 import app.morphe.patches.tiktok.shared.requireRegisters
 import app.morphe.util.findFreeRegister
@@ -211,7 +210,7 @@ val settingsPatch = bytecodePatch(
                     } ?: throw PatchException(
                     "Settings: could not resolve click wrapper discriminator.",
                 )
-                wrapperInvokeName = "invoke\$$discriminator"
+                wrapperInvokeName = $$"invoke$$$discriminator"
                 ref.definingClass
             } ?: throw PatchException(
                 "Settings: could not resolve OpenDebug click wrapper class from compose method.",
@@ -253,7 +252,7 @@ val settingsPatch = bytecodePatch(
             classDefForEach { classDef ->
                 if (classDef.type != lambdaClass) return@classDefForEach
                 for (method in classDef.methods) {
-                    if (!method.name.matches(Regex("invoke\\\$\\d+"))) continue
+                    if (!method.name.matches(Regex("invoke\\$\\d+"))) continue
                     if (method.returnType != "Ljava/lang/Object;") continue
                     val parameters = method.parameterTypes
                     if (parameters.size != 3 || parameters[0] != lambdaClass) continue
