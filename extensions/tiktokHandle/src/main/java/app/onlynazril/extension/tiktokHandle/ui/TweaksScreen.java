@@ -1,5 +1,7 @@
 package app.onlynazril.extension.tiktokHandle.ui;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.view.Gravity;
@@ -7,19 +9,26 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 import app.onlynazril.extension.tiktokHandle.Surfaces;
+import app.onlynazril.extension.tiktokHandle.feedfilter.FeedFilterStats;
+import app.onlynazril.extension.tiktokHandle.internal.Debug;
 import app.onlynazril.extension.tiktokHandle.internal.RestartPrompt;
+import app.onlynazril.extension.tiktokHandle.settings.FeedFilterSettings;
 import app.onlynazril.extension.tiktokHandle.settings.HandleSettings;
 
 /**
  * Builds the screen: header, one Handle section (master switch on top, then one row per surface,
- * then the region), and About.
+ * then the region), a Feed filter section, and About.
  *
  * With the master off the dependent rows stay visible but greyed and inert, so their own state
  * survives and comes back unchanged when the master returns.
+ *
+ * The feed filter's rows take no part in that: what the feed contains is not the @handle stamp,
+ * so no switch above can change them and they cannot change it.
  */
 public final class TweaksScreen {
     /** {surface id, title, summary} for the surface rows. */
@@ -85,13 +94,82 @@ public final class TweaksScreen {
         });
         for (RowView row : dependents) row.setRowEnabled(masterOn);
 
+        long[] views = FeedFilterSettings.minMaxViews();
+        long[] likes = FeedFilterSettings.minMaxLikes();
+        column.addView(section(context, "Feed filter"));
+        column.addView(new RowView(
+                context,
+                "Remove ads",
+                "Drop ads and promotional-music posts from the feed.",
+                toggle(context, FeedFilterSettings.isAdsEnabled(context),
+                        checked -> FeedFilterSettings.setAdsEnabled(context, checked))));
+        column.addView(divider(context));
+        column.addView(new RowView(
+                context,
+                "Min/Max views",
+                "Hide videos outside this play-count range. Set the range to turn it on.",
+                RangeAction.create(context, "Min/Max views", views[0], views[1],
+                        (min, max) -> FeedFilterSettings.setViewsRange(context, min, max))));
+        column.addView(divider(context));
+        column.addView(new RowView(
+                context,
+                "Min/Max likes",
+                "Hide videos outside this digg-count range. Set the range to turn it on.",
+                RangeAction.create(context, "Min/Max likes", likes[0], likes[1],
+                        (min, max) -> FeedFilterSettings.setLikesRange(context, min, max))));
+
         column.addView(section(context, "About"));
         column.addView(description(
                 context,
                 "Tweaks for TikTok 47.0.3. The display name is read, never rewritten."));
+        column.addView(diagnostics(context));
         column.addView(actions(context));
 
         return column;
+    }
+
+    /**
+     * The filter's own tally, tappable to copy.
+     *
+     * This is the one piece of state a device report needs, and reading it off a screenshot is not
+     * the same as pasting it: the block is also written to the log on every tap, so the log carries
+     * the state as it was when it was read.
+     */
+    private static View diagnostics(Context context) {
+        TextView view = new TextView(context);
+        view.setText(body() + "\nTap to copy");
+        view.setTextSize(Tokens.ROW_SUMMARY_SP);
+        view.setTextColor(Tokens.TEXT_SECONDARY);
+        view.setLineSpacing(Tokens.dp(context, Tokens.SPACE_1), 1f);
+        view.setPadding(
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_2),
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_4));
+        view.setClickable(true);
+        view.setOnClickListener(clicked -> {
+            String text = body();
+            Debug.print("state: " + text.replace('\n', ' '));
+            copy(context, text);
+            view.setText("Copied to clipboard");
+            view.postDelayed(() -> view.setText(text + "\nTap to copy"), 1600);
+        });
+        return view;
+    }
+
+    /** What a report needs: which build, what the filter saw, and where the log went. */
+    private static String body() {
+        File sink = Debug.sink();
+        return "Build " + Debug.BUILD + "\n"
+                + "Feed filter: " + FeedFilterStats.summary() + "\n"
+                + "Log: " + (sink == null ? "not written yet" : sink.getAbsolutePath());
+    }
+
+    private static void copy(Context context, String text) {
+        ClipboardManager manager =
+                (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+        if (manager == null) return;
+        manager.setPrimaryClip(ClipData.newPlainText("Tweaks", text));
     }
 
     /**
@@ -128,7 +206,7 @@ public final class TweaksScreen {
         block.addView(title);
 
         TextView subtitle = new TextView(context);
-        subtitle.setText("Handle stamp, region and post time");
+        subtitle.setText("Handle stamp, region, post time, feed filter");
         subtitle.setTextSize(Tokens.SUBTITLE_SP);
         subtitle.setTextColor(Tokens.TEXT_SECONDARY);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
