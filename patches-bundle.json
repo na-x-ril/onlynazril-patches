@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-29T16:13:39",
-  "description": "## [1.2.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.1.0...v1.2.0-dev.1) (2026-09-29)\n\n### ✨ New Features\n\n* filter the feed by ads and by view or like counts ([97874bc](https://github.com/na-x-ril/onlynazril-patches/commit/97874bc42c4c7a5e9efd3d7ba524e3c08268828e)), closes [FeedItemList#setItems](https://github.com/na-x-ril/FeedItemList/issues/setItems) [FeedItemList#clone](https://github.com/na-x-ril/FeedItemList/issues/clone) [X.07zq#getData](https://github.com/na-x-ril/X.07zq/issues/getData)",
-  "download_url": "https://github.com/na-x-ril/onlynazril-patches/releases/download/v1.2.0-dev.1/patches-1.2.0-dev.1.mpp",
+  "created_at": "2026-09-29T16:46:34",
+  "description": "## [1.2.0](https://github.com/na-x-ril/onlynazril-patches/compare/v1.1.0...v1.2.0) (2026-09-29)\n\n### ✨ New Features\n\n* filter the feed by ads and by view or like counts ([97874bc](https://github.com/na-x-ril/onlynazril-patches/commit/97874bc42c4c7a5e9efd3d7ba524e3c08268828e)), closes [FeedItemList#setItems](https://github.com/na-x-ril/FeedItemList/issues/setItems) [FeedItemList#clone](https://github.com/na-x-ril/FeedItemList/issues/clone) [X.07zq#getData](https://github.com/na-x-ril/X.07zq/issues/getData)",
+  "download_url": "https://github.com/na-x-ril/onlynazril-patches/releases/download/v1.2.0/patches-1.2.0.mpp",
   "signature_download_url": "",
-  "version": "1.2.0-dev.1"
+  "version": "1.2.0"
 }
