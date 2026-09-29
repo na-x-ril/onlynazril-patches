@@ -6,7 +6,7 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 
 internal const val FEED_FILTER_CLASS =
-    "Lapp/onlynazril/extension/tiktokHandle/feedfilter/FeedFilter;"
+    "Lapp/onlynazril/extension/tiktok/feedfilter/FeedFilter;"
 internal const val FEED_ITEM_LIST = "Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;"
 internal const val I_FEED_API = "Lcom/ss/android/ugc/aweme/feed/cache/IFeedApi;"
 

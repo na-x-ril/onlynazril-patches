@@ -35,7 +35,7 @@ val tiktokFeedFilterPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_TIKTOK)
 
-    extendWith("extensions/tiktokHandle.mpe")
+    extendWith("extensions/tiktok.mpe")
 
     execute {
         val matches = FeedApiFetchFingerprint.matchAllOrNull() ?: emptyList()
