@@ -35,7 +35,7 @@ public final class Debug {
      * a log says which build is actually installed: without it, "the change did nothing" and "the
      * APK was never replaced" look exactly the same.
      */
-    public static final String BUILD = "b17";
+    public static final String BUILD = "b22";
     private static final String TAG = "tiktokHandle";
     private static final String FILE_NAME = "tiktokhandle.log";
     /** Writes stop past this size so a probing session cannot fill the device. */
