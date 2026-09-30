@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-29T16:46:34",
-  "description": "## [1.2.0](https://github.com/na-x-ril/onlynazril-patches/compare/v1.1.0...v1.2.0) (2026-09-29)\n\n### ✨ New Features\n\n* filter the feed by ads and by view or like counts ([97874bc](https://github.com/na-x-ril/onlynazril-patches/commit/97874bc42c4c7a5e9efd3d7ba524e3c08268828e)), closes [FeedItemList#setItems](https://github.com/na-x-ril/FeedItemList/issues/setItems) [FeedItemList#clone](https://github.com/na-x-ril/FeedItemList/issues/clone) [X.07zq#getData](https://github.com/na-x-ril/X.07zq/issues/getData)",
-  "download_url": "https://github.com/na-x-ril/onlynazril-patches/releases/download/v1.2.0/patches-1.2.0.mpp",
+  "created_at": "2026-09-30T14:46:30",
+  "description": "## [1.2.1-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.0...v1.2.1-dev.1) (2026-09-30)\n\n### 🐛 Bug Fixes\n\n* the region survives the app writing the post time again ([3bffc83](https://github.com/na-x-ril/onlynazril-patches/commit/3bffc8346d54e228ccbe4080bb5032c835c9ad40)), closes [X.098X#invoke](https://github.com/na-x-ril/X.098X/issues/invoke)",
+  "download_url": "https://github.com/na-x-ril/onlynazril-patches/releases/download/v1.2.1-dev.1/patches-1.2.1-dev.1.mpp",
   "signature_download_url": "",
-  "version": "1.2.0"
+  "version": "1.2.1-dev.1"
 }

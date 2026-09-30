@@ -1,3 +1,9 @@
+## [1.2.1-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.0...v1.2.1-dev.1) (2026-09-30)
+
+### 🐛 Bug Fixes
+
+* the region survives the app writing the post time again ([3bffc83](https://github.com/na-x-ril/onlynazril-patches/commit/3bffc8346d54e228ccbe4080bb5032c835c9ad40)), closes [X.098X#invoke](https://github.com/na-x-ril/X.098X/issues/invoke)
+
 ## [1.2.0](https://github.com/na-x-ril/onlynazril-patches/compare/v1.1.0...v1.2.0) (2026-09-29)
 
 ### ✨ New Features
