@@ -1,3 +1,9 @@
+## [1.2.1-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.1-dev.1...v1.2.1-dev.2) (2026-09-30)
+
+### 🐛 Bug Fixes
+
+* the reply line uses the handle the comment list already carried ([47f21ff](https://github.com/na-x-ril/onlynazril-patches/commit/47f21ffbdbbf03faf4ca2ef6b497770bd63de299))
+
 ## [1.2.1-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.0...v1.2.1-dev.1) (2026-09-30)
 
 ### 🐛 Bug Fixes

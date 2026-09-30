@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-30T14:46:30",
-  "description": "## [1.2.1-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.0...v1.2.1-dev.1) (2026-09-30)\n\n### 🐛 Bug Fixes\n\n* the region survives the app writing the post time again ([3bffc83](https://github.com/na-x-ril/onlynazril-patches/commit/3bffc8346d54e228ccbe4080bb5032c835c9ad40)), closes [X.098X#invoke](https://github.com/na-x-ril/X.098X/issues/invoke)",
-  "download_url": "https://github.com/na-x-ril/onlynazril-patches/releases/download/v1.2.1-dev.1/patches-1.2.1-dev.1.mpp",
+  "created_at": "2026-09-30T16:45:31",
+  "description": "## [1.2.1-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.1-dev.1...v1.2.1-dev.2) (2026-09-30)\n\n### 🐛 Bug Fixes\n\n* the reply line uses the handle the comment list already carried ([47f21ff](https://github.com/na-x-ril/onlynazril-patches/commit/47f21ffbdbbf03faf4ca2ef6b497770bd63de299))",
+  "download_url": "https://github.com/na-x-ril/onlynazril-patches/releases/download/v1.2.1-dev.2/patches-1.2.1-dev.2.mpp",
   "signature_download_url": "",
-  "version": "1.2.1-dev.1"
+  "version": "1.2.1-dev.2"
 }
