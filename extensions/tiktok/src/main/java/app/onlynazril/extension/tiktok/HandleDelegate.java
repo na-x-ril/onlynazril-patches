@@ -20,9 +20,14 @@ import app.onlynazril.extension.tiktok.settings.HandleSettings;
 public final class HandleDelegate {
     /** Enough frames to see the binder; short enough to keep the walk cheap. */
     private static final int MAX_FRAMES = 40;
-    private static final int MAX_MISS_REPORTS = 8;
-    private static final int MAX_RENDER_REPORTS = 8;
-    private static final int MAX_SKIP_REPORTS = 8;
+    /**
+     * Raised by hand while a surface outside the feed is being traced. The miss budget matters most:
+     * the first second of a process spends all of a small one on background reads, so a UI miss, the
+     * one line that names the class drawing a name where we do not look, was never reported.
+     */
+    private static final int MAX_MISS_REPORTS = 60;
+    private static final int MAX_RENDER_REPORTS = 120;
+    private static final int MAX_SKIP_REPORTS = 40;
     /** Deep enough to see past the helpers a render goes through and reach the cell. */
     private static final int MAX_RENDER_FRAMES = 16;
     private static final int MAX_MISS_FRAMES = 8;
