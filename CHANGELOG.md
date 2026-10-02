@@ -1,3 +1,15 @@
+## [1.3.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.1-dev.2...v1.3.0-dev.1) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* keep the Tweaks screen clear of the system bars ([b9791b0](https://github.com/na-x-ril/onlynazril-patches/commit/b9791b034df9392de6d56b8aad69f82b4e684a17))
+
+### ✨ New Features
+
+* one prompt component, and a log that keeps writing ([c8a928d](https://github.com/na-x-ril/onlynazril-patches/commit/c8a928db6056854a68f7b05b49c9230a394bd8b3))
+* save the media from the share sheet, without the watermark ([4ed620b](https://github.com/na-x-ril/onlynazril-patches/commit/4ed620b67191a99a09c5ac8662cee2982ce4bcea)), closes [Video#getDownloadAddr](https://github.com/na-x-ril/Video/issues/getDownloadAddr)
+* set a profile background on accounts the rollout has not reached ([4e165c5](https://github.com/na-x-ril/onlynazril-patches/commit/4e165c52a3ce61f002e7aebb2d109aef1f8eabcc))
+
 ## [1.2.1-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.1-dev.1...v1.2.1-dev.2) (2026-09-30)
 
 ### 🐛 Bug Fixes
