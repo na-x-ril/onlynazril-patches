@@ -1,3 +1,9 @@
+## [1.3.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0-dev.1...v1.3.0-dev.2) (2026-10-02)
+
+### ✨ New Features
+
+* the download and profile background switches, and the 47.1.4 target ([5efd33b](https://github.com/na-x-ril/onlynazril-patches/commit/5efd33b3f8f0fa5310b7979a946044a982bc615f))
+
 ## [1.3.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.1-dev.2...v1.3.0-dev.1) (2026-10-02)
 
 ### 🐛 Bug Fixes
