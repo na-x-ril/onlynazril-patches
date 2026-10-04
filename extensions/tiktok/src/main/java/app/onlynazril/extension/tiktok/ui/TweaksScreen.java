@@ -156,7 +156,8 @@ public final class TweaksScreen {
         RowView bestQualityRow = new RowView(
                 context,
                 "Best quality",
-                "Take the highest bitrate variant instead of the default one.",
+                "Take the highest quality among the variants this feed carries, not the highest "
+                        + "the server has: a lower one is possible when the feed omits the top.",
                 toggle(context, DownloadSettings.isBestQualityEnabled(context),
                         checked -> DownloadSettings.setBestQualityEnabled(context, checked)));
         downloadDependents.add(bestQualityRow);
@@ -176,7 +177,9 @@ public final class TweaksScreen {
                 context,
                 "Profile background",
                 "Set a static image or a video as the profile background, on "
-                        + "accounts TikTok has not rolled it out to.",
+                        + "accounts TikTok has not rolled it out to. Others see it, not you: the "
+                        + "background shows on your profile to everyone who opens it, so pick an "
+                        + "image you are happy to publish, or choose one from your posts",
                 toggle(context, ProfileBgSettings.isEnabled(context),
                         checked -> ProfileBgSettings.setEnabled(context, checked))));
 
