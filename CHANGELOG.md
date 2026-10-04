@@ -1,3 +1,9 @@
+## [1.3.0-dev.3](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0-dev.2...v1.3.0-dev.3) (2026-10-04)
+
+### 🐛 Bug Fixes
+
+* record what the download feature measured on a device ([366e8ab](https://github.com/na-x-ril/onlynazril-patches/commit/366e8abd068e7000cae2d580ed66ddbfb859bece))
+
 ## [1.3.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0-dev.1...v1.3.0-dev.2) (2026-10-02)
 
 ### ✨ New Features
