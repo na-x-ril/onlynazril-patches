@@ -41,11 +41,16 @@ See **Credits** below for the full attribution.
 2. **`getShowType()`** answers 2, which is the unrestricted way the entry is offered.
 3. **`getTranscode()`** answers 1 while the no-watermark part is on, which is the flag the app reads
    as "leave the file alone".
-4. **`Video#getDownloadAddr()`** is redirected to the highest bitrate playback variant the item
+4. **`Video#getDownloadAddr()`** is redirected to the highest quality playback variant the item
    carries, so the file the app fetches is the best one it has rather than the watermarked address.
 
 The first three are the reference approach; the fourth is this bundle's addition, and its log line
 (`download: N variant(s), best X bps`) says whether the item carried variants at all.
+
+Both the fourth and this section were written before the feature was ever run on a device. **Read
+[Measured on a device](#measured-on-a-device-build-b38-4714-and-what-it-changed) before trusting either**:
+the measurements contradict what is written above, and the fourth hook is now believed to be replacing
+the app's own better address with a lower one.
 
 ## Two approaches that were tried first, and lost
 
@@ -68,17 +73,67 @@ from it left the panel with a third of its rows.
 The lesson is the one the reference implementation already embodied: do not rebuild the app's
 download, and do not answer a question the app answers elsewhere.
 
+## Measured on a device (build b38, 47.1.4), and what it changed
+
+The version of this document written before a device was involved said two things that the measurements
+did not support, and both are corrected here rather than quietly replaced.
+
+**`downloadNoWatermarkAddr` is above the feed's ceiling, not on it.** The app prefers this address for a
+save (`X.19k8#LIZ` reads it first and tags the result `tag_no_water`), and it wins the weighing every
+time. The files it produced:
+
+| Saved file | Dimensions | Bitrate |
+|---|---|---|
+| `f3b87ede….mp4` | **1080×1080** | 30.0 Mbps |
+| `3f13c54d….mp4` | 1024×576 | 0.50 Mbps |
+
+So the source of quality in this feature is not the bitrate variants at all. It is the address the app
+was already reaching for and the patch was overwriting. This is why the Tweaks row speaks of "the
+variants this feed carries": that is still true of what the patch picks from, but the app's own
+unwatermarked address is the one that decides the result.
+
+**Files come out at half the source's frame rate.** Three items, compared against the same items fetched
+by a third-party downloader:
+
+| | Patched | Original |
+|---|---|---|
+| 1 | 1350×1080 @30fps | 1350×1080 **@60fps** |
+| 2 | 768×576 @30fps | 1440×1080 **@60fps** |
+| 3 | 1080×1400 @30fps | 2169×2800 **@60fps** |
+
+Every file was 30fps where the source was 60fps, and item 3 also came out at a different resolution and
+aspect ratio. Halving the frame rate while also rescaling is what a transcode looks like, not a wrong
+address: a wrong address would still carry its own frame rate, and it would be one of the sizes already
+in the list below. This is **not fixed** and it is **not diagnosed**.
+
+The suspect is `ACLCommonShare#getTranscode()`, which this patch answers `1`, the value ReVanced uses,
+read there as "leave the file alone". In this app's own download path (`X.0Vyf`) the value 1 leads into
+the branch that does file processing, so it may mean the opposite of what it means elsewhere. A switch
+answering 2 instead was built and measured against this; the test did not settle it before the change
+was reverted, so the question is left open rather than answered. It is the first thing to try.
+
+**Also corrected:** the raw-bitrate log once read `rawBitRate/-1` for every variant. `BitRate` carries no
+dimension of its own, and `qualityOf()` was falling through to the playback address's `UrlModel`, whose
+`width` the app leaves unset. Read literally, an unset width became the class −1, so no playback variant
+could ever win. The current build does not have this fix; it is noted here because the log line quoted
+in **Still open** below is from the build that did.
+
 ## Still open
 
+- **The frame rate is halved and item 3 is also rescaled** (see above). Cause unknown, most likely
+  `getTranscode()`. Until it is resolved, a saved file is a transcode of the source rather than the source.
 - Best quality picks the highest quality class by the gear name (`original_*` first, then the class),
   not by the bitrate field, which is not trustworthy: an original variant of one item reported
   87 Mbps, and a variant with the field unset would have been skipped. The log prints every variant
   it saw, so the item's ceiling is visible (`download: 9 variant(s), best adapt_lower_720_1/720 of
-  [...]`): an item carrying only 720p variants has nothing higher to take, and no rule here can raise
-  it.
+  [...]`).
+- `downloadNoWatermarkAddr` is weighed against `downloadAddr` and the bitrate variants, and wins on
+  these items. `miscDownloadAddrs`, a JSON map the server sends, read per share platform, whose
+  `suffix_scene` entry the app falls back to (`X.19k8#LIZIZ` ops 75-82), is still unread.
 - Some items carry no variants at all (`no bitrate variants on the video`), and the app's own address
   is used for those.
-- Nothing in this feature has been verified as correct on a device yet.
+- The download feature as a whole has **not** been verified as correct on a device: the entries above
+  were measured, the behaviour they contradict was not.
 
 ## Credits
 
