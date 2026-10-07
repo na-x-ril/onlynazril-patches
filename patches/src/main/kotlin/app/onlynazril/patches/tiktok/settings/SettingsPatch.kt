@@ -96,8 +96,9 @@ private const val VECTOR_RESOURCE_TO_STRING = "VectorResource(resId="
 @Suppress("unused")
 val settingsPatch = bytecodePatch(
     name = "Tweaks settings row",
-    description = "Adds the Tweaks row to TikTok settings: the switches for the @handle stamp, " +
-        "its surfaces, the region and the post time.",
+    description = "Adds the Tweaks row to TikTok settings, where every other patch in this " +
+        "bundle is switched on or off: the @handle stamp and its surfaces, the region, the post " +
+        "time, the feed filter, the download, the profile background and the custom font.",
     default = true,
 ) {
     compatibleWith(Constants.COMPATIBILITY_TIKTOK)

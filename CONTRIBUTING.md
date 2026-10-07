@@ -40,13 +40,44 @@ So: every change must be traceable to evidence, and no one edits release history
 | `build` with scope `Needs bump` | patch |
 | `chore`, `build`, `docs`, `refactor`, `test` | no release |
 
-Message rules:
+**The scope is not optional.** It is the app and the patch, `TikTok/Custom font`, matching the
+directory under `patches/tiktok/customfont/`. The changelog renders it as a bold prefix, so
+`fix(TikTok/Download):` reaches a user as `* **TikTok/Download:** ...`. A commit without a scope
+reaches them as a bare sentence with nothing telling them which app or which surface it belongs to.
+
+Summary rules:
 
 - The summary says **what changes for the user**, not "fix bug" or "update".
+- **A new patch** reads ``Add `Patch name` patch``. A switch or option inside a patch that already
+  exists reads ``Add "setting name" setting`` or ``Add "option name" option``.
+- **A bug fix names the symptom, not the fix.** The reader wants to know whether the thing they
+  reported is gone, so the summary is the defect: a noun phrase (`Wrong flyout drawable`) or a
+  negative sentence (`Music videos do not play at 1x speed`). The repair goes in the body.
+- **A new app version** reads ``Add support for `47.2.0` `` or, when untested,
+  ``Add experimental support for `47.2.0` ``.
+- Anything that fits none of those is still allowed, but it reads as prose in the changelog, so
+  prefer the closest pattern above.
+
+| type | summary |
+|---|---|
+| `feat` | ``Add `Custom font` setting`` · ``Add "Hide ads" to the feed`` |
+| `fix` | `Screen draws under the system bars` · `Segments may not load for some versions` |
+| `bump` | ``Add support for `47.2.0` `` |
+| `perf` | a symptom, like `fix`: what was slow or heavy before |
+
+Other message rules:
+
 - One commit, one reason. Keep a behaviour change, an anchor change, docs and tooling in separate
   commits — a reviewer has to judge them apart, and the changelog is generated from this.
 - Use the commit body when the decision is not obvious from the summary: what was tried, what
   happened, what is still unproven.
+- **A revert is a commit, not a message about a commit.** `Revert "feat: something"` and
+  `Reapply "feat: something"` are not Conventional Commits: the analyzer reads the type as `Revert`
+  or `Reapply`, finds neither in the release rules, and so publishes nothing. Worse, it treats the
+  original `feat` as cancelled and the pair as a single no-op, which silently left a feature in the
+  bundle that no release ever asked for. To undo a pushed commit, run `git revert` and let it write
+  `revert(scope): ...`; to bring it back, make a new `feat`. Never hand-write a subject that quotes
+  another commit's.
 
 ## 3. Gates before a pull request
 
@@ -56,7 +87,7 @@ Run what applies, and paste the output into the PR:
 |---|---|---|
 | anything | `./gradlew buildAndroid` | the bundle still builds |
 | patches / extensions | `tools/mppcheck/run.sh patches/build/libs/patches-*.mpp` | every class in the bundle loads (no missing runtime dependency) |
-| anchors / hooks / fingerprints | `tools/dexprobe/run.sh VerifyAnchors "<apk>"` | the anchors still exist and are still unique |
+| anchors / hooks / fingerprints | `tools/dexprobe/run.sh VerifyAnchors "<apk>"` | the anchors still exist and are still unique. When one fails, [docs/anchor-stability.md](docs/anchor-stability.md) says what each anchor is, why it was chosen, and what the patch does when it is gone |
 | runtime behaviour | test on a device, copy the `TIKTOK_HANDLE` lines | the claim actually happened |
 | code / docs | `graphify update .` | the graph is not stale |
 

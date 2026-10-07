@@ -10,7 +10,11 @@ The full dump of the comment component — class, views, layout, ids — is in
 offers it for a photo post only, and how the download patch takes it over, is in
 [download-47.1.4.md](./download-47.1.4.md). The profile background's AB gate, and the
 per-version check that chose a shape over a name, is in
-[profilebg-47.1.4.md](./profilebg-47.1.4.md).
+[profilebg-47.1.4.md](./profilebg-47.1.4.md). The Settings screen's own groups, the singletons and
+where the row list is assembled, is in
+[anchor-settings-47.0.3.md](./anchor-settings-47.0.3.md). The one factory every face flows through,
+and why a shape rather than a name, is in
+[customfont-47.0.3.md](./customfont-47.0.3.md).
 
 ## The rules behind the choices
 
@@ -60,6 +64,8 @@ per-version check that chose a shape over a name, is in
 | `ACLCommonShare#getCode()` / `#getShowType()` / `#getTranscode()` | the app's download restriction and the watermark | real-named getters on the real-named model, two instructions each; the values are adapted from ReVanced's TikTok download patch (see [download-47.1.4.md](./download-47.1.4.md)) | the download stays restricted and the file keeps its watermark |
 | `Video#getDownloadAddr()` | the address the app saves, redirected to the highest quality playback variant | real-named getter on the real-named model | the file is fetched from the watermarked address |
 | the profile-background gate holder, and its `(boolean) -> boolean` gate | the profile-background patch's hook, answered `true` | structural: the one class reading `profile_bg_in_allow_list` / `profile_bg_enable_consumption_group` that also carries a `(Z)→Z` method next to a `(Z)→V` setter. Class and method names are obfuscated and rename every build (`X.0iZu`/`LIZIZ` on 46.2.3, `X.0OSK`/`LIZJ` on 47.1.4), so the shape is the anchor (see [profilebg-47.1.4.md](./profilebg-47.1.4.md)) | the patch fails (`expected one gate holder …`), or `VerifyAnchors` reports the shape missing |
+| the custom-font factory holder, and the static nine-parameter resolver on it | the custom-font patch's hook: the one method every face TikTok draws with passes through | structural: the class that reads a bundled face (`font/TikTok-Display-Regular.otf` or `font/TikTok-Text-Regular.otf`) in its factory method **and** carries a static `(F, I, F, F, Float, F, I, Map, I) → Typeface`. The class renames every build (`X.05oe` on 46.5.3, `X.0lNd` on 47.0.3, `X.05o5` on 47.1.4) and every other `Typeface` factory in the bundle takes fewer parameters, so the pair is unique (see [customfont-47.0.3.md](./customfont-47.0.3.md)) | the patch fails, naming the classes it found; the app's own faces stay |
+| `com.bytedance.ies.foundation.activity.BaseActivity#onActivityResult(I, I, Intent)` | where the font picker's answer comes back | a ByteDance foundation class name plus the framework's own signature, so neither half moves; every activity result in the app passes through it | the patch fails (the fingerprint has to match), so no font can be imported |
 
 ## Surfaces (where the stamp appears)
 
@@ -276,6 +282,15 @@ one session cannot flood the log:
 | `feedfilter: items=N removed=R ads=A likes[M..MAX]=L … dropped=[…]` | one list: how many items it held, how many each filter removed (each count filter with the bound it enforced), how many had no readable statistics, how many ad slots the page carried, and the reason for the first few drops. Written for every call that dropped something (max 100) and the first few that did not (6) |
 | `state: Build bN … Log: <path>` | the About block, written when it is tapped for copying |
 | `file sink: <path>` | where the log file went, once per process |
+| `feed bind hook fired` | the feed binder hook was entered. **Uncapped**: one line per feed bind, so a long scroll writes a lot of it. It is there to tell "the hook never fired" from "the hook fired and matched nothing" |
+| `download: N variant(s), best <gear> of [<gears>]` | one save: how many bitrate variants the video carried, which one was picked, and what the others were (max 8) |
+| `download: no bitrate variants on the video` | nothing to choose from, so nothing was saved |
+| `download: address lookup failed (<throwable>)` | the app's own download address could not be read, and the app's own path was left to run |
+| `profilebg: gate forced on` | the AB gate was answered `true` while the switch said so (max 8) |
+| `profilebg: gate lookup failed (<throwable>)` | reading the switch threw, so the gate was left exactly as the app decided it |
+| `customfont: font served` | the factory answered with the imported face instead of the app's own (max 8) |
+| `customfont: import succeeded` / `import failed` | the picker's file reached the bridge and was (or was not) copied into the app's own files. Only this request code is kept; every other activity result falls through untouched |
+| `customfont: import handling failed (<throwable>)` | the import threw |
 
 Reading order for "the region in comments is not what I expected": `name region` first (is the value
 right, and where did it come from), then `name render` (which class drew it), then

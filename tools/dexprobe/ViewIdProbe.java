@@ -1,9 +1,3 @@
-import org.luckypray.dexkit.DexKitBridge;
-import org.luckypray.dexkit.query.FindMethod;
-import org.luckypray.dexkit.query.matchers.MethodMatcher;
-import org.luckypray.dexkit.result.MethodData;
-import org.luckypray.dexkit.result.MethodDataList;
-
 /**
  * Every method that loads a given resource id, so a view can be traced from the layout name to the
  * components that resolve it.
@@ -14,6 +8,12 @@ import org.luckypray.dexkit.result.MethodDataList;
  *
  *   tools/dexprobe/run.sh ViewIdProbe "<apk>" 0x7f0a9356 0x7f0a8feb ...
  */
+import org.luckypray.dexkit.DexKitBridge;
+import org.luckypray.dexkit.query.FindMethod;
+import org.luckypray.dexkit.query.matchers.MethodMatcher;
+import org.luckypray.dexkit.result.MethodData;
+import org.luckypray.dexkit.result.MethodDataList;
+
 public class ViewIdProbe {
     static { System.loadLibrary("dexkit"); }
 

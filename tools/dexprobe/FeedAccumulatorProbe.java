@@ -1,3 +1,10 @@
+/**
+ * Reads a class and one of its methods: its fields, what the method calls, which fields it touches,
+ * and who calls it. Enough to name the source a list is copied from, which a stack frame alone
+ * cannot say.
+ *
+ *   tools/dexprobe/run.sh FeedAccumulatorProbe "<apk>" "X.1MJf#LIZIZ" "X.07zq#getData"
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -7,13 +14,6 @@ import org.luckypray.dexkit.result.FieldData;
 import org.luckypray.dexkit.result.MethodData;
 import org.luckypray.dexkit.result.UsingFieldData;
 
-/**
- * Reads a class and one of its methods: its fields, what the method calls, which fields it touches,
- * and who calls it. Enough to name the source a list is copied from, which a stack frame alone
- * cannot say.
- *
- *   tools/dexprobe/run.sh FeedAccumulatorProbe "<apk>" "X.1MJf#LIZIZ" "X.07zq#getData"
- */
 public class FeedAccumulatorProbe {
     static {
         System.loadLibrary("dexkit");

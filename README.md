@@ -7,8 +7,10 @@ Personal patch collection for apps I use: labels on names, and the details apps 
 Patches are built on the [Morphe patches template](https://github.com/MorpheApp/morphe-patches-template)
 and follow the [Morphe patcher](https://github.com/MorpheApp/morphe-patcher). The bundle currently
 targets TikTok, where it shows the account handle, the region and the post time next to names on
-the feed (including a video shared into a chat) and in comments, with a Tweaks row to switch each
-surface and each part on or off. More apps are planned.
+the feed (including a video shared into a chat) and in comments; filters ads and out-of-range videos
+out of the feed; saves a share sheet's media without the watermark; sets a profile background where
+the rollout has not reached; and draws the app's text in a font file you import. A Tweaks row in
+TikTok's own settings switches every one of those on or off. More apps are planned.
 
 ### How to use these patches
 
@@ -17,9 +19,9 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.3.0](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.3.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;5 patches total
+> **[v1.4.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.4.0-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
 <details open>
-<summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;5 patches</summary>
+<summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;6 patches</summary>
 <br>
 
 **🎯 Supported versions:**
@@ -30,10 +32,11 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
 | [Always @handle · region · post time](#always-handle-region-post-time) | Shows the @handle, the region and the post time on feed videos and comments, including a video shared into a chat. Each surface and each part has a switch in Tweaks. |  |
+| [Custom font](#custom-font) | Answers the factory every face TikTok draws with, so an imported font file replaces TikTok's own text on every surface. The switch and the picker are in Tweaks; off by default, and inert until a font is imported. |  |
 | [Download](#download) | Opens the app's own download for every share sheet and saves the file without the watermark, taking the highest quality variant. Each part has a switch in Tweaks; the feature is off by default. |  |
 | [Feed filter](#feed-filter) | Removes ads and promotional-music posts, and videos outside a view- or like-count range, from the feed. Each part has a switch in Tweaks; ads are on by default. |  |
 | [Profile background](#profile-background) | Answers the AB gate that carries the profile background, so a static image or a video can be set on accounts the rollout has not reached. The switch is in Tweaks; the feature is off by default. |  |
-| [Tweaks settings row](#tweaks-settings-row) | Adds the Tweaks row to TikTok settings: the switches for the @handle stamp, its surfaces, the region and the post time. |  |
+| [Tweaks settings row](#tweaks-settings-row) | Adds the Tweaks row to TikTok settings, where every other patch in this bundle is switched on or off: the @handle stamp and its surfaces, the region, the post time, the feed filter, the download, the profile background and the custom font. |  |
 
 </details>
 

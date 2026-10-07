@@ -1,3 +1,13 @@
+/**
+ * The feed-filter anchors on one APK: where the feed page payload is built, how the page list is
+ * held, and whether the item predicates the ReVanced feed filter reads are still real-named.
+ *
+ * The ReVanced patch hooks the return of a `FeedApiService#fetchFeedList`-shaped method and the
+ * follow-feed builder. Neither is guaranteed on a newer build, so this prints every producer of the
+ * two payload types instead of assuming the names.
+ *
+ *   tools/dexprobe/run.sh FeedApiProbe "<apk>"
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindField;
@@ -15,16 +25,6 @@ import org.luckypray.dexkit.result.MethodDataList;
 
 import java.util.Locale;
 
-/**
- * The feed-filter anchors on one APK: where the feed page payload is built, how the page list is
- * held, and whether the item predicates the ReVanced feed filter reads are still real-named.
- *
- * The ReVanced patch hooks the return of a `FeedApiService#fetchFeedList`-shaped method and the
- * follow-feed builder. Neither is guaranteed on a newer build, so this prints every producer of the
- * two payload types instead of assuming the names.
- *
- *   tools/dexprobe/run.sh FeedApiProbe "<apk>"
- */
 public class FeedApiProbe {
     static {
         System.loadLibrary("dexkit");

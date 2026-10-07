@@ -1,3 +1,7 @@
+/**
+ * The region feature reads app objects by name at runtime (reflection lives in the extension, so
+ * the patch cannot check these for it). Prints the real member names the extension must use.
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -6,10 +10,6 @@ import org.luckypray.dexkit.result.ClassDataList;
 import org.luckypray.dexkit.result.FieldData;
 import org.luckypray.dexkit.result.MethodData;
 
-/**
- * The region feature reads app objects by name at runtime (reflection lives in the extension, so
- * the patch cannot check these for it). Prints the real member names the extension must use.
- */
 public class FeedShapeProbe {
     static {
         System.loadLibrary("dexkit");
