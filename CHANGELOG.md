@@ -1,3 +1,5 @@
+## [1.3.0-dev.5](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0-dev.4...v1.3.0-dev.5) (2026-10-07)
+
 ## [1.3.0-dev.4](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0-dev.3...v1.3.0-dev.4) (2026-10-07)
 
 ### ✨ New Features
