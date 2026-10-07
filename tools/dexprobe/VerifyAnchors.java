@@ -1,3 +1,11 @@
+/**
+ * Checks every anchor the patches depend on against one APK, so a new TikTok version can be
+ * triaged in seconds instead of by patching and installing.
+ *
+ *   tools/dexprobe/run.sh VerifyAnchors "<apk>" [app]
+ *
+ * Exit code is non-zero when any anchor is missing, so it can gate a release.
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindField;
@@ -15,14 +23,6 @@ import org.luckypray.dexkit.result.UsingFieldData;
 
 import java.util.List;
 
-/**
- * Checks every anchor the patches depend on against one APK, so a new TikTok version can be
- * triaged in seconds instead of by patching and installing.
- *
- *   tools/dexprobe/run.sh VerifyAnchors "<apk>"
- *
- * Exit code is non-zero when any anchor is missing, so it can gate a release.
- */
 public class VerifyAnchors {
     static {
         System.loadLibrary("dexkit");

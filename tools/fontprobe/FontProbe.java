@@ -1,3 +1,16 @@
+/**
+ * Where does TikTok build its Typefaces?
+ *
+ *   tools/fontprobe/run.sh "<apk>" factories|class:<name>|hubs
+ *
+ *   factories: every method the APK defines that returns a Typeface,
+ *              with how many callers it has, sorted busiest first.
+ *   hubs:      per class, how many Typeface-method invokes it makes.
+ *   class:<n>: dump one class's Typeface-returning methods.
+ *
+ * The patcher can only hook classes inside the APK, so an app-wide
+ * font needs a factory the app itself routes through.
+ */
 import com.android.tools.smali.dexlib2.DexFileFactory;
 import com.android.tools.smali.dexlib2.Opcodes;
 import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile;
@@ -17,19 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * Where does TikTok build its Typefaces?
- *
- *   tools/fontprobe/run.sh "<apk>" factories|class:<name>|hubs
- *
- *   factories: every method the APK defines that returns a Typeface,
- *              with how many callers it has, sorted busiest first.
- *   hubs:      per class, how many Typeface-method invokes it makes.
- *   class:<n>: dump one class's Typeface-returning methods.
- *
- * The patcher can only hook classes inside the APK, so an app-wide
- * font needs a factory the app itself routes through.
- */
 public class FontProbe {
     private static final String TYPEFACE = "Landroid/graphics/Typeface;";
 

@@ -1,3 +1,7 @@
+/**
+ * Candidate hook points for extending the handle stamp past the feed. Prints the signature of the
+ * binders that render an author name, so each surface can be judged before it is wired.
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -5,10 +9,6 @@ import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.ClassDataList;
 import org.luckypray.dexkit.result.MethodData;
 
-/**
- * Candidate hook points for extending the handle stamp past the feed. Prints the signature of the
- * binders that render an author name, so each surface can be judged before it is wired.
- */
 public class SurfaceProbe {
     static {
         System.loadLibrary("dexkit");

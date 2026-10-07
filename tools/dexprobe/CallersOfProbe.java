@@ -1,10 +1,3 @@
-import org.luckypray.dexkit.DexKitBridge;
-import org.luckypray.dexkit.query.FindClass;
-import org.luckypray.dexkit.query.matchers.ClassMatcher;
-import org.luckypray.dexkit.result.ClassData;
-import org.luckypray.dexkit.result.ClassDataList;
-import org.luckypray.dexkit.result.MethodData;
-
 /**
  * Who calls a class's methods. The counterpart of a stack trace read off a device: a frame names
  * the immediate caller of a hooked method, and when that caller turns out to be a helper, this is
@@ -12,6 +5,13 @@ import org.luckypray.dexkit.result.MethodData;
  *
  *   tools/dexprobe/run.sh CallersOfProbe "<apk>" <class> [method]
  */
+import org.luckypray.dexkit.DexKitBridge;
+import org.luckypray.dexkit.query.FindClass;
+import org.luckypray.dexkit.query.matchers.ClassMatcher;
+import org.luckypray.dexkit.result.ClassData;
+import org.luckypray.dexkit.result.ClassDataList;
+import org.luckypray.dexkit.result.MethodData;
+
 public class CallersOfProbe {
     static {
         System.loadLibrary("dexkit");

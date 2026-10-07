@@ -1,11 +1,3 @@
-import org.luckypray.dexkit.DexKitBridge;
-import org.luckypray.dexkit.query.FindClass;
-import org.luckypray.dexkit.query.enums.StringMatchType;
-import org.luckypray.dexkit.query.matchers.ClassMatcher;
-import org.luckypray.dexkit.result.ClassData;
-import org.luckypray.dexkit.result.ClassDataList;
-import org.luckypray.dexkit.result.MethodData;
-
 /**
  * Every class that holds the feed header component and writes text, i.e. the family the header's
  * text is filled from.
@@ -16,6 +8,14 @@ import org.luckypray.dexkit.result.MethodData;
  *
  *   tools/dexprobe/run.sh HeaderWritersProbe "<apk>" [assem-class]
  */
+import org.luckypray.dexkit.DexKitBridge;
+import org.luckypray.dexkit.query.FindClass;
+import org.luckypray.dexkit.query.enums.StringMatchType;
+import org.luckypray.dexkit.query.matchers.ClassMatcher;
+import org.luckypray.dexkit.result.ClassData;
+import org.luckypray.dexkit.result.ClassDataList;
+import org.luckypray.dexkit.result.MethodData;
+
 public class HeaderWritersProbe {
     static { System.loadLibrary("dexkit"); }
 

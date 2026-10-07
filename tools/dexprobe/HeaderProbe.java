@@ -1,3 +1,8 @@
+/**
+ * The feed header's author-info views: who owns the line that shows the name and the post time,
+ * and whether the time lives in a view of its own (which is what decides if the region can be
+ * drawn in the same colour as the time).
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -5,11 +10,6 @@ import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.ClassDataList;
 import org.luckypray.dexkit.result.MethodData;
 
-/**
- * The feed header's author-info views: who owns the line that shows the name and the post time,
- * and whether the time lives in a view of its own (which is what decides if the region can be
- * drawn in the same colour as the time).
- */
 public class HeaderProbe {
     static {
         System.loadLibrary("dexkit");

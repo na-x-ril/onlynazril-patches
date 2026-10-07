@@ -1,3 +1,7 @@
+/**
+ * The component that renders the author line. Tells us whether the post time is written into a
+ * view of its own (then the region can share its colour) or into the same view as the name.
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -8,10 +12,6 @@ import org.luckypray.dexkit.result.MethodData;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/**
- * The component that renders the author line. Tells us whether the post time is written into a
- * view of its own (then the region can share its colour) or into the same view as the name.
- */
 public class AuthorAssemProbe {
     static {
         System.loadLibrary("dexkit");

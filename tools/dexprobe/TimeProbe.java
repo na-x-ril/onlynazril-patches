@@ -1,3 +1,12 @@
+/**
+ * Where the post time of a feed video is rendered.
+ *
+ * Item 2 (always show the post time) and item 3 (colour the region and its dot like the post
+ * time) both depend on finding the view that shows it, and on whether that view is separate from
+ * the one holding the author name.
+ *
+ *   tools/dexprobe/run.sh TimeProbe "<apk>"
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -10,15 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * Where the post time of a feed video is rendered.
- *
- * Item 2 (always show the post time) and item 3 (colour the region and its dot like the post
- * time) both depend on finding the view that shows it, and on whether that view is separate from
- * the one holding the author name.
- *
- *   tools/dexprobe/run.sh TimeProbe "<apk>"
- */
 public class TimeProbe {
     static {
         System.loadLibrary("dexkit");
