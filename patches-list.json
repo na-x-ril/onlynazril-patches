@@ -37,6 +37,40 @@
       "options": []
     },
     {
+      "name": "Custom font",
+      "description": "Answers the factory every face TikTok draws with, so an imported font file replaces TikTok's own text on every surface. The switch and the picker are in Tweaks; off by default, and inert until a font is imported.",
+      "default": true,
+      "category": null,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "com.zhiliaoapp.musically",
+          "name": "TikTok",
+          "description": "Handle, region and post time next to names, on the feed and in comments.",
+          "apkFileType": "APK",
+          "appIconColor": "#FE2C55",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "47.0.3",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            },
+            {
+              "version": "47.1.4",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
       "name": "Download",
       "description": "Opens the app's own download for every share sheet and saves the file without the watermark, taking the highest quality variant. Each part has a switch in Tweaks; the feature is off by default.",
       "default": true,

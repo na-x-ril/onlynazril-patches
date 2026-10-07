@@ -1,0 +1,54 @@
+package app.onlynazril.patches.tiktok.customfont
+
+import app.morphe.patcher.Fingerprint
+
+/**
+ * Anchors for the custom-font patch.
+ *
+ * The class that owns the anchors is obfuscated and renames with every
+ * build: on 46.5.3 it is `X.05oe`, on 47.0.3 `X.0lNd`, on 47.1.4
+ * `X.05o5`. What does not move, on every version checked, is the shape:
+ *
+ *  - the class reads one of the font files TikTok bundles as its own
+ *    faces, `font/TikTok-Display-Regular.otf` or
+ *    `font/TikTok-Text-Regular.otf`, in the factory method itself;
+ *  - the factory is static and takes the nine parameters below,
+ *    returning the face to draw with. TikTok resolves a variable-font
+ *    request (weight, width, slant, optical size axes) through it and
+ *    falls back to the bundled static faces when the platform builder
+ *    has none.
+ *
+ * Every other Typeface factory in the bundle takes fewer parameters,
+ * so the nine-parameter shape is unique without a name.
+ */
+private const val DISPLAY_FONT = "font/TikTok-Display-Regular.otf"
+private const val TEXT_FONT = "font/TikTok-Text-Regular.otf"
+
+/** The bundled faces the factory falls back to, in either of its two families. */
+internal val FONT_KEYS = listOf(DISPLAY_FONT, TEXT_FONT)
+
+/** The factory's shape: TikTok's variable-font resolver, nine parameters. */
+internal val FACTORY_PARAMETERS = listOf(
+    "F", "I", "F", "F", "Ljava/lang/Float;", "F", "I", "Ljava/util/Map;", "I",
+)
+
+/** What the factory answers with. */
+internal const val FACTORY_RETURN = "Landroid/graphics/Typeface;"
+
+/**
+ * Where the font picker's answer comes back: the foundation
+ * activity delivers every activity result through its own
+ * onActivityResult, and the activities the Tweaks screen lives
+ * in inherit it. The name is a ByteDance foundation class, which
+ * keeps it across builds, and the signature is the framework's
+ * own, so neither half of the anchor moves.
+ */
+internal object BaseActivityOnActivityResultFingerprint : Fingerprint(
+    custom = { method, classDef ->
+        classDef.type == "Lcom/bytedance/ies/foundation/activity/BaseActivity;" &&
+            method.name == "onActivityResult" &&
+            method.parameterTypes == listOf("I", "I", "Landroid/content/Intent;") &&
+            method.returnType == "V" &&
+            method.implementation != null
+    },
+)
