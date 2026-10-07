@@ -6,10 +6,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.RippleDrawable;
-import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -60,50 +58,13 @@ public final class RowView extends LinearLayout {
     /**
      * Greys the row out and makes its control inert, without touching the control's own value:
      * a switch that is off with the master stays visibly on so it comes back the same way.
-     *
-     * A trailing control built from several views is inert only if every one of
-     * its views is, so a group's children are disabled with it.
      */
     public void setRowEnabled(boolean enabled) {
         titleView.setTextColor(enabled ? Tokens.TEXT_PRIMARY : Tokens.TEXT_DISABLED);
         if (summaryView != null) {
             summaryView.setTextColor(enabled ? Tokens.TEXT_SECONDARY : Tokens.TEXT_DISABLED);
         }
-        if (trailing != null) {
-            trailing.setEnabled(enabled);
-            if (trailing instanceof ViewGroup) {
-                setDeepEnabled((ViewGroup) trailing, enabled);
-            }
-        }
-    }
-
-    /**
-     * Caps the title at a fraction of the row's own width and lets the rest run
-     * into an ellipsis, so a long name leaves the trailing control its room.
-     */
-    public void capTitleWidth(final float fraction) {
-        titleView.setMaxLines(1);
-        titleView.setEllipsize(TextUtils.TruncateAt.END);
-        addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-            @Override
-            public void onLayoutChange(View v, int left, int top, int right, int bottom,
-                    int oldLeft, int oldTop, int oldRight, int oldBottom) {
-                int max = (int) (getWidth() * fraction);
-                if (max > 0 && titleView.getMaxWidth() != max) {
-                    titleView.setMaxWidth(max);
-                }
-            }
-        });
-    }
-
-    private static void setDeepEnabled(ViewGroup group, boolean enabled) {
-        for (int i = 0; i < group.getChildCount(); i++) {
-            View child = group.getChildAt(i);
-            child.setEnabled(enabled);
-            if (child instanceof ViewGroup) {
-                setDeepEnabled((ViewGroup) child, enabled);
-            }
-        }
+        if (trailing != null) trailing.setEnabled(enabled);
     }
 
     private static TextView line(Context context, String text, float sizeSp, int color, boolean bold) {

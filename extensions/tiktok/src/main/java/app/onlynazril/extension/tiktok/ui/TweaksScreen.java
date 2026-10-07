@@ -1,10 +1,8 @@
 package app.onlynazril.extension.tiktok.ui;
 
-import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
@@ -15,13 +13,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import app.onlynazril.extension.tiktok.CustomFontBridge;
 import app.onlynazril.extension.tiktok.Surfaces;
 import app.onlynazril.extension.tiktok.feedfilter.FeedFilterStats;
-import app.onlynazril.extension.tiktok.internal.Activities;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
-import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
@@ -188,45 +183,6 @@ public final class TweaksScreen {
                 toggle(context, ProfileBgSettings.isEnabled(context),
                         checked -> ProfileBgSettings.setEnabled(context, checked))));
 
-        // Independent of the master: the custom font is not the
-        // @handle stamp, and its switch is the feature itself. The
-        // picker brings a font in; the list below picks the face
-        // the app draws with. Every change asks for the restart
-        // the text already on screen needs.
-        boolean fontOn = CustomFontSettings.isEnabled(context);
-        List<RowView> fontDependents = new ArrayList<>();
-
-        column.addView(section(context, "Custom font"));
-        ToggleView fontMaster = new ToggleView(context);
-        fontMaster.setChecked(fontOn);
-        column.addView(new RowView(
-                context,
-                "Custom font",
-                "Render TikTok's own text with an imported font file.",
-                fontMaster));
-
-        column.addView(divider(context));
-        RowView importRow = new RowView(
-                context,
-                "Import a font file",
-                "Pick a .ttf or .otf. It is copied into the app's own files.",
-                new ActionView(context, "Pick", () -> pickFontFile(context)));
-        fontDependents.add(importRow);
-        column.addView(importRow);
-
-        LinearLayout fontList = new LinearLayout(context);
-        fontList.setOrientation(LinearLayout.VERTICAL);
-        fillFontList(context, fontList);
-        column.addView(fontList);
-        for (RowView row : fontDependents) row.setRowEnabled(fontOn);
-        setFontRowsEnabled(fontList, fontOn);
-
-        fontMaster.setOnCheckedChangeListener(checked -> {
-            CustomFontSettings.setEnabled(context, checked);
-            for (RowView row : fontDependents) row.setRowEnabled(checked);
-            setFontRowsEnabled(fontList, checked);
-        });
-
         column.addView(section(context, "About"));
         column.addView(description(
                 context,
@@ -317,7 +273,7 @@ public final class TweaksScreen {
 
         TextView subtitle = new TextView(context);
         subtitle.setText("Handle stamp, region, post time, feed filter, download, "
-                + "profile background, custom font");
+                + "profile background");
         subtitle.setTextSize(Tokens.SUBTITLE_SP);
         subtitle.setTextColor(Tokens.TEXT_SECONDARY);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -367,116 +323,6 @@ public final class TweaksScreen {
         params.rightMargin = Tokens.dp(context, Tokens.SPACE_4);
         view.setLayoutParams(params);
         return view;
-    }
-
-    /**
-     * The imported fonts, one row each, the one in use named in
-     * its summary. Tapping a row picks that face, rebuilds the
-     * list, and asks for the restart the text already on screen
-     * needs. A name runs at most seven tenths of the row's width,
-     * so a long one cannot push the trailing controls out of view.
-     * Each row carries its own way out, and the bottom of the list
-     * carries the way out of all of it.
-     */
-    private static void fillFontList(Context context, LinearLayout list) {
-        list.removeAllViews();
-        List<String> names = CustomFontSettings.names(context);
-        if (names.isEmpty()) {
-            RowView hint = new RowView(
-                    context,
-                    "No font imported yet",
-                    "Pick a .ttf or .otf file to add one.",
-                    null);
-            hint.setRowEnabled(false);
-            list.addView(hint);
-            return;
-        }
-        String selected = CustomFontSettings.selected(context);
-        for (String name : names) {
-            list.addView(divider(context));
-            boolean inUse = name.equals(selected);
-            RowView row = new RowView(
-                    context,
-                    name,
-                    inUse ? "In use" : null,
-                    fontRowControls(context, name, list));
-            row.capTitleWidth(0.7f);
-            row.setOnClickListener(picked -> {
-                CustomFontSettings.select(context, name);
-                fillFontList(context, list);
-                RestartPrompt.askNow(context);
-            });
-            list.addView(row);
-        }
-        list.addView(clearAllFonts(context, list));
-    }
-
-    /** What a font row carries on its right: the way out of the list for this one font. */
-    private static View fontRowControls(
-            Context context, String name, LinearLayout list) {
-        LinearLayout controls = new LinearLayout(context);
-        controls.setOrientation(LinearLayout.HORIZONTAL);
-        controls.setGravity(Gravity.CENTER_VERTICAL);
-        ActionView delete = new ActionView(context, "Delete", () -> {
-            CustomFontSettings.deleteFont(context, name);
-            fillFontList(context, list);
-            RestartPrompt.askNow(context);
-        });
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        controls.addView(delete, params);
-        return controls;
-    }
-
-    /** The bottom of the list: the way out of every imported font at once. */
-    private static View clearAllFonts(Context context, final LinearLayout list) {
-        LinearLayout row = new LinearLayout(context);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.END);
-        row.setPadding(
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_1),
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_4));
-        row.addView(new ActionView(context, "Clear all fonts", () -> Prompt.show(
-                context,
-                "Clear all fonts",
-                "Remove every imported font? The app then draws with its own faces.",
-                "Remove all",
-                () -> {
-                    CustomFontSettings.clearFonts(context);
-                    fillFontList(context, list);
-                    RestartPrompt.askNow(context);
-                })));
-        return row;
-    }
-
-    private static void setFontRowsEnabled(LinearLayout list, boolean enabled) {
-        for (int i = 0; i < list.getChildCount(); i++) {
-            View child = list.getChildAt(i);
-            if (child instanceof RowView) {
-                ((RowView) child).setRowEnabled(enabled);
-            }
-        }
-    }
-
-    /**
-     * The system's document picker, filtered to font files. The
-     * picked file's answer comes back through the hooked
-     * activity result, not through a callback here.
-     */
-    @SuppressWarnings("deprecation")
-    private static void pickFontFile(Context context) {
-        Activity activity = Activities.of(context);
-        if (activity == null || activity.isFinishing()) return;
-        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        pick.addCategory(Intent.CATEGORY_OPENABLE);
-        pick.setType("*/*");
-        pick.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-                "font/ttf", "font/otf",
-                "application/x-font-ttf", "application/x-font-otf",
-                "application/octet-stream"});
-        activity.startActivityForResult(pick, CustomFontBridge.REQUEST_PICK_FONT);
     }
 
     private static ToggleView surfaceToggle(Context context, String surface) {
