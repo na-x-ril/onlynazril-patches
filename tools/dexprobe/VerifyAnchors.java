@@ -153,6 +153,15 @@ public class VerifyAnchors {
             // shape the patch discovers it by.
             requireProfileBgGate(bridge);
 
+            // Custom font: the factory every face flows through, matched
+            // by the shape the patch discovers it by.
+            requireCustomFontFactory(bridge);
+
+            // Custom font: the activity result the picker's file
+            // arrives through, matched by the name and signature
+            // the patch hooks it by.
+            requireBaseActivityOnActivityResult(bridge);
+
     }
 
     /**
@@ -233,6 +242,77 @@ public class VerifyAnchors {
         } else {
             pass("profile background gate " + found);
             pass("profile background snapshot (1 no-arg holder)");
+        }
+    }
+
+    /**
+     * The custom-font factory, matched as the patch discovers it: the one
+     * class that reads a bundled TikTok font file and carries a static
+     * (F,I,F,F,Float,F,I,Map,I) -> Typeface method. The class is obfuscated
+     * and renames every build (`X.05oe` on 46.5.3, `X.0lNd` on 47.0.3,
+     * `X.05o5` on 47.1.4), so the shape is the anchor, not the name.
+     */
+    private static void requireCustomFontFactory(DexKitBridge bridge) {
+        java.util.Set<String> candidates = new java.util.LinkedHashSet<>();
+        for (String font : new String[]{"font/TikTok-Display-Regular.otf",
+                "font/TikTok-Text-Regular.otf"}) {
+            MethodDataList methods = bridge.findMethod(FindMethod.create()
+                    .matcher(MethodMatcher.create().usingStrings(font)));
+            for (MethodData m : methods) {
+                candidates.add(m.getDeclaredClassName());
+            }
+        }
+        int matches = 0;
+        String found = null;
+        for (String className : candidates) {
+            ClassDataList classes = bridge.findClass(FindClass.create()
+                    .matcher(ClassMatcher.create().className(className)));
+            for (ClassData c : classes) {
+                for (MethodData m : c.getMethods()) {
+                    if (m.getName().startsWith("<")) continue;
+                    if (!"android.graphics.Typeface".equals(m.getReturnTypeName())) continue;
+                    if (!java.util.List.of("float", "int", "float", "float",
+                            "java.lang.Float", "float", "int", "java.util.Map", "int")
+                            .equals(m.getParamTypeNames())) continue;
+                    matches++;
+                    found = c.getName() + "#" + m.getName() + " " + m.getParamTypeNames();
+                }
+            }
+        }
+        if (matches == 1) {
+            pass("custom font factory " + found);
+        } else {
+            fail("custom font factory: expected one, matched " + matches);
+        }
+    }
+
+    /**
+     * The custom-font picker's answer: the foundation activity's own
+     * onActivityResult, which the activities the Tweaks screen lives in
+     * inherit. The class is a ByteDance foundation class, which keeps its
+     * name across builds, and the signature is the framework's own.
+     */
+    private static void requireBaseActivityOnActivityResult(DexKitBridge bridge) {
+        ClassDataList classes = bridge.findClass(FindClass.create()
+                .matcher(ClassMatcher.create()
+                        .className("com.bytedance.ies.foundation.activity.BaseActivity")));
+        if (classes.size() != 1) {
+            fail("custom font activity result: BaseActivity (matched "
+                    + classes.size() + " classes)");
+            return;
+        }
+        int matches = 0;
+        for (MethodData m : classes.get(0).getMethods()) {
+            if (!"onActivityResult".equals(m.getName())) continue;
+            if (!"void".equals(m.getReturnTypeName())) continue;
+            if (!java.util.List.of("int", "int", "android.content.Intent")
+                    .equals(m.getParamTypeNames())) continue;
+            matches++;
+        }
+        if (matches == 1) {
+            pass("custom font activity result BaseActivity#onActivityResult");
+        } else {
+            fail("custom font activity result: expected one, matched " + matches);
         }
     }
 
