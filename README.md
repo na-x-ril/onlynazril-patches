@@ -19,7 +19,7 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.3.0](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.3.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
+> **[v1.4.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.4.0-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;6 patches total
 <details open>
 <summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;6 patches</summary>
 <br>
@@ -36,7 +36,7 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 | [Download](#download) | Opens the app's own download for every share sheet and saves the file without the watermark, taking the highest quality variant. Each part has a switch in Tweaks; the feature is off by default. |  |
 | [Feed filter](#feed-filter) | Removes ads and promotional-music posts, and videos outside a view- or like-count range, from the feed. Each part has a switch in Tweaks; ads are on by default. |  |
 | [Profile background](#profile-background) | Answers the AB gate that carries the profile background, so a static image or a video can be set on accounts the rollout has not reached. The switch is in Tweaks; the feature is off by default. |  |
-| [Tweaks settings row](#tweaks-settings-row) | Adds the Tweaks row to TikTok settings: the switches for the @handle stamp, its surfaces, the region and the post time. |  |
+| [Tweaks settings row](#tweaks-settings-row) | Adds the Tweaks row to TikTok settings, where every other patch in this bundle is switched on or off: the @handle stamp and its surfaces, the region, the post time, the feed filter, the download, the profile background and the custom font. |  |
 
 </details>
 

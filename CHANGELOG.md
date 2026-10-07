@@ -1,3 +1,9 @@
+## [1.4.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0...v1.4.0-dev.1) (2026-10-07)
+
+### ✨ New Features
+
+* draw TikTok's text with an imported font ([98ff010](https://github.com/na-x-ril/onlynazril-patches/commit/98ff010e6fcf7e5495dd5cf4e7737de43f0f9a64))
+
 ## [1.3.0](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.0...v1.3.0) (2026-10-04)
 
 ### 🐛 Bug Fixes
