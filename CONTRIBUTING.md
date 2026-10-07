@@ -56,7 +56,7 @@ Run what applies, and paste the output into the PR:
 |---|---|---|
 | anything | `./gradlew buildAndroid` | the bundle still builds |
 | patches / extensions | `tools/mppcheck/run.sh patches/build/libs/patches-*.mpp` | every class in the bundle loads (no missing runtime dependency) |
-| anchors / hooks / fingerprints | `tools/dexprobe/run.sh VerifyAnchors "<apk>"` | the anchors still exist and are still unique |
+| anchors / hooks / fingerprints | `tools/dexprobe/run.sh VerifyAnchors "<apk>"` | the anchors still exist and are still unique. When one fails, [docs/anchor-stability.md](docs/anchor-stability.md) says what each anchor is, why it was chosen, and what the patch does when it is gone |
 | runtime behaviour | test on a device, copy the `TIKTOK_HANDLE` lines | the claim actually happened |
 | code / docs | `graphify update .` | the graph is not stale |
 
