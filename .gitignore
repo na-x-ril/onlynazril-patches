@@ -122,14 +122,11 @@ gradle-app.setting
 # Dependency directories
 node_modules/
 
-# gradle properties, due to Github token
-./gradle.properties
-
 # Ignore IDEA files
 .idea/
 local.properties
 
-### Aturan repo (lihat CONTRIBUTING.md)
+### Repository rules (see CONTRIBUTING.md)
 # Signing material: a leaked key lets anyone publish releases that look official.
 *.jks
 *.keystore
