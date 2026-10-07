@@ -7,8 +7,10 @@ Personal patch collection for apps I use: labels on names, and the details apps 
 Patches are built on the [Morphe patches template](https://github.com/MorpheApp/morphe-patches-template)
 and follow the [Morphe patcher](https://github.com/MorpheApp/morphe-patcher). The bundle currently
 targets TikTok, where it shows the account handle, the region and the post time next to names on
-the feed (including a video shared into a chat) and in comments, with a Tweaks row to switch each
-surface and each part on or off. More apps are planned.
+the feed (including a video shared into a chat) and in comments; filters ads and out-of-range videos
+out of the feed; saves a share sheet's media without the watermark; sets a profile background where
+the rollout has not reached; and draws the app's text in a font file you import. A Tweaks row in
+TikTok's own settings switches every one of those on or off. More apps are planned.
 
 ### How to use these patches
 

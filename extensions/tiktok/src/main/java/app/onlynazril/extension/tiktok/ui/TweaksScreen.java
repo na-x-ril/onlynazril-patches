@@ -29,7 +29,8 @@ import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 
 /**
  * Builds the screen: header, one Handle section (master switch on top, then one row per surface,
- * then the region), a Feed filter section, and About.
+ * then the region), then one section per remaining feature (Feed filter, Download, Profile
+ * background, Custom font), and About.
  *
  * With the master off the dependent rows stay visible but greyed and inert, so their own state
  * survives and comes back unchanged when the master returns.
