@@ -98,8 +98,8 @@ val settingsPatch = bytecodePatch(
     name = "Tweaks settings row",
     description = "Adds the Tweaks row to TikTok settings, where every other patch in this " +
         "bundle is switched on or off: the @handle stamp and its surfaces, the region, the post " +
-        "time, the comment copy, the feed filter, the download, the profile background and the " +
-        "custom font.",
+        "time, the comment copy, the captcha, the feed filter, the download, the profile " +
+        "background and the custom font.",
     default = true,
 ) {
     compatibleWith(Constants.COMPATIBILITY_TIKTOK)

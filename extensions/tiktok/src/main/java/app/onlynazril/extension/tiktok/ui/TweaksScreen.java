@@ -21,6 +21,7 @@ import app.onlynazril.extension.tiktok.feedfilter.FeedFilterStats;
 import app.onlynazril.extension.tiktok.internal.Activities;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
+import app.onlynazril.extension.tiktok.settings.CaptchaSettings;
 import app.onlynazril.extension.tiktok.settings.CommentCopySettings;
 import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
@@ -30,8 +31,8 @@ import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 
 /**
  * Builds the screen: header, one Handle section (master switch on top, then one row per surface,
- * then the region), then one section per remaining feature (Comments, Feed filter, Download,
- * Profile background, Custom font), and About.
+ * then the region), then one section per remaining feature (Comments, Captcha, Feed filter,
+ * Download, Profile background, Custom font), and About.
  *
  * With the master off the dependent rows stay visible but greyed and inert, so their own state
  * survives and comes back unchanged when the master returns.
@@ -112,6 +113,17 @@ public final class TweaksScreen {
                 "Copy a comment's own text and leave the username in front of it out.",
                 toggle(context, CommentCopySettings.isEnabled(context),
                         checked -> CommentCopySettings.setEnabled(context, checked))));
+
+        // Independent of everything above: the puzzle is not the @handle stamp and not the
+        // filter, and its own switch is the feature.
+        column.addView(section(context, "Captcha"));
+        column.addView(new RowView(
+                context,
+                "Hide CAPTCHA popups",
+                "Skip the risk-control puzzle while browsing. Account verification (login, SMS, "
+                        + "two-factor) is never hidden.",
+                toggle(context, CaptchaSettings.isEnabled(context),
+                        checked -> CaptchaSettings.setEnabled(context, checked))));
 
         long[] views = FeedFilterSettings.minMaxViews();
         long[] likes = FeedFilterSettings.minMaxLikes();
@@ -328,8 +340,8 @@ public final class TweaksScreen {
         block.addView(title);
 
         TextView subtitle = new TextView(context);
-        subtitle.setText("Handle stamp, region, post time, comment copy, feed filter, download, "
-                + "profile background, custom font");
+        subtitle.setText("Handle stamp, region, post time, comment copy, captcha, feed filter, "
+                + "download, profile background, custom font");
         subtitle.setTextSize(Tokens.SUBTITLE_SP);
         subtitle.setTextColor(Tokens.TEXT_SECONDARY);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
