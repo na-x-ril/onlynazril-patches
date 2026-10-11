@@ -51,6 +51,9 @@ public class VerifyAnchors {
     private static final String COMMENT_MODEL =
             "com.ss.android.ugc.aweme.comment.model.Comment";
     private static final String CLIP_DATA = "android.content.ClipData";
+    private static final String SEC_API_IMPL = "com.ss.android.ugc.aweme.sec.SecApiImpl";
+    private static final String LIVE_HOST_USER =
+            "com.ss.android.ugc.aweme.live.livehostimpl.LiveHostUser";
 
     private static int failures;
 
@@ -169,6 +172,10 @@ public class VerifyAnchors {
             // through, the plain helper every other route calls, and
             // a menu that hands the helper a comment's own text.
             requireCommentCopy(bridge);
+
+            // Captcha: the real-named entry points that ask TikTok
+            // to show a risk-control puzzle, each guarded at its top.
+            requireCaptcha(bridge);
 
     }
 
@@ -399,6 +406,17 @@ public class VerifyAnchors {
             }
         }
         return false;
+    }
+
+    /**
+     * The captcha patch's entry points. All three are real-named ByteDance methods whose names have
+     * not moved; the patch reads the callback type off each match and checks the class declares the
+     * dismiss method before it assembles anything.
+     */
+    private static void requireCaptcha(DexKitBridge bridge) {
+        requireMethod(bridge, SEC_API_IMPL, "popCaptchaV2", "void", 5);
+        requireMethod(bridge, SEC_API_IMPL, "popCaptcha", "void", 3);
+        requireMethod(bridge, LIVE_HOST_USER, "popCaptchaV2", "void", 4);
     }
 
     private static void requireMethod(
