@@ -1,3 +1,10 @@
+## [1.4.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.4.0-dev.1...v1.4.0-dev.2) (2026-10-11)
+
+### ✨ New Features
+
+* **TikTok/Captcha:** Add `Hide CAPTCHA popups` patch ([6e4d708](https://github.com/na-x-ril/onlynazril-patches/commit/6e4d7080e94ead3dc882b0dd75a223d99aaa5956))
+* **TikTok/Comment copy:** Add `Copy comments without username` patch ([44f40ba](https://github.com/na-x-ril/onlynazril-patches/commit/44f40baedbbb7541e3bc32f2539876abe03b5cd6)), closes [Comment#getText](https://github.com/na-x-ril/Comment/issues/getText) [Comment#getUser](https://github.com/na-x-ril/Comment/issues/getUser)
+
 ## [1.4.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0...v1.4.0-dev.1) (2026-10-07)
 
 ### ✨ New Features
