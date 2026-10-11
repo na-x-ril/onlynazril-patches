@@ -15,7 +15,9 @@ where the row list is assembled, is in
 [anchor-settings-47.0.3.md](./anchor-settings-47.0.3.md). The one factory every face flows through,
 and why a shape rather than a name, is in
 [customfont-47.0.3.md](./customfont-47.0.3.md). The two routes a comment copy takes, and which one
-each build uses, is in [comment-copy-47.0.3.md](./comment-copy-47.0.3.md).
+each build uses, is in [comment-copy-47.0.3.md](./comment-copy-47.0.3.md). The entry points that ask
+TikTok to show a risk-control puzzle, and what is never hidden, is in
+[captcha-47.0.3.md](./captcha-47.0.3.md).
 
 ## The rules behind the choices
 
@@ -68,6 +70,7 @@ each build uses, is in [comment-copy-47.0.3.md](./comment-copy-47.0.3.md).
 | the custom-font factory holder, and the static nine-parameter resolver on it | the custom-font patch's hook: the one method every face TikTok draws with passes through | structural: the class that reads a bundled face (`font/TikTok-Display-Regular.otf` or `font/TikTok-Text-Regular.otf`) in its factory method **and** carries a static `(F, I, F, F, Float, F, I, Map, I) → Typeface`. The class renames every build (`X.05oe` on 46.5.3, `X.0lNd` on 47.0.3, `X.05o5` on 47.1.4) and every other `Typeface` factory in the bundle takes fewer parameters, so the pair is unique (see [customfont-47.0.3.md](./customfont-47.0.3.md)) | the patch fails, naming the classes it found; the app's own faces stay |
 | `com.bytedance.ies.foundation.activity.BaseActivity#onActivityResult(I, I, Intent)` | where the font picker's answer comes back | a ByteDance foundation class name plus the framework's own signature, so neither half moves; every activity result in the app passes through it | the patch fails (the fingerprint has to match), so no font can be imported |
 | the comment-copy builder, and the plain clipboard helper | the copy-comment patch's two hooks: the static `(String, String, List) -> ClipData` builder the comment sheet's Copy flows through, and the `void (String, String, Context, Cert)` helper every other route calls | structural: the builder carries `"copy_label"` and builds with `ClipData.newPlainText`; the helper's signature is the framework's plus ByteDance's own cert type and it builds the same way. The menus that hand the helper a comment's text are found by `Comment#getText` + `Comment#getUser` beside that call, never by name. Class and method names rename every build (`X.0jPl`/`X.0lTB`/`X.0mPJ` on 47.0.3, `X.19oe`/`X.1Gn0`/`X.1Pvb` on 47.1.4) (see [comment-copy-47.0.3.md](./comment-copy-47.0.3.md)) | the patch fails, naming the candidates it found; the username stays in the copied text |
+| `SecApiImpl#popCaptchaV2` / `#popCaptcha`, `LiveHostUser#popCaptchaV2` | the captcha patch's hooks: each entry point is guarded at its top, and the callback it was handed is told the puzzle is over | real-named ByteDance classes and method names that have not moved (`com.ss.android.ugc.aweme.sec.SecApiImpl`, `com.ss.android.ugc.aweme.live.livehostimpl.LiveHostUser`). The obfuscated callback type (parameter 3) is read off the match, and only the dismiss method name (`LIZJ` / `LIZIZ`) is written; the patch fails if the class declares no such method (see [captcha-47.0.3.md](./captcha-47.0.3.md)) | the patch fails, naming the method or the callback; every puzzle stays |
 
 ## Surfaces (where the stamp appears)
 
@@ -294,6 +297,7 @@ one session cannot flood the log:
 | `customfont: import succeeded` / `import failed` | the picker's file reached the bridge and was (or was not) copied into the app's own files. Only this request code is kept; every other activity result falls through untouched |
 | `customfont: import handling failed (<throwable>)` | the import threw |
 | `comment copy: ...` | one comment copy went through a hook: the sheet's name prefix was blanked, or the plain helper's string was replaced with the comment's own text (max 12) |
+| `captcha: hiding ...` / `captcha: showing ...` | one risk-control puzzle: whether it was hidden, and which rule kept it otherwise (the switch is off, or it is account verification) (max 12) |
 
 Reading order for "the region in comments is not what I expected": `name region` first (is the value
 right, and where did it come from), then `name render` (which class drew it), then
