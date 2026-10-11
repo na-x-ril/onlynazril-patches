@@ -26,7 +26,8 @@ object Constants {
         name = "TikTok",
         packageName = "com.zhiliaoapp.musically",
         description = "Handle, region and post time next to names, feed filtering, watermark-free " +
-            "downloads, profile backgrounds and an imported font.",
+            "downloads, profile backgrounds, an imported font, and comment copying without the " +
+            "username.",
         apkFileType = ApkFileType.APK,
         appIconColor = 0xFE2C55,
         targets = listOf(

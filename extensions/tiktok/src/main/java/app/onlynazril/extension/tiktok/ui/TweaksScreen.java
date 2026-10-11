@@ -21,6 +21,7 @@ import app.onlynazril.extension.tiktok.feedfilter.FeedFilterStats;
 import app.onlynazril.extension.tiktok.internal.Activities;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
+import app.onlynazril.extension.tiktok.settings.CommentCopySettings;
 import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
@@ -29,8 +30,8 @@ import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 
 /**
  * Builds the screen: header, one Handle section (master switch on top, then one row per surface,
- * then the region), then one section per remaining feature (Feed filter, Download, Profile
- * background, Custom font), and About.
+ * then the region), then one section per remaining feature (Comments, Feed filter, Download,
+ * Profile background, Custom font), and About.
  *
  * With the master off the dependent rows stay visible but greyed and inert, so their own state
  * survives and comes back unchanged when the master returns.
@@ -101,6 +102,16 @@ public final class TweaksScreen {
             for (RowView row : dependents) row.setRowEnabled(checked);
         });
         for (RowView row : dependents) row.setRowEnabled(masterOn);
+
+        // Independent of the master: what the clipboard receives is not what a name is drawn
+        // with, so the @handle stamp and the comment surface switch do not govern it.
+        column.addView(section(context, "Comments"));
+        column.addView(new RowView(
+                context,
+                "Copy without username",
+                "Copy a comment's own text and leave the username in front of it out.",
+                toggle(context, CommentCopySettings.isEnabled(context),
+                        checked -> CommentCopySettings.setEnabled(context, checked))));
 
         long[] views = FeedFilterSettings.minMaxViews();
         long[] likes = FeedFilterSettings.minMaxLikes();
@@ -317,7 +328,7 @@ public final class TweaksScreen {
         block.addView(title);
 
         TextView subtitle = new TextView(context);
-        subtitle.setText("Handle stamp, region, post time, feed filter, download, "
+        subtitle.setText("Handle stamp, region, post time, comment copy, feed filter, download, "
                 + "profile background, custom font");
         subtitle.setTextSize(Tokens.SUBTITLE_SP);
         subtitle.setTextColor(Tokens.TEXT_SECONDARY);
