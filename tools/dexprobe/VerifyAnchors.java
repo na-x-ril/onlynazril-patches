@@ -48,6 +48,9 @@ public class VerifyAnchors {
             "com.ss.android.ugc.aweme.feed.model.AwemeStatistics";
     private static final String DOWNLOAD_ACL =
             "com.ss.android.ugc.aweme.feed.model.ACLCommonShare";
+    private static final String COMMENT_MODEL =
+            "com.ss.android.ugc.aweme.comment.model.Comment";
+    private static final String CLIP_DATA = "android.content.ClipData";
 
     private static int failures;
 
@@ -161,6 +164,11 @@ public class VerifyAnchors {
             // arrives through, matched by the name and signature
             // the patch hooks it by.
             requireBaseActivityOnActivityResult(bridge);
+
+            // Comment copy: the builder the sheet's Copy flows
+            // through, the plain helper every other route calls, and
+            // a menu that hands the helper a comment's own text.
+            requireCommentCopy(bridge);
 
     }
 
@@ -314,6 +322,83 @@ public class VerifyAnchors {
         } else {
             fail("custom font activity result: expected one, matched " + matches);
         }
+    }
+
+    /**
+     * The copy-comment anchors, matched exactly as the patch's fingerprints are: the one static
+     * builder the comment sheet's Copy flows through (`(String, String, List) -> ClipData`,
+     * `"copy_label"`, built with `ClipData.newPlainText`), the one plain clipboard helper every
+     * other route calls (`void (String, String, Context, Cert)`), and at least one menu that hands
+     * that helper a comment's own text (it reads `Comment#getText` and `Comment#getUser`).
+     */
+    private static void requireCommentCopy(DexKitBridge bridge) {
+        MethodDataList builders = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .usingStrings("copy_label")
+                        .returnType(CLIP_DATA)
+                        .paramTypes("java.lang.String", "java.lang.String", "java.util.List")));
+        java.util.Set<String> builderMatches = new java.util.LinkedHashSet<>();
+        for (MethodData m : builders) {
+            if ((m.getModifiers() & 0x8) == 0) continue;
+            if (!invokesNewPlainText(m)) continue;
+            builderMatches.add(m.getDeclaredClassName() + "#" + m.getName());
+        }
+        if (builderMatches.size() == 1) {
+            pass("comment copy builder " + builderMatches.iterator().next());
+        } else {
+            fail("comment copy builder: expected one, matched " + builderMatches.size());
+        }
+
+        MethodDataList helpers = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .returnType("void")
+                        .paramTypes("java.lang.String", "java.lang.String", "android.content.Context",
+                                "com.bytedance.bpea.basics.Cert")));
+        java.util.Set<MethodData> plainHelpers = new java.util.LinkedHashSet<>();
+        for (MethodData m : helpers) {
+            if (invokesNewPlainText(m)) plainHelpers.add(m);
+        }
+        if (plainHelpers.size() != 1) {
+            fail("comment copy plain helper: expected one, matched " + plainHelpers.size());
+            return;
+        }
+        pass("comment copy plain helper "
+                + plainHelpers.iterator().next().getDeclaredClassName() + "#"
+                + plainHelpers.iterator().next().getName());
+
+        int menus = 0;
+        String found = null;
+        for (MethodData helper : plainHelpers) {
+            for (MethodData caller : helper.getCallers()) {
+                boolean text = false;
+                boolean user = false;
+                for (MethodData invoked : caller.getInvokes()) {
+                    if (!COMMENT_MODEL.equals(invoked.getDeclaredClassName())) continue;
+                    if ("getText".equals(invoked.getName())) text = true;
+                    if ("getUser".equals(invoked.getName())) user = true;
+                }
+                if (text && user) {
+                    menus++;
+                    if (found == null) found = caller.getDeclaredClassName() + "#" + caller.getName();
+                }
+            }
+        }
+        if (menus >= 1) {
+            pass("comment copy menu(s) through the helper: " + menus + ", first " + found);
+        } else {
+            fail("comment copy menu: no caller of the helper reads Comment#getText + getUser");
+        }
+    }
+
+    /** Whether this method builds its answer with `ClipData.newPlainText`. */
+    private static boolean invokesNewPlainText(MethodData m) {
+        for (MethodData invoked : m.getInvokes()) {
+            if (invoked.getDeclaredClassName().equals(CLIP_DATA)
+                    && invoked.getName().equals("newPlainText")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void requireMethod(
