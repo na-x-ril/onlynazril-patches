@@ -15,19 +15,22 @@ So: every change must be traceable to evidence, and no one edits release history
 
 ## 1. Branch model
 
+There is one working branch. Changes are committed straight to `dev`; there is no per-change
+branch and no pull request for one.
+
 | Branch | Holds | Who writes to it |
 |---|---|---|
-| `main` | stable releases | only through a PR from `dev` |
-| `dev` | day-to-day integration, pre-releases | PRs from work branches |
-| `feat/*`, `fix/*`, `chore/*`, `docs/*` | one change each | short-lived branches off `dev` |
+| `main` | stable releases | only through a merge from `dev` |
+| `dev` | day-to-day integration, pre-releases | direct commits |
 
-- Start: `git switch dev && git pull origin dev`, then `git switch -c fix/comment-region`.
-- `main` **never** takes a direct commit. The `dev → main` PR is opened automatically by
-  `.github/workflows/open_pull_request.yml` whenever `dev` is pushed.
+- Start: `git switch dev && git pull origin dev`.
+- `main` **never** takes a direct commit. The `dev → main` merge is opened automatically as a PR by
+  `.github/workflows/open_pull_request.yml` whenever `dev` is pushed; merging it is the stable
+  release.
 - Do not: force-push `main` or `dev`, squash-merge, rebase a pushed branch, or amend a released
   commit. Release commits are written by semantic-release; rewriting one makes the next release
   compute the wrong history.
-- Finish: PR into `dev`, never push to `main`.
+- Never push to `main`; it changes only through the `dev → main` merge.
 
 ## 2. Commit convention
 
@@ -40,10 +43,11 @@ So: every change must be traceable to evidence, and no one edits release history
 | `build` with scope `Needs bump` | patch |
 | `chore`, `build`, `docs`, `refactor`, `test` | no release |
 
-**The scope is not optional.** It is the app and the patch, `TikTok/Custom font`, matching the
-directory under `patches/tiktok/customfont/`. The changelog renders it as a bold prefix, so
-`fix(TikTok/Download):` reaches a user as `* **TikTok/Download:** ...`. A commit without a scope
-reaches them as a bare sentence with nothing telling them which app or which surface it belongs to.
+- **The scope is optional.** When it is written, it names the app and the patch, `TikTok/Custom
+  font`, matching the directory under `patches/tiktok/customfont/`. The changelog renders it as a
+  bold prefix, so `fix(TikTok/Download):` reaches a user as `* **TikTok/Download:** ...`. A commit
+  without one reaches them as a bare sentence, which is fine when the subject already says which app
+  and which surface it is about.
 
 Summary rules:
 
@@ -79,9 +83,9 @@ Other message rules:
   `revert(scope): ...`; to bring it back, make a new `feat`. Never hand-write a subject that quotes
   another commit's.
 
-## 3. Gates before a pull request
+## 3. Gates before a commit
 
-Run what applies, and paste the output into the PR:
+Run what applies, and keep the output in the commit body:
 
 | Changed | Command | What it proves |
 |---|---|---|
@@ -94,7 +98,7 @@ Run what applies, and paste the output into the PR:
 A behaviour change is **not** done without a device log line, or a written statement of why it could
 not be tested yet.
 
-## 4. What review checks
+## 4. What to check before committing
 
 - **English throughout.** Code, comments, documentation, log messages and commit messages are in
   English, so that anyone reading a file — including whoever picks up a bug report months later —
@@ -171,14 +175,14 @@ Work that touches bytecode or on-device rendering follows this order, without sk
 4. **Build and run the gates** (section 3).
 5. **Test on a device and read the log**, then conclude. If the log does not contain the evidence
    being looked for, the next step is to improve the logging — not to guess.
-6. **Write down what is still unproven**, in the PR and in `docs/`.
+6. **Write down what is still unproven**, in the commit body and in `docs/`.
 
 ## 8. Quick reference
 
 | Change | Branch | Commit | Gates | Release |
 |---|---|---|---|---|
-| behaviour fix in a patch | `fix/...` → `dev` | `fix(...)` | build, mppcheck, VerifyAnchors, device log | patch |
-| new patch or surface | `feat/...` → `dev` | `feat(...)` | plus updated VerifyAnchors | minor |
-| support for a new APK version | `feat/...` → `dev` | `feat(...)` / `bump(...)` | VerifyAnchors against the new APK | minor / patch |
-| docs, tools, CI | `docs/...`, `chore/...` → `dev` | `docs(...)`, `chore(...)` | build | none |
-| stable release | PR `dev → main` | (written by semantic-release) | CI | stable |
+| behaviour fix in a patch | `dev` | `fix(...)` | build, mppcheck, VerifyAnchors, device log | patch |
+| new patch or surface | `dev` | `feat(...)` | plus updated VerifyAnchors | minor |
+| support for a new APK version | `dev` | `feat(...)` / `bump(...)` | VerifyAnchors against the new APK | minor / patch |
+| docs, tools, CI | `dev` | `docs(...)`, `chore(...)` | build | none |
+| stable release | merge `dev → main` | (written by semantic-release) | CI | stable |
