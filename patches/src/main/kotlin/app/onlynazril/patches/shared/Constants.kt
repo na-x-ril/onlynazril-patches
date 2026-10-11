@@ -25,7 +25,9 @@ object Constants {
     val COMPATIBILITY_TIKTOK = Compatibility(
         name = "TikTok",
         packageName = "com.zhiliaoapp.musically",
-        description = "Handle, region and post time next to names, on the feed and in comments.",
+        description = "Handle, region and post time next to names, feed filtering, watermark-free " +
+            "downloads, profile backgrounds, an imported font, comment copying without the " +
+            "username, and CAPTCHA popups hidden.",
         apkFileType = ApkFileType.APK,
         appIconColor = 0xFE2C55,
         targets = listOf(

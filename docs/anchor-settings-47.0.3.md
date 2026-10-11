@@ -3,8 +3,8 @@
 Target: `com.zhiliaoapp.musically` 47.0.3. Tool: `tools/dexprobe` (desktop DexKit).
 
 ```
-./tools/dexprobe/run.sh SettingsProbe  "<apk>"
-./tools/dexprobe/run.sh SettingsProbe2 "<apk>"
+./tools/dexprobe/run.sh SettingsProbe      "<apk>"
+./tools/dexprobe/run.sh SettingsGroupProbe "<apk>"
 ```
 
 ## What the scan found

@@ -1,3 +1,16 @@
+## [1.4.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.4.0-dev.1...v1.4.0-dev.2) (2026-10-11)
+
+### ✨ New Features
+
+* **TikTok/Captcha:** Add `Hide CAPTCHA popups` patch ([6e4d708](https://github.com/na-x-ril/onlynazril-patches/commit/6e4d7080e94ead3dc882b0dd75a223d99aaa5956))
+* **TikTok/Comment copy:** Add `Copy comments without username` patch ([44f40ba](https://github.com/na-x-ril/onlynazril-patches/commit/44f40baedbbb7541e3bc32f2539876abe03b5cd6)), closes [Comment#getText](https://github.com/na-x-ril/Comment/issues/getText) [Comment#getUser](https://github.com/na-x-ril/Comment/issues/getUser)
+
+## [1.4.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0...v1.4.0-dev.1) (2026-10-07)
+
+### ✨ New Features
+
+* draw TikTok's text with an imported font ([98ff010](https://github.com/na-x-ril/onlynazril-patches/commit/98ff010e6fcf7e5495dd5cf4e7737de43f0f9a64))
+
 ## [1.3.0](https://github.com/na-x-ril/onlynazril-patches/compare/v1.2.0...v1.3.0) (2026-10-04)
 
 ### 🐛 Bug Fixes
@@ -13,6 +26,13 @@
 * save the media from the share sheet, without the watermark ([4ed620b](https://github.com/na-x-ril/onlynazril-patches/commit/4ed620b67191a99a09c5ac8662cee2982ce4bcea)), closes [Video#getDownloadAddr](https://github.com/na-x-ril/Video/issues/getDownloadAddr)
 * set a profile background on accounts the rollout has not reached ([4e165c5](https://github.com/na-x-ril/onlynazril-patches/commit/4e165c52a3ce61f002e7aebb2d109aef1f8eabcc))
 * the download and profile background switches, and the 47.1.4 target ([5efd33b](https://github.com/na-x-ril/onlynazril-patches/commit/5efd33b3f8f0fa5310b7979a946044a982bc615f))
+
+## [1.3.0-dev.3](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0-dev.2...v1.3.0-dev.3) (2026-10-04)
+
+### 🐛 Bug Fixes
+
+* record what the download feature measured on a device ([366e8ab](https://github.com/na-x-ril/onlynazril-patches/commit/366e8abd068e7000cae2d580ed66ddbfb859bece))
+
 
 ## [1.3.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.3.0-dev.1...v1.3.0-dev.2) (2026-10-02)
 

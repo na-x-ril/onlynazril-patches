@@ -1,3 +1,10 @@
+/**
+ * Finds the wording TikTok itself uses for the post time, by locating the string constants behind
+ * it. Needed because the extension has to invent the text only when TikTok leaves the view empty,
+ * and it should read the way the header's own text does.
+ *
+ *   tools/dexprobe/run.sh TimeFormatProbe "<apk>"
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -8,13 +15,6 @@ import org.luckypray.dexkit.result.MethodData;
 
 import java.util.List;
 
-/**
- * Finds the wording TikTok itself uses for the post time, by locating the string constants behind
- * it. Needed because the extension has to invent the text only when TikTok leaves the view empty,
- * and it should read the way the header's own text does.
- *
- *   tools/dexprobe/run.sh TimeFormatProbe "<apk>"
- */
 public class TimeFormatProbe {
     static {
         System.loadLibrary("dexkit");

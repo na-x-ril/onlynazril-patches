@@ -1,3 +1,9 @@
+/**
+ * The classes implementing an interface, with the methods that write a list: the storage a read
+ * keeps copying from, which has to be found behind the contract before it can be filtered.
+ *
+ *   tools/dexprobe/run.sh ImplementersProbe "<apk>" X.07sw X.07qm
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -5,12 +11,6 @@ import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.ClassDataList;
 import org.luckypray.dexkit.result.MethodData;
 
-/**
- * The classes implementing an interface, with the methods that write a list — the storage a read
- * keeps copying from, which has to be found behind the contract before it can be filtered.
- *
- *   tools/dexprobe/run.sh ImplementersProbe "<apk>" X.07sw X.07qm
- */
 public class ImplementersProbe {
     static {
         System.loadLibrary("dexkit");

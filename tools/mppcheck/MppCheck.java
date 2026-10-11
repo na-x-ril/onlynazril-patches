@@ -1,10 +1,3 @@
-import java.io.File;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.Enumeration;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-
 /**
  * Loads every class in a .mpp the way PatchLoader does, so a missing runtime dependency shows up
  * here instead of in a failed patch run.
@@ -14,6 +7,13 @@ import java.util.jar.JarFile;
  * Uses the morphe-desktop jar for the shared runtime (patcher, smali); anything the .mpp needs on
  * top of that must either be bundled or kept out of public signatures.
  */
+import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.Enumeration;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+
 public class MppCheck {
     public static void main(String[] args) throws Exception {
         File mpp = new File(args[0]);

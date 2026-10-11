@@ -1,3 +1,11 @@
+/**
+ * Checks every anchor the patches depend on against one APK, so a new TikTok version can be
+ * triaged in seconds instead of by patching and installing.
+ *
+ *   tools/dexprobe/run.sh VerifyAnchors "<apk>" [app]
+ *
+ * Exit code is non-zero when any anchor is missing, so it can gate a release.
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindField;
@@ -15,14 +23,6 @@ import org.luckypray.dexkit.result.UsingFieldData;
 
 import java.util.List;
 
-/**
- * Checks every anchor the patches depend on against one APK, so a new TikTok version can be
- * triaged in seconds instead of by patching and installing.
- *
- *   tools/dexprobe/run.sh VerifyAnchors "<apk>"
- *
- * Exit code is non-zero when any anchor is missing, so it can gate a release.
- */
 public class VerifyAnchors {
     static {
         System.loadLibrary("dexkit");
@@ -48,6 +48,12 @@ public class VerifyAnchors {
             "com.ss.android.ugc.aweme.feed.model.AwemeStatistics";
     private static final String DOWNLOAD_ACL =
             "com.ss.android.ugc.aweme.feed.model.ACLCommonShare";
+    private static final String COMMENT_MODEL =
+            "com.ss.android.ugc.aweme.comment.model.Comment";
+    private static final String CLIP_DATA = "android.content.ClipData";
+    private static final String SEC_API_IMPL = "com.ss.android.ugc.aweme.sec.SecApiImpl";
+    private static final String LIVE_HOST_USER =
+            "com.ss.android.ugc.aweme.live.livehostimpl.LiveHostUser";
 
     private static int failures;
 
@@ -153,6 +159,24 @@ public class VerifyAnchors {
             // shape the patch discovers it by.
             requireProfileBgGate(bridge);
 
+            // Custom font: the factory every face flows through, matched
+            // by the shape the patch discovers it by.
+            requireCustomFontFactory(bridge);
+
+            // Custom font: the activity result the picker's file
+            // arrives through, matched by the name and signature
+            // the patch hooks it by.
+            requireBaseActivityOnActivityResult(bridge);
+
+            // Comment copy: the builder the sheet's Copy flows
+            // through, the plain helper every other route calls, and
+            // a menu that hands the helper a comment's own text.
+            requireCommentCopy(bridge);
+
+            // Captcha: the real-named entry points that ask TikTok
+            // to show a risk-control puzzle, each guarded at its top.
+            requireCaptcha(bridge);
+
     }
 
     /**
@@ -234,6 +258,165 @@ public class VerifyAnchors {
             pass("profile background gate " + found);
             pass("profile background snapshot (1 no-arg holder)");
         }
+    }
+
+    /**
+     * The custom-font factory, matched as the patch discovers it: the one
+     * class that reads a bundled TikTok font file and carries a static
+     * (F,I,F,F,Float,F,I,Map,I) -> Typeface method. The class is obfuscated
+     * and renames every build (`X.05oe` on 46.5.3, `X.0lNd` on 47.0.3,
+     * `X.05o5` on 47.1.4), so the shape is the anchor, not the name.
+     */
+    private static void requireCustomFontFactory(DexKitBridge bridge) {
+        java.util.Set<String> candidates = new java.util.LinkedHashSet<>();
+        for (String font : new String[]{"font/TikTok-Display-Regular.otf",
+                "font/TikTok-Text-Regular.otf"}) {
+            MethodDataList methods = bridge.findMethod(FindMethod.create()
+                    .matcher(MethodMatcher.create().usingStrings(font)));
+            for (MethodData m : methods) {
+                candidates.add(m.getDeclaredClassName());
+            }
+        }
+        int matches = 0;
+        String found = null;
+        for (String className : candidates) {
+            ClassDataList classes = bridge.findClass(FindClass.create()
+                    .matcher(ClassMatcher.create().className(className)));
+            for (ClassData c : classes) {
+                for (MethodData m : c.getMethods()) {
+                    if (m.getName().startsWith("<")) continue;
+                    if (!"android.graphics.Typeface".equals(m.getReturnTypeName())) continue;
+                    if (!java.util.List.of("float", "int", "float", "float",
+                            "java.lang.Float", "float", "int", "java.util.Map", "int")
+                            .equals(m.getParamTypeNames())) continue;
+                    matches++;
+                    found = c.getName() + "#" + m.getName() + " " + m.getParamTypeNames();
+                }
+            }
+        }
+        if (matches == 1) {
+            pass("custom font factory " + found);
+        } else {
+            fail("custom font factory: expected one, matched " + matches);
+        }
+    }
+
+    /**
+     * The custom-font picker's answer: the foundation activity's own
+     * onActivityResult, which the activities the Tweaks screen lives in
+     * inherit. The class is a ByteDance foundation class, which keeps its
+     * name across builds, and the signature is the framework's own.
+     */
+    private static void requireBaseActivityOnActivityResult(DexKitBridge bridge) {
+        ClassDataList classes = bridge.findClass(FindClass.create()
+                .matcher(ClassMatcher.create()
+                        .className("com.bytedance.ies.foundation.activity.BaseActivity")));
+        if (classes.size() != 1) {
+            fail("custom font activity result: BaseActivity (matched "
+                    + classes.size() + " classes)");
+            return;
+        }
+        int matches = 0;
+        for (MethodData m : classes.get(0).getMethods()) {
+            if (!"onActivityResult".equals(m.getName())) continue;
+            if (!"void".equals(m.getReturnTypeName())) continue;
+            if (!java.util.List.of("int", "int", "android.content.Intent")
+                    .equals(m.getParamTypeNames())) continue;
+            matches++;
+        }
+        if (matches == 1) {
+            pass("custom font activity result BaseActivity#onActivityResult");
+        } else {
+            fail("custom font activity result: expected one, matched " + matches);
+        }
+    }
+
+    /**
+     * The copy-comment anchors, matched exactly as the patch's fingerprints are: the one static
+     * builder the comment sheet's Copy flows through (`(String, String, List) -> ClipData`,
+     * `"copy_label"`, built with `ClipData.newPlainText`), the one plain clipboard helper every
+     * other route calls (`void (String, String, Context, Cert)`), and at least one menu that hands
+     * that helper a comment's own text (it reads `Comment#getText` and `Comment#getUser`).
+     */
+    private static void requireCommentCopy(DexKitBridge bridge) {
+        MethodDataList builders = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .usingStrings("copy_label")
+                        .returnType(CLIP_DATA)
+                        .paramTypes("java.lang.String", "java.lang.String", "java.util.List")));
+        java.util.Set<String> builderMatches = new java.util.LinkedHashSet<>();
+        for (MethodData m : builders) {
+            if ((m.getModifiers() & 0x8) == 0) continue;
+            if (!invokesNewPlainText(m)) continue;
+            builderMatches.add(m.getDeclaredClassName() + "#" + m.getName());
+        }
+        if (builderMatches.size() == 1) {
+            pass("comment copy builder " + builderMatches.iterator().next());
+        } else {
+            fail("comment copy builder: expected one, matched " + builderMatches.size());
+        }
+
+        MethodDataList helpers = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .returnType("void")
+                        .paramTypes("java.lang.String", "java.lang.String", "android.content.Context",
+                                "com.bytedance.bpea.basics.Cert")));
+        java.util.Set<MethodData> plainHelpers = new java.util.LinkedHashSet<>();
+        for (MethodData m : helpers) {
+            if (invokesNewPlainText(m)) plainHelpers.add(m);
+        }
+        if (plainHelpers.size() != 1) {
+            fail("comment copy plain helper: expected one, matched " + plainHelpers.size());
+            return;
+        }
+        pass("comment copy plain helper "
+                + plainHelpers.iterator().next().getDeclaredClassName() + "#"
+                + plainHelpers.iterator().next().getName());
+
+        int menus = 0;
+        String found = null;
+        for (MethodData helper : plainHelpers) {
+            for (MethodData caller : helper.getCallers()) {
+                boolean text = false;
+                boolean user = false;
+                for (MethodData invoked : caller.getInvokes()) {
+                    if (!COMMENT_MODEL.equals(invoked.getDeclaredClassName())) continue;
+                    if ("getText".equals(invoked.getName())) text = true;
+                    if ("getUser".equals(invoked.getName())) user = true;
+                }
+                if (text && user) {
+                    menus++;
+                    if (found == null) found = caller.getDeclaredClassName() + "#" + caller.getName();
+                }
+            }
+        }
+        if (menus >= 1) {
+            pass("comment copy menu(s) through the helper: " + menus + ", first " + found);
+        } else {
+            fail("comment copy menu: no caller of the helper reads Comment#getText + getUser");
+        }
+    }
+
+    /** Whether this method builds its answer with `ClipData.newPlainText`. */
+    private static boolean invokesNewPlainText(MethodData m) {
+        for (MethodData invoked : m.getInvokes()) {
+            if (invoked.getDeclaredClassName().equals(CLIP_DATA)
+                    && invoked.getName().equals("newPlainText")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The captcha patch's entry points. All three are real-named ByteDance methods whose names have
+     * not moved; the patch reads the callback type off each match and checks the class declares the
+     * dismiss method before it assembles anything.
+     */
+    private static void requireCaptcha(DexKitBridge bridge) {
+        requireMethod(bridge, SEC_API_IMPL, "popCaptchaV2", "void", 5);
+        requireMethod(bridge, SEC_API_IMPL, "popCaptcha", "void", 3);
+        requireMethod(bridge, LIVE_HOST_USER, "popCaptchaV2", "void", 4);
     }
 
     private static void requireMethod(

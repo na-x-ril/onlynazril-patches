@@ -1,3 +1,13 @@
+/**
+ * Register-level look at how a name is rendered, which DexKit alone cannot answer: its MethodData
+ * stops at opcodes, and a hook needs to know which register holds the view and which holds the
+ * text.
+ *
+ *   tools/smaliprobe/run.sh "<apk>" <class|scan:package> [method]
+ *
+ * Dumps one class's methods with their instructions, or scans a package for the methods that call
+ * both User#getNickname and TextView#setText: the candidates for the comment name renderer.
+ */
 import com.android.tools.smali.dexlib2.DexFileFactory;
 import com.android.tools.smali.dexlib2.Opcodes;
 import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile;
@@ -25,16 +35,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Register-level look at how a name is rendered, which DexKit alone cannot answer: its MethodData
- * stops at opcodes, and a hook needs to know which register holds the view and which holds the
- * text.
- *
- *   tools/smaliprobe/run.sh "<apk>" <class|scan:package> [method]
- *
- * Dumps one class's methods with their instructions, or scans a package for the methods that call
- * both User#getNickname and TextView#setText — the candidates for the comment name renderer.
- */
 public class NameRenderProbe {
     private static final String NICKNAME =
             "Lcom/ss/android/ugc/aweme/profile/model/User;->getNickname()Ljava/lang/String;";

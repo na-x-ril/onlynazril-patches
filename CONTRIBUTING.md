@@ -15,19 +15,22 @@ So: every change must be traceable to evidence, and no one edits release history
 
 ## 1. Branch model
 
+There is one working branch. Changes are committed straight to `dev`; there is no per-change
+branch and no pull request for one.
+
 | Branch | Holds | Who writes to it |
 |---|---|---|
-| `main` | stable releases | only through a PR from `dev` |
-| `dev` | day-to-day integration, pre-releases | PRs from work branches |
-| `feat/*`, `fix/*`, `chore/*`, `docs/*` | one change each | short-lived branches off `dev` |
+| `main` | stable releases | only through a merge from `dev` |
+| `dev` | day-to-day integration, pre-releases | direct commits |
 
-- Start: `git switch dev && git pull origin dev`, then `git switch -c fix/comment-region`.
-- `main` **never** takes a direct commit. The `dev → main` PR is opened automatically by
-  `.github/workflows/open_pull_request.yml` whenever `dev` is pushed.
+- Start: `git switch dev && git pull origin dev`.
+- `main` **never** takes a direct commit. The `dev → main` merge is opened automatically as a PR by
+  `.github/workflows/open_pull_request.yml` whenever `dev` is pushed; merging it is the stable
+  release.
 - Do not: force-push `main` or `dev`, squash-merge, rebase a pushed branch, or amend a released
   commit. Release commits are written by semantic-release; rewriting one makes the next release
   compute the wrong history.
-- Finish: PR into `dev`, never push to `main`.
+- Never push to `main`; it changes only through the `dev → main` merge.
 
 ## 2. Commit convention
 
@@ -40,30 +43,62 @@ So: every change must be traceable to evidence, and no one edits release history
 | `build` with scope `Needs bump` | patch |
 | `chore`, `build`, `docs`, `refactor`, `test` | no release |
 
-Message rules:
+- **The scope is optional.** When it is written, it names the app and the patch, `TikTok/Custom
+  font`, matching the directory under `patches/tiktok/customfont/`. The changelog renders it as a
+  bold prefix, so `fix(TikTok/Download):` reaches a user as `* **TikTok/Download:** ...`. A commit
+  without one reaches them as a bare sentence, which is fine when the subject already says which app
+  and which surface it is about.
+
+Summary rules:
 
 - The summary says **what changes for the user**, not "fix bug" or "update".
+- **A new patch** reads ``Add `Patch name` patch``. A switch or option inside a patch that already
+  exists reads ``Add "setting name" setting`` or ``Add "option name" option``.
+- **A bug fix names the symptom, not the fix.** The reader wants to know whether the thing they
+  reported is gone, so the summary is the defect: a noun phrase (`Wrong flyout drawable`) or a
+  negative sentence (`Music videos do not play at 1x speed`). The repair goes in the body.
+- **A new app version** reads ``Add support for `47.2.0` `` or, when untested,
+  ``Add experimental support for `47.2.0` ``.
+- Anything that fits none of those is still allowed, but it reads as prose in the changelog, so
+  prefer the closest pattern above.
+
+| type | summary |
+|---|---|
+| `feat` | ``Add `Custom font` setting`` · ``Add "Hide ads" to the feed`` |
+| `fix` | `Screen draws under the system bars` · `Segments may not load for some versions` |
+| `bump` | ``Add support for `47.2.0` `` |
+| `perf` | a symptom, like `fix`: what was slow or heavy before |
+
+Other message rules:
+
 - One commit, one reason. Keep a behaviour change, an anchor change, docs and tooling in separate
   commits — a reviewer has to judge them apart, and the changelog is generated from this.
 - Use the commit body when the decision is not obvious from the summary: what was tried, what
   happened, what is still unproven.
+- **A revert is a commit, not a message about a commit.** `Revert "feat: something"` and
+  `Reapply "feat: something"` are not Conventional Commits: the analyzer reads the type as `Revert`
+  or `Reapply`, finds neither in the release rules, and so publishes nothing. Worse, it treats the
+  original `feat` as cancelled and the pair as a single no-op, which silently left a feature in the
+  bundle that no release ever asked for. To undo a pushed commit, run `git revert` and let it write
+  `revert(scope): ...`; to bring it back, make a new `feat`. Never hand-write a subject that quotes
+  another commit's.
 
-## 3. Gates before a pull request
+## 3. Gates before a commit
 
-Run what applies, and paste the output into the PR:
+Run what applies, and keep the output in the commit body:
 
 | Changed | Command | What it proves |
 |---|---|---|
 | anything | `./gradlew buildAndroid` | the bundle still builds |
 | patches / extensions | `tools/mppcheck/run.sh patches/build/libs/patches-*.mpp` | every class in the bundle loads (no missing runtime dependency) |
-| anchors / hooks / fingerprints | `tools/dexprobe/run.sh VerifyAnchors "<apk>"` | the anchors still exist and are still unique |
+| anchors / hooks / fingerprints | `tools/dexprobe/run.sh VerifyAnchors "<apk>"` | the anchors still exist and are still unique. When one fails, [docs/anchor-stability.md](docs/anchor-stability.md) says what each anchor is, why it was chosen, and what the patch does when it is gone |
 | runtime behaviour | test on a device, copy the `TIKTOK_HANDLE` lines | the claim actually happened |
 | code / docs | `graphify update .` | the graph is not stale |
 
 A behaviour change is **not** done without a device log line, or a written statement of why it could
 not be tested yet.
 
-## 4. What review checks
+## 4. What to check before committing
 
 - **English throughout.** Code, comments, documentation, log messages and commit messages are in
   English, so that anyone reading a file — including whoever picks up a bug report months later —
@@ -140,14 +175,14 @@ Work that touches bytecode or on-device rendering follows this order, without sk
 4. **Build and run the gates** (section 3).
 5. **Test on a device and read the log**, then conclude. If the log does not contain the evidence
    being looked for, the next step is to improve the logging — not to guess.
-6. **Write down what is still unproven**, in the PR and in `docs/`.
+6. **Write down what is still unproven**, in the commit body and in `docs/`.
 
 ## 8. Quick reference
 
 | Change | Branch | Commit | Gates | Release |
 |---|---|---|---|---|
-| behaviour fix in a patch | `fix/...` → `dev` | `fix(...)` | build, mppcheck, VerifyAnchors, device log | patch |
-| new patch or surface | `feat/...` → `dev` | `feat(...)` | plus updated VerifyAnchors | minor |
-| support for a new APK version | `feat/...` → `dev` | `feat(...)` / `bump(...)` | VerifyAnchors against the new APK | minor / patch |
-| docs, tools, CI | `docs/...`, `chore/...` → `dev` | `docs(...)`, `chore(...)` | build | none |
-| stable release | PR `dev → main` | (written by semantic-release) | CI | stable |
+| behaviour fix in a patch | `dev` | `fix(...)` | build, mppcheck, VerifyAnchors, device log | patch |
+| new patch or surface | `dev` | `feat(...)` | plus updated VerifyAnchors | minor |
+| support for a new APK version | `dev` | `feat(...)` / `bump(...)` | VerifyAnchors against the new APK | minor / patch |
+| docs, tools, CI | `dev` | `docs(...)`, `chore(...)` | build | none |
+| stable release | merge `dev → main` | (written by semantic-release) | CI | stable |

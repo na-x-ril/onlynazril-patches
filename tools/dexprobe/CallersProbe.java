@@ -1,3 +1,9 @@
+/**
+ * Maps the surfaces that render an author's name: every caller of {@code User.getNickname()},
+ * grouped by package. That grouping is the list of places the handle stamp can be extended to.
+ *
+ *   tools/dexprobe/run.sh CallersProbe "<apk>" [package-depth]
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -11,12 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * Maps the surfaces that render an author's name: every caller of {@code User.getNickname()},
- * grouped by package. That grouping is the list of places the handle stamp can be extended to.
- *
- *   tools/dexprobe/run.sh CallersProbe "<apk>" [package-depth]
- */
 public class CallersProbe {
     static {
         System.loadLibrary("dexkit");

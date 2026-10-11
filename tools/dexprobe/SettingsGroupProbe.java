@@ -1,3 +1,17 @@
+/**
+ * Second pass over the Settings screen: is the section header something we can build ourselves,
+ * and where does the group list come from?
+ *
+ * Checks the state class that carries OPEN_DEBUG (the per-group singleton container), its static
+ * singletons, constructors and the strings baked into <clinit>, then finds where the screen
+ * gathers its *GroupVM list. That answers whether a whole new group can be appended or whether
+ * the patch has to live inside an existing one.
+ *
+ *   tools/dexprobe/run.sh SettingsGroupProbe "<apk>" [state-class]
+ *
+ * The state class is optional: without it the probe resolves the one carrying OPEN_DEBUG and
+ * says which class that was.
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindField;
@@ -15,15 +29,7 @@ import org.luckypray.dexkit.result.MethodDataList;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/**
- * Second pass: is the section header something we can build ourselves?
- *
- * Checks the state class that carries OPEN_DEBUG (per-group singleton container) — its
- * static singletons, constructors and the strings baked into <clinit> — and finds where
- * the settings screen gathers its *GroupVM list, so we know whether a whole new group can
- * be appended or whether we must live inside an existing one.
- */
-public class SettingsProbe2 {
+public class SettingsGroupProbe {
     static {
         System.loadLibrary("dexkit");
     }

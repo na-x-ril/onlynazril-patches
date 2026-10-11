@@ -43,12 +43,25 @@ public final class Prompt {
             String title,
             String message,
             Runnable onConfirm) {
+        show(context, title, message, CONFIRM, onConfirm);
+    }
+
+    /**
+     * Shows the prompt with the caller's own confirm label, for a prompt whose
+     * confirm is not the restart the default label names.
+     */
+    public static void show(
+            Context context,
+            String title,
+            String message,
+            String confirmLabel,
+            Runnable onConfirm) {
         try {
             if (showing) return;
             Activity activity = Activities.of(context);
             if (activity == null || activity.isFinishing()) return;
             activity.runOnUiThread(
-                    () -> display(activity, title, message, CONFIRM, DISMISS, onConfirm));
+                    () -> display(activity, title, message, confirmLabel, DISMISS, onConfirm));
         } catch (Throwable t) {
             Log.w(TAG, "prompt failed", t);
         }

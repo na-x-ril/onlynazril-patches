@@ -1,3 +1,16 @@
+/**
+ * Maps the structure of TikTok's Settings screen so the patches can add their own
+ * "Extra" section with a deterministic position instead of guessing indices.
+ *
+ * Answers:
+ *  1. every SECTION_HEADER / OPEN_DEBUG singleton (declaring class + type): is there one
+ *     header per group, or one shared by all of them?
+ *  2. the *GroupVM classes that make up the settings screen;
+ *  3. the state class behind SupportGroupVM.defaultState plus its static singletons;
+ *  4. how the rows list is assembled and sorted.
+ *
+ *   tools/dexprobe/run.sh SettingsProbe "<apk>"
+ */
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindField;
@@ -14,17 +27,6 @@ import org.luckypray.dexkit.result.MethodDataList;
 
 import java.util.TreeSet;
 
-/**
- * Maps the structure of TikTok's Settings screen so the patches can add their own
- * "Extra" section with a deterministic position instead of guessing indices.
- *
- * Answers:
- *  1. every SECTION_HEADER / OPEN_DEBUG singleton (declaring class + type) — is there one
- *     header per group, or one shared by all of them?
- *  2. the *GroupVM classes that make up the settings screen;
- *  3. the state class behind SupportGroupVM.defaultState plus its static singletons;
- *  4. how the rows list is assembled and sorted.
- */
 public class SettingsProbe {
     static {
         System.loadLibrary("dexkit");

@@ -1,11 +1,3 @@
-import org.luckypray.dexkit.DexKitBridge;
-import org.luckypray.dexkit.query.FindClass;
-import org.luckypray.dexkit.query.enums.StringMatchType;
-import org.luckypray.dexkit.query.matchers.ClassMatcher;
-import org.luckypray.dexkit.result.ClassData;
-import org.luckypray.dexkit.result.ClassDataList;
-import org.luckypray.dexkit.result.MethodData;
-
 /**
  * Reads a *patched* APK back: every extension class it carries, and every place that calls into it,
  * so the hook sites that were actually installed can be named instead of assumed.
@@ -15,6 +7,14 @@ import org.luckypray.dexkit.result.MethodData;
  * The needle defaults to the extension's package. A caller listed here is a site the patch
  * instrumented; if the site you expected is absent, nothing was hooked there.
  */
+import org.luckypray.dexkit.DexKitBridge;
+import org.luckypray.dexkit.query.FindClass;
+import org.luckypray.dexkit.query.enums.StringMatchType;
+import org.luckypray.dexkit.query.matchers.ClassMatcher;
+import org.luckypray.dexkit.result.ClassData;
+import org.luckypray.dexkit.result.ClassDataList;
+import org.luckypray.dexkit.result.MethodData;
+
 public class DiagHookProbe {
     static {
         System.loadLibrary("dexkit");
