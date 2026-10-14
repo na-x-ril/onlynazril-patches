@@ -4,29 +4,39 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebView;
 
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
 import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.Locale;
+import java.util.Map;
+
 /**
  * The custom-font patch's hooks.
  *
- * The app resolves every face it draws through one static
- * factory, and the patch answers that factory. While the
- * switch says so and an imported font is in use, the answer
- * is that file's face; otherwise the answer is nothing, and
- * the app's own resolution runs as it always did.
+ * Every engine the app draws text with asks for a face of its own
+ * somewhere else: the native factory and the Compose loader are asked
+ * for a face outright, Lynx reads the bundled files through the app's
+ * asset loader, and a hybrid (H5) page is served font bytes over the
+ * WebView client. This class answers each of them with the imported
+ * file while the switch says so, and answers nothing otherwise, so the
+ * app's own resolution runs as it always did.
  *
- * The factory's callers ask for faces by weight (bold,
- * medium), which one file cannot carry, so a heavier style
- * draws in the file's own face. Nothing here measures text:
- * the app keeps its own metrics, and only the face changes.
+ * The factory's callers ask for faces by weight (bold, medium), which
+ * one file cannot carry, so a heavier style draws in the file's own
+ * face. Nothing here measures text: the app keeps its own metrics, and
+ * only the face changes.
  *
- * The picker rides on the foundation activity's
- * onActivityResult, which every activity result in the app
- * passes through. Only the picker's own request code is
- * kept, and only a result that carries a file is imported.
+ * The picker rides on the foundation activity's onActivityResult, which
+ * every activity result in the app passes through. Only the picker's own
+ * request code is kept, and only a result that carries a file is
+ * imported.
  */
 public final class CustomFontBridge {
     private static final int LOG_CAP = 8;
@@ -38,8 +48,77 @@ public final class CustomFontBridge {
 
     private CustomFontBridge() {}
 
-    /** The face every surface draws with, or null to keep the app's own. */
+    /** The face every resolver draws with, or null to keep the app's own. */
     public static Typeface typeface() {
+        return serve();
+    }
+
+    /**
+     * The face for one bundled asset path, or null for anything else.
+     *
+     * The app's own asset loader is handed every asset font it reads, so the path
+     * is checked first: only the faces TikTok bundles are answered, and a Lynx
+     * page's or a sticker's own asset font keeps the app's resolution.
+     */
+    public static Typeface typefaceFor(String path) {
+        if (!CustomFontSettings.isBundledFace(path)) return null;
+        return serve();
+    }
+
+    /**
+     * A page's font request, answered with the imported file. Any other
+     * request answers null, so the app's own WebView client handles it as
+     * it always did.
+     */
+    public static WebResourceResponse webFont(WebView view, WebResourceRequest request) {
+        if (request == null) return null;
+        Uri url = request.getUrl();
+        return webFontResponse(url == null ? null : url.toString(), request.getRequestHeaders());
+    }
+
+    /** The deprecated WebView overload: the request is the URL itself. */
+    public static WebResourceResponse webFont(WebView view, String url) {
+        return webFontResponse(url, null);
+    }
+
+    private static WebResourceResponse webFontResponse(String url, Map<String, String> headers) {
+        try {
+            if (!isFontRequest(url, headers)) return null;
+            File file = CustomFontSettings.selectedFile();
+            if (file == null) return null;
+            report("customfont: font served to a page");
+            return new WebResourceResponse("", "", new FileInputStream(file));
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether the request is one the app's own font interceptor would answer: a
+     * font URL, a font content type, or one of the named font endpoints a page's
+     * CSS asks for. Kept to those, so a request that is not a font is never
+     * answered here.
+     */
+    private static boolean isFontRequest(String url, Map<String, String> headers) {
+        if (headers != null) {
+            for (Map.Entry<String, String> header : headers.entrySet()) {
+                if (header.getKey() == null || header.getValue() == null) continue;
+                if (!"content-type".equalsIgnoreCase(header.getKey())) continue;
+                if (header.getValue().toLowerCase(Locale.ROOT).contains("font")) return true;
+            }
+        }
+        if (url == null) return false;
+        String lower = url.toLowerCase(Locale.ROOT);
+        return lower.contains(".woff")
+                || lower.contains(".woff2")
+                || lower.contains(".otf")
+                || lower.contains("_default_font")
+                || lower.contains("tiktokvffont")
+                || lower.contains("tiktoksans-vf");
+    }
+
+    /** The imported face, or null while the switch is off or nothing is picked. */
+    private static Typeface serve() {
         try {
             Typeface font = CustomFontSettings.typeface();
             if (font == null) return null;
