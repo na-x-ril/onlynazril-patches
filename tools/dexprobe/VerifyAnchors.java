@@ -163,6 +163,16 @@ public class VerifyAnchors {
             // by the shape the patch discovers it by.
             requireCustomFontFactory(bridge);
 
+            // Custom font: the loader Jetpack Compose asks instead of the
+            // factory, matched by the shape the patch discovers it by.
+            requireComposeFontLoader(bridge);
+
+            // Custom font: the asset loader Lynx reads a bundled face
+            // through, and the WebView interceptor hybrid pages are served
+            // font bytes through, matched by the shapes the patch uses.
+            requireAssetFontLoader(bridge);
+            requireWebFontInterceptor(bridge);
+
             // Custom font: the activity result the picker's file
             // arrives through, matched by the name and signature
             // the patch hooks it by.
@@ -298,6 +308,119 @@ public class VerifyAnchors {
             pass("custom font factory " + found);
         } else {
             fail("custom font factory: expected one, matched " + matches);
+        }
+    }
+
+    /**
+     * The Compose loader, matched as the patch discovers it: the class that
+     * reads a bundled TikTok font file and carries an instance
+     * (Context, request) -> Typeface method. Jetpack Compose reaches the
+     * faces here (AndroidComposeView builds its own FontFamily resolver),
+     * not at the native factory, so this second shape is what keeps the
+     * Settings and privacy screen on the imported font. The class is
+     * obfuscated and renames every build (`X.0lNf` on 47.0.3, `X.05vZ` on
+     * 47.1.4), so the shape is the anchor, not the name.
+     */
+    private static void requireComposeFontLoader(DexKitBridge bridge) {
+        java.util.Set<String> candidates = new java.util.LinkedHashSet<>();
+        for (String font : new String[]{"font/TikTok-Display-Regular.otf",
+                "font/TikTok-Text-Regular.otf"}) {
+            MethodDataList methods = bridge.findMethod(FindMethod.create()
+                    .matcher(MethodMatcher.create().usingStrings(font)));
+            for (MethodData m : methods) {
+                candidates.add(m.getDeclaredClassName());
+            }
+        }
+        int matches = 0;
+        String found = null;
+        for (String className : candidates) {
+            ClassDataList classes = bridge.findClass(FindClass.create()
+                    .matcher(ClassMatcher.create().className(className)));
+            for (ClassData c : classes) {
+                for (MethodData m : c.getMethods()) {
+                    if (m.getName().startsWith("<")) continue;
+                    if (!"android.graphics.Typeface".equals(m.getReturnTypeName())) continue;
+                    java.util.List<String> params = m.getParamTypeNames();
+                    if (params.size() != 2) continue;
+                    if (!"android.content.Context".equals(params.get(0))) continue;
+                    matches++;
+                    found = c.getName() + "#" + m.getName() + " " + params;
+                }
+            }
+        }
+        if (matches == 1) {
+            pass("custom font compose loader " + found);
+        } else {
+            fail("custom font compose loader: expected one, matched " + matches);
+        }
+    }
+
+    /**
+     * The app's asset loader, matched as the patch discovers it: the one
+     * (AssetManager, String) -> Typeface method, whose body creates the face from
+     * the asset. The class and method rename every build (`X.0VKh#t4` on 47.0.3,
+     * `X.00kn#s4` on 47.1.4), and Lynx's own TypefaceCache reads the bundled
+     * faces through it, so this is the point that carries the font to Lynx pages.
+     */
+    private static void requireAssetFontLoader(DexKitBridge bridge) {
+        MethodDataList methods = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .paramTypes("android.content.res.AssetManager", "java.lang.String")));
+        int matches = 0;
+        String found = null;
+        for (MethodData m : methods) {
+            if (!"android.graphics.Typeface".equals(m.getReturnTypeName())) continue;
+            matches++;
+            found = m.getDeclaredClassName() + "#" + m.getName();
+        }
+        if (matches == 1) {
+            pass("custom font asset loader " + found);
+        } else {
+            fail("custom font asset loader: expected one, matched " + matches);
+        }
+    }
+
+    /**
+     * The WebView font interceptor, matched as the patch discovers it: a class
+     * that reads a bundled face and answers a WebView with a
+     * WebResourceResponse. Hybrid (H5) pages - Activity Center, Manage posts -
+     * are fed their font bytes here, so this is the point that carries the font
+     * to them. The class keeps its name across builds
+     * (`FontLoadManager$init$1#shouldInterceptRequest`), and both overloads sit
+     * on it: the deprecated `(WebView, String)` and the current
+     * `(WebView, WebResourceRequest)`.
+     */
+    private static void requireWebFontInterceptor(DexKitBridge bridge) {
+        MethodDataList fonts = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create().usingStrings("font/TikTokSans-VF.otf")));
+        java.util.Set<String> candidates = new java.util.LinkedHashSet<>();
+        for (MethodData m : fonts) {
+            candidates.add(m.getDeclaredClassName());
+        }
+        int matches = 0;
+        String found = null;
+        for (String className : candidates) {
+            ClassDataList classes = bridge.findClass(FindClass.create()
+                    .matcher(ClassMatcher.create().className(className)));
+            for (ClassData c : classes) {
+                int hooks = 0;
+                for (MethodData m : c.getMethods()) {
+                    if (!"android.webkit.WebResourceResponse".equals(m.getReturnTypeName())) continue;
+                    java.util.List<String> params = m.getParamTypeNames();
+                    if (params.size() != 2) continue;
+                    if (!"android.webkit.WebView".equals(params.get(0))) continue;
+                    hooks++;
+                }
+                if (hooks > 0) {
+                    matches++;
+                    found = c.getName() + " (" + hooks + " method(s))";
+                }
+            }
+        }
+        if (matches == 1) {
+            pass("custom font webview interceptor " + found);
+        } else {
+            fail("custom font webview interceptor: expected one class, matched " + matches);
         }
     }
 
