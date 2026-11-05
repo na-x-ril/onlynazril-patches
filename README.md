@@ -13,6 +13,10 @@ the rollout has not reached; and draws the app's text in a font file you import.
 tab in the bottom bar opens Tweaks, where every one of those is switched on or off. More apps are
 planned.
 
+> The AMOLED theme patch is optional and experimental. It rewrites resource colours, can leave some
+> screens uneven or affect the light theme, and is undone only by repatching. See
+> [docs/amoled.md](docs/amoled.md).
+
 ### How to use these patches
 
 Click here to add these patches to Morphe: https://morphe.software/add-source?github=na-x-ril/onlynazril-patches
@@ -20,9 +24,9 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.4.0](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.4.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;8 patches total
+> **[v1.4.0](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.4.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;10 patches total
 <details open>
-<summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;8 patches</summary>
+<summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;10 patches</summary>
 <br>
 
 **🎯 Supported versions:**
@@ -32,6 +36,8 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
+| [AMOLED code colours](#amoled-code-colours) | Replaces opaque dark surface colours held as constants in code with black. Pulled in by AMOLED theme; does nothing for resources. |  |
+| [AMOLED theme](#amoled-theme) | Total AMOLED: every colour whose brightest channel is 0x60 or lower becomes black, alpha kept. Borders and controls lose their separation too; repatch to undo. |  |
 | [Always @handle · region · post time](#always-handle-region-post-time) | Shows the @handle, the region and the post time on feed videos and comments, including a video shared into a chat. Each surface and each part has a switch in Tweaks. |  |
 | [Copy comments without username](#copy-comments-without-username) | Leaves the username out of a copied comment: the clipboard gets the comment's own text. On by default; the switch is in Tweaks. |  |
 | [Custom font](#custom-font) | Answers every resolver TikTok gets one of its own faces from - the native factory, the Compose loader, the asset loader Lynx reads and the WebView interceptor hybrid pages are fed through - so an imported font file replaces TikTok's own text on every surface. The switch and the picker are in Tweaks; off by default, and inert until a font is imported. |  |
