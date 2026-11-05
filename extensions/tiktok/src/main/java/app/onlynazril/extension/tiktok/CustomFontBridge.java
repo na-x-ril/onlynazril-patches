@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.util.Base64;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
@@ -11,6 +12,8 @@ import android.webkit.WebView;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
 import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
+
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,6 +48,9 @@ public final class CustomFontBridge {
     public static final int REQUEST_PICK_FONT = 0x4F4E54;
 
     private static int logged;
+    private static int pagesLogged;
+    private static String cachedScript;
+    private static String cachedKey;
 
     private CustomFontBridge() {}
 
@@ -87,10 +93,97 @@ public final class CustomFontBridge {
             File file = CustomFontSettings.selectedFile();
             if (file == null) return null;
             report("customfont: font served to a page");
-            return new WebResourceResponse("", "", new FileInputStream(file));
+            return new WebResourceResponse(mime(file), "", new FileInputStream(file));
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /**
+     * Gives a finished page the imported face.
+     *
+     * The interceptor only replaces bytes for a font the page already asks for; a hybrid page that
+     * never asks for one kept its own fonts. Here the face is carried in as a data URI and applied
+     * with a stylesheet, so the page does not have to request anything.
+     */
+    public static void onPageFinished(WebView view, String url) {
+        try {
+            if (view == null) return;
+            File file = CustomFontSettings.selectedFile();
+            if (file == null) return;
+            String script = script(file);
+            if (script == null) return;
+            view.post(() -> {
+                try {
+                    view.evaluateJavascript(script, null);
+                    reportPage("customfont: page font injected");
+                } catch (Throwable t) {
+                    reportPage("customfont: page injection failed (" + t + ")");
+                }
+            });
+        } catch (Throwable t) {
+            reportPage("customfont: page injection failed (" + t + ")");
+        }
+    }
+
+    /** The injection script, rebuilt only when the chosen file changes. */
+    private static synchronized String script(File file) {
+        String key = file.getAbsolutePath() + "|" + file.lastModified() + "|" + file.length();
+        if (key.equals(cachedKey) && cachedScript != null) return cachedScript;
+        try {
+            byte[] bytes = read(file);
+            if (bytes == null || bytes.length == 0) return null;
+            String data = Base64.encodeToString(bytes, Base64.NO_WRAP);
+            String source = "url(data:" + mime(file) + ";base64," + data + ") format('" + format(file) + "')";
+            String css = "@font-face{font-family:'MorpheFont';src:" + source + ";font-display:swap}"
+                    + "body,p,span,div,a,button,input,textarea,select,li,h1,h2,h3,h4,h5,h6,"
+                    + "label,td,th,strong,em,small{font-family:'MorpheFont',sans-serif!important}";
+            String js = "(function(){function go(){"
+                    + "if(document.getElementById('morphe-font'))return;"
+                    + "var s=document.createElement('style');s.id='morphe-font';s.textContent="
+                    + JSONObject.quote(css)
+                    + ";(document.head||document.documentElement).appendChild(s);}"
+                    + "if(document.readyState==='loading'){"
+                    + "document.addEventListener('DOMContentLoaded',go);}else{go();}})();";
+            cachedKey = key;
+            cachedScript = js;
+            return js;
+        } catch (Throwable t) {
+            report("customfont: page font failed (" + t + ")");
+            return null;
+        }
+    }
+
+    private static byte[] read(File file) throws Exception {
+        FileInputStream in = new FileInputStream(file);
+        try {
+            byte[] out = new byte[(int) file.length()];
+            int offset = 0;
+            while (offset < out.length) {
+                int count = in.read(out, offset, out.length - offset);
+                if (count < 0) break;
+                offset += count;
+            }
+            return out;
+        } finally {
+            in.close();
+        }
+    }
+
+    private static String mime(File file) {
+        String name = file.getName().toLowerCase(Locale.ROOT);
+        if (name.endsWith(".woff2")) return "font/woff2";
+        if (name.endsWith(".woff")) return "font/woff";
+        if (name.endsWith(".ttf")) return "font/ttf";
+        return "font/otf";
+    }
+
+    private static String format(File file) {
+        String name = file.getName().toLowerCase(Locale.ROOT);
+        if (name.endsWith(".woff2")) return "woff2";
+        if (name.endsWith(".woff")) return "woff";
+        if (name.endsWith(".ttf")) return "truetype";
+        return "opentype";
     }
 
     /**
@@ -153,5 +246,13 @@ public final class CustomFontBridge {
 
     private static void report(String message) {
         if (logged++ < LOG_CAP) Debug.print(message);
+    }
+
+    /**
+     * The page injection has its own cap: the face resolvers log first and would otherwise use up
+     * the shared one before a page has even finished loading.
+     */
+    private static void reportPage(String message) {
+        if (pagesLogged++ < LOG_CAP) Debug.print(message);
     }
 }

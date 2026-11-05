@@ -1,7 +1,9 @@
 package app.onlynazril.patches.tiktok.customfont
 
+import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
+import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
@@ -143,6 +145,20 @@ val tiktokCustomFontPatch = bytecodePatch(
                 .answerWebRequestsWithCustomFont(resolver.method.parameterTypes[1].toString())
         }
 
+        // A hybrid page does not always ask for the bundled face, so the
+        // interceptor alone can leave the page on its own fonts. The base
+        // WebView client every font interceptor extends is where a page
+        // reports it finished; the bridge injects the imported face there.
+        val pageFinished = findPageFinished(classDefBy(webFontMethods.first().holder.type))
+            ?: throw PatchException(
+                "Custom font: no onPageFinished on the WebView client behind " +
+                    "${webFontMethods.first().holder.type}, so the page cannot be given the face.",
+            )
+        pageFinished.addInstruction(
+            0,
+            "invoke-static {p1, p2}, $BRIDGE->onPageFinished(Landroid/webkit/WebView;Ljava/lang/String;)V",
+        )
+
         // The picker's answer: the foundation activity delivers every
         // activity result through this method, so the picker's file
         // arrives here whatever activity asked for it. The bridge
@@ -210,6 +226,31 @@ private fun Method.isAssetFontLoader(): Boolean =
             && AccessFlags.STATIC.isSet(accessFlags)
             && parameterTypes == listOf(ASSET_LOADER_ASSET_MANAGER, ASSET_LOADER_PATH)
             && createsFaceFromAsset()
+
+/**
+ * The `onPageFinished` the WebView client behind [start] inherits.
+ *
+ * The interceptor is an anonymous subclass. It often does not override the
+ * finished callback, so the method is looked up on the superclass chain. The
+ * class names rename every build, but the relationship does not: the client
+ * the font interceptor extends is the one a page reports to.
+ */
+private fun BytecodePatchContext.findPageFinished(start: ClassDef): MutableMethod? {
+    var type: String? = start.type
+    var depth = 0
+    while (type != null && depth++ < 12) {
+        val classDef = classDefByOrNull(type) ?: return null
+        val method = classDef.methods.firstOrNull {
+            it.name == "onPageFinished" &&
+                it.parameterTypes == listOf(WEB_FONT_VIEW, WEB_FONT_URL) &&
+                it.returnType == "V" &&
+                it.implementation != null
+        }
+        if (method != null) return mutableClassDefBy(type).findMutableMethodOf(method)
+        type = classDef.superclass
+    }
+    return null
+}
 
 /** Whether the body calls `Typeface.createFromAsset`. */
 private fun Method.createsFaceFromAsset(): Boolean {
