@@ -28,12 +28,6 @@ public class VerifyAnchors {
         System.loadLibrary("dexkit");
     }
 
-    private static final String OPEN_DEBUG_CELL_VM =
-            "com.ss.android.ugc.aweme.setting.ui.rvmpcompose.group.support.cells.OpenDebugCellVM";
-    private static final String SUPPORT_GROUP_VM =
-            "com.ss.android.ugc.aweme.setting.ui.rvmpcompose.group.support.SupportGroupVM";
-    private static final String SETTINGS_COMPOSE_FRAGMENT =
-            "com.ss.android.ugc.aweme.setting.ui.rvmpcompose.SettingsComposeRvmpFragment";
     private static final String AD_PERSONALIZATION =
             "com.bytedance.ies.ugc.aweme.commercialize.compliance.personalization.AdPersonalizationActivity";
     private static final String ASSEM =
@@ -141,12 +135,6 @@ public class VerifyAnchors {
             requireMethod(bridge, AWEME, "getStatistics", AWEME_STATISTICS, 0);
             requireMethod(bridge, AWEME_STATISTICS, "getPlayCount", "long", 0);
             requireMethod(bridge, AWEME_STATISTICS, "getDiggCount", "long", 0);
-
-            // Settings carrier: the OpenDebug cell and the group that renders it
-            requireMethod(bridge, OPEN_DEBUG_CELL_VM, "defaultState", null, 0);
-            requireMethod(bridge, SUPPORT_GROUP_VM, "defaultState", null, 0);
-            requireSettingsRowsMethod(bridge);
-            requireSingletonPair(bridge);
 
             // Host activity
             requireMethod(bridge, AD_PERSONALIZATION, "onCreate", "void", 1);
@@ -534,12 +522,43 @@ public class VerifyAnchors {
     /**
      * The captcha patch's entry points. All three are real-named ByteDance methods whose names have
      * not moved; the patch reads the callback type off each match and checks the class declares the
-     * dismiss method before it assembles anything.
+     * dismiss method before it assembles anything. The Turing dialog is the fourth, a second
+     * surface the sec entry points do not carry.
      */
     private static void requireCaptcha(DexKitBridge bridge) {
         requireMethod(bridge, SEC_API_IMPL, "popCaptchaV2", "void", 5);
         requireMethod(bridge, SEC_API_IMPL, "popCaptcha", "void", 3);
         requireMethod(bridge, LIVE_HOST_USER, "popCaptchaV2", "void", 4);
+        requireBdTuringDialog(bridge);
+    }
+
+    /**
+     * The Turing (oecverify) dialog, matched as the patch discovers it: the real-named BdTuring
+     * class and its two showVerifyDialog shapes, each taking an Activity first and the real-named
+     * callback last. A captcha that appears while the sec entry points stay silent comes from here.
+     */
+    private static void requireBdTuringDialog(DexKitBridge bridge) {
+        ClassDataList classes = bridge.findClass(FindClass.create()
+                .matcher(ClassMatcher.create().className("com.tts.oecverify.BdTuring")));
+        if (classes.size() != 1) {
+            fail("captcha turing dialog: BdTuring (matched " + classes.size() + " classes)");
+            return;
+        }
+        int matches = 0;
+        for (MethodData m : classes.get(0).getMethods()) {
+            if (!"showVerifyDialog".equals(m.getName())) continue;
+            if (!"void".equals(m.getReturnTypeName())) continue;
+            java.util.List<String> params = m.getParamTypeNames();
+            if (params.size() != 3) continue;
+            if (!"android.app.Activity".equals(params.get(0))) continue;
+            if (!"com.tts.oecverify.BdTuringCallback".equals(params.get(2))) continue;
+            matches++;
+        }
+        if (matches == 2) {
+            pass("captcha turing dialog BdTuring#showVerifyDialog (2 shapes)");
+        } else {
+            fail("captcha turing dialog: expected two shapes, matched " + matches);
+        }
     }
 
     private static void requireMethod(
@@ -560,30 +579,6 @@ public class VerifyAnchors {
         }
         fail(className + (methodName == null ? "" : "#" + methodName)
                 + " return=" + returnType + " params=" + paramCount);
-    }
-
-    /**
-     * The two singletons the Settings patch reads out of the same class: SECTION_HEADER is the
-     * position anchor, OPEN_DEBUG is the row we repurpose. They must still live together.
-     */
-    private static void requireSingletonPair(DexKitBridge bridge) {
-        FieldDataList openDebug = bridge.findField(FindField.create()
-                .matcher(FieldMatcher.create().name("OPEN_DEBUG")));
-        FieldDataList sectionHeader = bridge.findField(FindField.create()
-                .matcher(FieldMatcher.create().name("SECTION_HEADER")));
-        if (openDebug.size() != 1) {
-            fail("OPEN_DEBUG singleton (matched " + openDebug.size() + " fields)");
-            return;
-        }
-        String carrier = openDebug.get(0).getDeclaredClassName();
-        for (FieldData f : sectionHeader) {
-            if (f.getDeclaredClassName().equals(carrier)) {
-                pass("singleton pair " + carrier + " {SECTION_HEADER, OPEN_DEBUG}");
-                return;
-            }
-        }
-        fail("SECTION_HEADER on " + carrier + " (only found on "
-                + sectionHeader.size() + " other class(es))");
     }
 
     /**
@@ -743,33 +738,6 @@ public class VerifyAnchors {
             return;
         }
         fail(className + "#" + fieldName + " field");
-    }
-
-    /**
-     * The rows-sort anchor is structural: a void method on SettingsComposeRvmpFragment that calls
-     * a static {@code (Comparator, Iterable) -> List} helper. Its name is obfuscated, so the
-     * invoked signature is the anchor — exactly what the patch matches on.
-     */
-    private static void requireSettingsRowsMethod(DexKitBridge bridge) {
-        ClassDataList classes = bridge.findClass(FindClass.create()
-                .matcher(ClassMatcher.create().className(SETTINGS_COMPOSE_FRAGMENT)));
-        if (classes.size() != 1) {
-            fail(SETTINGS_COMPOSE_FRAGMENT + " (matched " + classes.size() + " classes)");
-            return;
-        }
-        for (MethodData m : classes.get(0).getMethods()) {
-            if (!"void".equals(m.getReturnTypeName())) continue;
-            for (MethodData invoked : m.getInvokes()) {
-                if (!"java.util.List".equals(invoked.getReturnTypeName())) continue;
-                if (invoked.getParamTypeNames().size() != 2) continue;
-                if (!invoked.getParamTypeNames().get(0).equals("java.util.Comparator")) continue;
-                if (!invoked.getParamTypeNames().get(1).equals("java.lang.Iterable")) continue;
-                pass(SETTINGS_COMPOSE_FRAGMENT + "#" + m.getName() + " sorts via "
-                        + invoked.getName() + "(Comparator, Iterable)");
-                return;
-            }
-        }
-        fail(SETTINGS_COMPOSE_FRAGMENT + " rows-sort method (no void method calling the sort helper)");
     }
 
     private static void pass(String what) {

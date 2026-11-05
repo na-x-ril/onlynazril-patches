@@ -18,14 +18,14 @@
           "signatures": null,
           "targets": [
             {
-              "version": "47.0.3",
+              "version": "47.7.1",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
               "description": null
             },
             {
-              "version": "47.1.4",
+              "version": "47.7.2",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
@@ -52,14 +52,14 @@
           "signatures": null,
           "targets": [
             {
-              "version": "47.0.3",
+              "version": "47.7.1",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
               "description": null
             },
             {
-              "version": "47.1.4",
+              "version": "47.7.2",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
@@ -72,7 +72,7 @@
     },
     {
       "name": "Custom font",
-      "description": "Answers the factory every face TikTok draws with, so an imported font file replaces TikTok's own text on every surface. The switch and the picker are in Tweaks; off by default, and inert until a font is imported.",
+      "description": "Answers every resolver TikTok gets one of its own faces from - the native factory, the Compose loader, the asset loader Lynx reads and the WebView interceptor hybrid pages are fed through - so an imported font file replaces TikTok's own text on every surface. The switch and the picker are in Tweaks; off by default, and inert until a font is imported.",
       "default": true,
       "category": null,
       "dependencies": [],
@@ -86,14 +86,14 @@
           "signatures": null,
           "targets": [
             {
-              "version": "47.0.3",
+              "version": "47.7.1",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
               "description": null
             },
             {
-              "version": "47.1.4",
+              "version": "47.7.2",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
@@ -120,14 +120,14 @@
           "signatures": null,
           "targets": [
             {
-              "version": "47.0.3",
+              "version": "47.7.1",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
               "description": null
             },
             {
-              "version": "47.1.4",
+              "version": "47.7.2",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
@@ -154,14 +154,14 @@
           "signatures": null,
           "targets": [
             {
-              "version": "47.0.3",
+              "version": "47.7.1",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
               "description": null
             },
             {
-              "version": "47.1.4",
+              "version": "47.7.2",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
@@ -188,14 +188,14 @@
           "signatures": null,
           "targets": [
             {
-              "version": "47.0.3",
+              "version": "47.7.1",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
               "description": null
             },
             {
-              "version": "47.1.4",
+              "version": "47.7.2",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
@@ -222,14 +222,14 @@
           "signatures": null,
           "targets": [
             {
-              "version": "47.0.3",
+              "version": "47.7.1",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
               "description": null
             },
             {
-              "version": "47.1.4",
+              "version": "47.7.2",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
@@ -241,8 +241,8 @@
       "options": []
     },
     {
-      "name": "Tweaks settings row",
-      "description": "Adds the Tweaks row to TikTok settings, where every other patch in this bundle is switched on or off: the @handle stamp and its surfaces, the region, the post time, the comment copy, the captcha, the feed filter, the download, the profile background and the custom font.",
+      "name": "Tweaks screen",
+      "description": "Hosts the Tweaks screen, where every other patch in this bundle is switched on or off: the @handle stamp and its surfaces, the region, the post time, the comment copy, the captcha, the feed filter, the download, the profile background and the custom font. Hold the Home tab in the bottom bar to open it.",
       "default": true,
       "category": null,
       "dependencies": [],
@@ -256,14 +256,14 @@
           "signatures": null,
           "targets": [
             {
-              "version": "47.0.3",
+              "version": "47.7.1",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,
               "description": null
             },
             {
-              "version": "47.1.4",
+              "version": "47.7.2",
               "versionCodes": null,
               "isExperimental": false,
               "minSdk": null,

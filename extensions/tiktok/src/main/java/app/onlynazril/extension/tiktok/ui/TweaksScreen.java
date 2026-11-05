@@ -253,7 +253,7 @@ public final class TweaksScreen {
         column.addView(section(context, "About"));
         column.addView(description(
                 context,
-                "Tweaks for TikTok 47.0.3 and 47.1.4. "
+                "Tweaks for TikTok 47.7.1 and 47.7.2. "
                         + "The display name is read, never rewritten."));
         column.addView(diagnostics(context));
         column.addView(actions(context));
