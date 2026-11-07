@@ -27,12 +27,13 @@ import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
+import app.onlynazril.extension.tiktok.settings.PauseImageSearchSettings;
 import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
 
 /**
  * Builds the screen: header, one Handle section (master switch on top, then one row per surface,
- * then the region), then one section per remaining feature (Comments, Captcha, Feed filter,
+ * then the region), then one section per remaining feature (Comments, Captcha, Feed filter, Pause,
  * Download, Profile background, Custom font, Refresh rate), and About.
  *
  * With the master off the dependent rows stay visible but greyed and inert, so their own state
@@ -149,6 +150,16 @@ public final class TweaksScreen {
                 "Hide videos outside this digg-count range. Set the range to turn it on.",
                 RangeAction.create(context, "Min/Max likes", likes[0], likes[1],
                         (min, max) -> FeedFilterSettings.setLikesRange(context, min, max))));
+
+        // Independent of the feed filter: the pause panel is built from the player, not from the
+        // page's items, and its switch is the feature.
+        column.addView(section(context, "Pause"));
+        column.addView(new RowView(
+                context,
+                "Disable image search on pause",
+                "Hide the image-search entries while a video is paused. Off restores TikTok's entries.",
+                toggle(context, PauseImageSearchSettings.isDisabled(context),
+                        checked -> PauseImageSearchSettings.setDisabled(context, checked))));
 
         boolean downloadOn = DownloadSettings.isEnabled(context);
         List<RowView> downloadDependents = new ArrayList<>();
@@ -356,7 +367,7 @@ public final class TweaksScreen {
 
         TextView subtitle = new TextView(context);
         subtitle.setText("Handle stamp, region, post time, comment copy, captcha, feed filter, "
-                + "download, profile background, custom font, refresh rate");
+                + "pause image search, download, profile background, custom font, refresh rate");
         subtitle.setTextSize(Tokens.SUBTITLE_SP);
         subtitle.setTextColor(Tokens.TEXT_SECONDARY);
         subtitle.setTypeface(Fonts.face(false));

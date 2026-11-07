@@ -133,7 +133,7 @@ private fun MutableMethod.injectBeforeReturns(body: String) {
  */
 @Suppress("unused")
 val tiktokHandlePatch = bytecodePatch(
-    name = "Always @handle · region · post time",
+    name = "Handle, time & region",
     description = "Shows the @handle, the region and the post time on feed videos and comments, " +
         "including a video shared into a chat. Each surface and each part has a switch in Tweaks.",
     default = true,
