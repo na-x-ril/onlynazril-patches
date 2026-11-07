@@ -1,3 +1,22 @@
+## [1.6.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.5.0...v1.6.0-dev.1) (2026-11-07)
+
+### 🐛 Bug Fixes
+
+* **TikTok/About:** Keep diagnostics text after copy ([0f6e7be](https://github.com/na-x-ril/onlynazril-patches/commit/0f6e7be94f5b7372786e9b91e7b92f74b5b7bc8f))
+
+### ✨ New Features
+
+* **TikTok/AMOLED:** One full patch, on by default ([8437a2a](https://github.com/na-x-ril/onlynazril-patches/commit/8437a2aec76406cdb41daf2885eb7a3e4d7114e1))
+* **TikTok/Misc:** Add settings export and import ([af95b82](https://github.com/na-x-ril/onlynazril-patches/commit/af95b82bafbf6719be7957e3502c4af78e5eeee2))
+* **TikTok/Pause image search:** Add a disable switch for both search surfaces ([3f7bf4d](https://github.com/na-x-ril/onlynazril-patches/commit/3f7bf4dd3882e0de858ac2b002022de78ecfe913)), closes [IPhotoSearchService#LJII](https://github.com/na-x-ril/IPhotoSearchService/issues/LJII)
+* **TikTok/Refresh rate:** Add `App refresh rate` patch ([2d52929](https://github.com/na-x-ril/onlynazril-patches/commit/2d529294aa27af41b56a12e34e5beab37c7d9981)), closes [AwemeHostApplication#onCreate](https://github.com/na-x-ril/AwemeHostApplication/issues/onCreate) [Application#onCreate](https://github.com/na-x-ril/Application/issues/onCreate)
+* **TikTok/Tweaks:** Slide each page as one unit ([39d44c3](https://github.com/na-x-ril/onlynazril-patches/commit/39d44c3454d0b98be96f44f216cd607ddab3c646))
+* **TikTok/Tweaks:** Split the screen into category pages ([712ec96](https://github.com/na-x-ril/onlynazril-patches/commit/712ec96c736e272c2badbb0b0a599a0d98a79435))
+
+### 🔧 Improvements
+
+* **TikTok:** Resolve anchors from the patcher indexes ([763c920](https://github.com/na-x-ril/onlynazril-patches/commit/763c920b3d98f7f973a36689a2ccc108b7c536b1))
+
 ## [1.5.0](https://github.com/na-x-ril/onlynazril-patches/compare/v1.4.0...v1.5.0) (2026-11-05)
 
 ### 🐛 Bug Fixes
