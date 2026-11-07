@@ -20,7 +20,7 @@ off. More apps are planned.
 
 ### How to use these patches
 
-Click here to add these patches to Morphe: https://morphe.software/add-source?github=na-x-ril/onlynazril-patches
+[Add to Morphe Manager](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
 
 ## 🩹 Patches list
 
