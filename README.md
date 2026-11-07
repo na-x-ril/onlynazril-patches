@@ -13,9 +13,9 @@ the rollout has not reached; and draws the app's text in a font file you import.
 tab in the bottom bar opens Tweaks, where every one of those is switched on or off. More apps are
 planned.
 
-> The AMOLED theme patch is optional and experimental. It rewrites resource colours, can leave some
-> screens uneven or affect the light theme, and is undone only by repatching. See
-> [docs/amoled.md](docs/amoled.md).
+> The AMOLED theme patch is experimental and on by default. It rewrites resource colours and
+> code-held constants to black, can leave some screens uneven or affect the light theme, and is
+> undone only by repatching. See [docs/amoled.md](docs/amoled.md).
 
 ### How to use these patches
 

@@ -3,47 +3,11 @@
   "version": "1.5.0",
   "patches": [
     {
-      "name": "AMOLED code colours",
-      "description": "Replaces opaque dark surface colours held as constants in code with black. Pulled in by AMOLED theme; does nothing for resources.",
-      "default": false,
+      "name": "AMOLED theme",
+      "description": "Full AMOLED: every dark resource colour and code-held constant becomes black, alpha kept. Borders and controls lose their separation too; repatch to undo.",
+      "default": true,
       "category": null,
       "dependencies": [],
-      "compatiblePackages": [
-        {
-          "packageName": "com.zhiliaoapp.musically",
-          "name": "TikTok",
-          "description": "Handle, region and post time next to names, feed filtering, watermark-free downloads, profile backgrounds, an imported font, comment copying without the username, and CAPTCHA popups hidden.",
-          "apkFileType": "APK",
-          "appIconColor": "#FE2C55",
-          "signatures": null,
-          "targets": [
-            {
-              "version": "47.7.1",
-              "versionCodes": null,
-              "isExperimental": false,
-              "minSdk": null,
-              "description": null
-            },
-            {
-              "version": "47.7.2",
-              "versionCodes": null,
-              "isExperimental": false,
-              "minSdk": null,
-              "description": null
-            }
-          ]
-        }
-      ],
-      "options": []
-    },
-    {
-      "name": "AMOLED theme",
-      "description": "Total AMOLED: every colour whose brightest channel is 0x60 or lower becomes black, alpha kept. Borders and controls lose their separation too; repatch to undo.",
-      "default": false,
-      "category": null,
-      "dependencies": [
-        "AMOLED code colours"
-      ],
       "compatiblePackages": [
         {
           "packageName": "com.zhiliaoapp.musically",
