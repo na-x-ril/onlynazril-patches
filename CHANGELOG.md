@@ -1,3 +1,12 @@
+## [1.6.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0-dev.1...v1.6.0-dev.2) (2026-11-07)
+
+### 🐛 Bug Fixes
+
+* **release:** Drop bogus closes and add Morphe link ([fc57eed](https://github.com/na-x-ril/onlynazril-patches/commit/fc57eed1dd48fc6b8786f2409b8bcb4d4435c8a4))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.6.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.5.0...v1.6.0-dev.1) (2026-11-07)
 
 ### 🐛 Bug Fixes
