@@ -24,6 +24,13 @@ the code that implements each hook is the source of truth for its shape.
    "succeeds" without doing anything costs more than a patch that fails the build.
 5. **Registers are never hardcoded.** Use `requireRegisters`/`requireLocals` with
    `getFreeRegisterProvider`/`findFreeRegister`.
+6. **Ask the patcher's indexes before walking the bundle.** A real-named class is a class-map
+   lookup (`classDefBy`, or `definingClass` on a `Fingerprint`); a surviving string is a `strings`
+   filter or `classDefByStrings` (the string index); a literal, type, call or field access is a
+   `literal`/`newInstance`/`methodCall`/`fieldAccess` filter (the instruction index).
+   `classDefForEach` is the last resort, for a shape no index can express (the pager's method-name
+   set, the list contract's implementations). A `custom` block still visits every method the other
+   fields leave, so declare the shape as a filter whenever it can be written as one.
 
 ## Anchors
 

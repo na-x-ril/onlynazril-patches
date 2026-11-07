@@ -1,9 +1,8 @@
 package app.onlynazril.patches.tiktok.feedfilter
 
 import app.morphe.patcher.Fingerprint
-import app.morphe.util.getReference
+import app.morphe.patcher.fieldAccess
 import com.android.tools.smali.dexlib2.Opcode
-import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 
 internal const val FEED_FILTER_CLASS =
     "Lapp/onlynazril/extension/tiktok/feedfilter/FeedFilter;"
@@ -27,10 +26,9 @@ internal const val I_FEED_API = "Lcom/ss/android/ugc/aweme/feed/cache/IFeedApi;"
  */
 internal val FeedApiFetchFingerprint = Fingerprint(
     returnType = FEED_ITEM_LIST,
-    custom = { method, classDef ->
-        method.implementation != null &&
-            method.parameterTypes.size == 1 &&
-            classDef.interfaces.any { it == I_FEED_API }
+    interfaces = listOf(I_FEED_API),
+    custom = { method, _ ->
+        method.implementation != null && method.parameterTypes.size == 1
     },
 )
 
@@ -49,14 +47,13 @@ internal val FeedItemListSetItemsFingerprint = Fingerprint(
     name = "setItems",
     returnType = "V",
     parameters = listOf("Ljava/util/List;"),
-    custom = { method, _ ->
-        method.implementation?.instructions?.any { instruction ->
-            instruction.opcode == Opcode.IPUT_OBJECT &&
-                instruction.getReference<FieldReference>()?.let {
-                    it.definingClass == FEED_ITEM_LIST && it.name == "items"
-                } == true
-        } == true
-    },
+    filters = listOf(
+        fieldAccess(
+            definingClass = FEED_ITEM_LIST,
+            name = "items",
+            opcode = Opcode.IPUT_OBJECT,
+        ),
+    ),
 )
 
 /**
@@ -86,6 +83,13 @@ internal val FeedItemListCloneFingerprint = Fingerprint(
  * one class that both exposes the list (`getItems`, `getListCount`) and takes items in
  * (`insertItemList`, `setItems`).
  */
-internal val PAGER_MODEL_METHODS = listOf("getItems", "getListCount", "insertItemList", "setItems")
+internal const val PAGER_MODEL_GET_ITEMS = "getItems"
+internal const val PAGER_MODEL_GET_COUNT = "getListCount"
 internal const val PAGER_MODEL_INSERT = "insertItemList"
 internal const val PAGER_MODEL_SET = "setItems"
+internal val PAGER_MODEL_METHODS = listOf(
+    PAGER_MODEL_GET_ITEMS,
+    PAGER_MODEL_GET_COUNT,
+    PAGER_MODEL_INSERT,
+    PAGER_MODEL_SET,
+)
