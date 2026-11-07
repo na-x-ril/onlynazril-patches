@@ -35,19 +35,19 @@ off. More apps are planned.
 | 47.7.1 | 47.7.2 |
 | :---: | :---: |
 
-| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
-|----------|----------------|-----------|
-| [AMOLED theme](#amoled-theme) | Full AMOLED: every dark resource colour and code-held constant becomes black, alpha kept. Borders and controls lose their separation too; repatch to undo. |  |
-| [App refresh rate](#app-refresh-rate) | Sets the app's preferred display refresh rate. In Tweaks: Default (system), 60 fps, 90 fps or 120 fps. On by default; Default leaves the rate to Android. |  |
-| [Copy comments without username](#copy-comments-without-username) | Leaves the username out of a copied comment: the clipboard gets the comment's own text. On by default; the switch is in Tweaks. |  |
-| [Custom font](#custom-font) | Answers every resolver TikTok gets one of its own faces from - the native factory, the Compose loader, the asset loader Lynx reads and the WebView interceptor hybrid pages are fed through - so an imported font file replaces TikTok's own text on every surface. The switch and the picker are in Tweaks; off by default, and inert until a font is imported. |  |
-| [Download](#download) | Opens the app's own download for every share sheet and saves the file without the watermark, taking the highest quality variant. Each part has a switch in Tweaks; the feature is off by default. |  |
-| [Feed filter](#feed-filter) | Removes ads and promotional-music posts, and videos outside a view- or like-count range, from the feed. Each part has a switch in Tweaks; ads are on by default. |  |
-| [Handle, time & region](#handle-time-region) | Shows the @handle, the region and the post time on feed videos and comments, including a video shared into a chat. Each surface and each part has a switch in Tweaks. |  |
-| [Hide CAPTCHA popups](#hide-captcha-popups) | Skips the risk-control puzzle TikTok shows while browsing, and lets the app carry on. Account verification (login, SMS or two-factor) is never hidden. On by default; the switch is in Tweaks. |  |
-| [Pause image search](#pause-image-search) | Adds a switch to disable the image-search entries TikTok shows while a video is paused, including the pause-panel row and the visual search pill. On by default; turn it off to show them again. |  |
-| [Profile background](#profile-background) | Answers the AB gate that carries the profile background, so a static image or a video can be set on accounts the rollout has not reached. The switch is in Tweaks; the feature is off by default. |  |
-| [Tweaks screen](#tweaks-screen) | Hosts the Tweaks screen, where every other patch in this bundle is switched on or off: the @handle stamp and its surfaces, the region, the post time, the comment copy, the captcha, the feed filter, the download, the profile background and the custom font. Hold the Home tab in the bottom bar to open it. |  |
+| 💊&nbsp;Patch | 📜&nbsp;Description |
+|----------|----------------|
+| [AMOLED theme](#amoled-theme) | Full AMOLED: every dark resource colour and code-held constant becomes black, alpha kept. Borders and controls lose their separation too; repatch to undo. |
+| [App refresh rate](#app-refresh-rate) | Sets the app's preferred display refresh rate. In Tweaks: Default (system), 60 fps, 90 fps or 120 fps. On by default; Default leaves the rate to Android. |
+| [Copy comments without username](#copy-comments-without-username) | Leaves the username out of a copied comment: the clipboard gets the comment's own text. On by default; the switch is in Tweaks. |
+| [Custom font](#custom-font) | Answers every resolver TikTok gets one of its own faces from - the native factory, the Compose loader, the asset loader Lynx reads and the WebView interceptor hybrid pages are fed through - so an imported font file replaces TikTok's own text on every surface. The switch and the picker are in Tweaks; off by default, and inert until a font is imported. |
+| [Download](#download) | Opens the app's own download for every share sheet and saves the file without the watermark, taking the highest quality variant. Each part has a switch in Tweaks; the feature is off by default. |
+| [Feed filter](#feed-filter) | Removes ads and promotional-music posts, and videos outside a view- or like-count range, from the feed. Each part has a switch in Tweaks; ads are on by default. |
+| [Handle, time & region](#handle-time-region) | Shows the @handle, the region and the post time on feed videos and comments, including a video shared into a chat. Each surface and each part has a switch in Tweaks. |
+| [Hide CAPTCHA popups](#hide-captcha-popups) | Skips the risk-control puzzle TikTok shows while browsing, and lets the app carry on. Account verification (login, SMS or two-factor) is never hidden. On by default; the switch is in Tweaks. |
+| [Pause image search](#pause-image-search) | Adds a switch to disable the image-search entries TikTok shows while a video is paused, including the pause-panel row and the visual search pill. On by default; turn it off to show them again. |
+| [Profile background](#profile-background) | Answers the AB gate that carries the profile background, so a static image or a video can be set on accounts the rollout has not reached. The switch is in Tweaks; the feature is off by default. |
+| [Tweaks screen](#tweaks-screen) | Hosts the Tweaks screen, where every other patch in this bundle is switched on or off: the @handle stamp and its surfaces, the region, the post time, the comment copy, the captcha, the feed filter, the download, the profile background and the custom font. Hold the Home tab in the bottom bar to open it. |
 
 </details>
 
