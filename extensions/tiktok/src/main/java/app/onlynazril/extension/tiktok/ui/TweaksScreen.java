@@ -1,13 +1,17 @@
 package app.onlynazril.extension.tiktok.ui;
 
+import android.animation.TimeInterpolator;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.File;
@@ -20,76 +24,336 @@ import app.onlynazril.extension.tiktok.feedfilter.FeedFilterStats;
 import app.onlynazril.extension.tiktok.internal.Activities;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
+import app.onlynazril.extension.tiktok.refreshrate.RefreshRate;
 import app.onlynazril.extension.tiktok.settings.CaptchaSettings;
 import app.onlynazril.extension.tiktok.settings.CommentCopySettings;
 import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
+import app.onlynazril.extension.tiktok.settings.PauseImageSearchSettings;
 import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
+import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
+import app.onlynazril.extension.tiktok.settings.SettingsBackup;
 
 /**
- * Builds the screen: header, one Handle section (master switch on top, then one row per surface,
- * then the region), then one section per remaining feature (Comments, Captcha, Feed filter,
- * Download, Profile background, Custom font), and About.
+ * Tweaks screen: a root category list and one full page per category.
  *
- * With the master off the dependent rows stay visible but greyed and inert, so their own state
- * survives and comes back unchanged when the master returns.
- *
- * The feed filter's rows take no part in that: what the feed contains is not the @handle stamp,
- * so no switch above can change them and they cannot change it.
+ * Each page is one unit: its top bar, arrow and content slide together, while only the rows
+ * scroll. {@link #goBack()} returns to the root before the activity handles back.
  */
-public final class TweaksScreen {
+public final class TweaksScreen extends FrameLayout {
     /** {surface id, title, summary} for the surface rows. */
     private static final String[][] SURFACE_ROWS = {
         {Surfaces.FEED, "Feed videos", "The author line, the region and the post time in the feed."},
         {Surfaces.COMMENTS, "Comments", "Comment authors and their region."},
     };
 
-    private TweaksScreen() {}
+    private static final String[] RATE_LABELS = {"Default", "60 fps", "90 fps", "120 fps"};
 
-    public static View build(Context context) {
-        LinearLayout column = new LinearLayout(context);
-        column.setOrientation(LinearLayout.VERTICAL);
-        column.setBackgroundColor(Tokens.BACKGROUND);
-        column.setPadding(0, 0, 0, Tokens.dp(context, Tokens.SPACE_8));
+    /** How far the outgoing page trails the incoming one. */
+    private static final float PARALLAX_FACTOR = 0.25f;
 
-        column.addView(header(context));
-        column.addView(section(context, "Feed"));
+    /** Page easing: easeOutQuint with a stronger settle at the end. */
+    private static final TimeInterpolator PAGE_EASE =
+            t -> (t >= 1f) ? 1f : (float) ((1 - Math.pow(2, -7 * t)) / (1 - Math.pow(2, -7)));
 
+    private final int PAGE_ANIMATION_MS = getResources().getInteger(android.R.integer.config_shortAnimTime) + 40;
+
+    private enum Category {
+        FEED("Feed", "Handle, region, post time, feed filters and pause search."),
+        CONTENT("Content & appearance", "Comment copy, custom font and profile background."),
+        PRIVACY("Privacy", "The risk-control CAPTCHA puzzle."),
+        DOWNLOAD("Download", "Watermark, share sheets and quality."),
+        MISC("Misc", "Display refresh rate and room for future options."),
+        ABOUT("About", "Build, diagnostics and restart.");
+
+        final String title;
+        final String summary;
+
+        Category(String title, String summary) {
+            this.title = title;
+            this.summary = summary;
+        }
+    }
+
+    private final Context context;
+    private final FrameLayout host;
+    private Category current;
+    private View currentView;
+    private boolean transitioning;
+
+    public TweaksScreen(Context context) {
+        super(context);
+        this.context = context;
+        setBackgroundColor(Tokens.BACKGROUND);
+
+        host = new FrameLayout(context);
+        host.setBackgroundColor(Tokens.BACKGROUND);
+        addView(host, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
+        showRoot(false);
+    }
+
+    /** Returns to the category list; false when the list is already showing. */
+    public boolean goBack() {
+        if (current == null) return false;
+        showRoot(true);
+        return true;
+    }
+
+    private void showRoot(boolean animateBack) {
+        current = null;
+        Page page = page(topBar("Tweaks", true));
+        page.content.addView(pageIntro("Choose a group. Every change is saved as you make it."));
+
+        View first = categoryRow(Category.FEED, feedSummary());
+        LinearLayout.LayoutParams firstParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        firstParams.topMargin = Tokens.dp(context, Tokens.SPACE_3);
+        page.content.addView(first, firstParams);
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.CONTENT, Category.CONTENT.summary));
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.PRIVACY, privacySummary()));
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.DOWNLOAD, downloadSummary()));
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.MISC, miscSummary()));
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.ABOUT, Category.ABOUT.summary));
+        show(page.root, !animateBack);
+    }
+
+    private void showCategory(Category category) {
+        current = category;
+        Page page = page(topBar(category.title, false));
+        page.content.addView(pageIntro(category.summary));
+        switch (category) {
+            case FEED:
+                addFeed(page.content);
+                break;
+            case CONTENT:
+                addContent(page.content);
+                break;
+            case PRIVACY:
+                addPrivacy(page.content);
+                break;
+            case DOWNLOAD:
+                addDownload(page.content);
+                break;
+            case MISC:
+                addMisc(page.content);
+                break;
+            case ABOUT:
+                addAbout(page.content);
+                break;
+        }
+        show(page.root, true);
+    }
+
+    /** Slides the old page out and the new one in with a 1/4 parallax; the whole page moves. */
+    private void show(View page, boolean forward) {
+        if (transitioning) return;
+
+        if (currentView == null) {
+            currentView = page;
+            host.addView(page, pageParams());
+            return;
+        }
+
+        int distance = getWidth() > 0 ? getWidth() : getResources().getDisplayMetrics().widthPixels;
+        float trailing = distance * PARALLAX_FACTOR;
+        float start = forward ? distance : -trailing;
+        float endOld = forward ? -trailing : distance;
+
+        final View outgoing = currentView;
+        page.setTranslationX(start);
+        if (forward) {
+            // The new page enters above the old one, so it covers it as it slides in.
+            host.addView(page, pageParams());
+        } else {
+            // On the way back the old page must stay above the root until it has slid out;
+            // adding the root at index 0 keeps the outgoing page visible for the whole animation.
+            host.addView(page, 0, pageParams());
+        }
+
+        transitioning = true;
+        outgoing.animate()
+                .translationX(endOld)
+                .setDuration(PAGE_ANIMATION_MS)
+                .setInterpolator(PAGE_EASE)
+                .start();
+        page.animate()
+                .translationX(0f)
+                .setDuration(PAGE_ANIMATION_MS)
+                .setInterpolator(PAGE_EASE)
+                .withEndAction(() -> {
+                    host.removeView(outgoing);
+                    outgoing.setTranslationX(0f);
+                    currentView = page;
+                    transitioning = false;
+                })
+                .start();
+    }
+
+    private static FrameLayout.LayoutParams pageParams() {
+        return new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT);
+    }
+
+    /** Builds a full page: top bar above, scrollable content below. */
+    private Page page(View bar) {
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Tokens.BACKGROUND);
+        root.addView(bar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        ScrollView scroll = new ScrollView(context);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(Tokens.BACKGROUND);
+        scroll.setOverScrollMode(OVER_SCROLL_NEVER);
+        root.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f));
+
+        LinearLayout content = new LinearLayout(context);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(Tokens.BACKGROUND);
+        content.setPadding(0, 0, 0, Tokens.dp(context, Tokens.SPACE_8));
+        scroll.addView(content, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT));
+        return new Page(root, content);
+    }
+
+    /** A page's root (bar + scroll) and the content inside that scroll. */
+    private static final class Page {
+        final LinearLayout root;
+        final LinearLayout content;
+
+        Page(LinearLayout root, LinearLayout content) {
+            this.root = root;
+            this.content = content;
+        }
+    }
+
+    /** Shared top bar. The arrow goes back, or closes the screen on the root page. */
+    private View topBar(String titleText, boolean root) {
+        LinearLayout bar = new LinearLayout(context);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setMinimumHeight(Tokens.dp(context, Tokens.SPACE_12));
+        bar.setPadding(
+                Tokens.dp(context, Tokens.SPACE_4),
+                0,
+                Tokens.dp(context, Tokens.SPACE_4),
+                0);
+
+        FrameLayout back = new FrameLayout(context);
+        back.setClickable(true);
+        back.setFocusable(true);
+        back.setContentDescription(root ? "Close Tweaks" : "Back to category list");
+        back.setOnClickListener(view -> {
+            if (root) {
+                finishScreen();
+            } else {
+                showRoot(true);
+            }
+        });
+        bar.addView(back, new LinearLayout.LayoutParams(
+                Tokens.dp(context, Tokens.SPACE_12),
+                Tokens.dp(context, Tokens.SPACE_12)));
+
+        ArrowView arrow = new ArrowView(context);
+        FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(
+                Tokens.dp(context, Tokens.SPACE_6),
+                Tokens.dp(context, Tokens.SPACE_6));
+        arrowParams.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        back.addView(arrow, arrowParams);
+
+        TextView title = new TextView(context);
+        title.setText(titleText);
+        title.setTextSize(Tokens.PANEL_TITLE_SP);
+        title.setTypeface(Fonts.face(true));
+        title.setTextColor(Tokens.TEXT_PRIMARY);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        bar.addView(title, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        return bar;
+    }
+
+    private void finishScreen() {
+        Activity activity = Activities.of(context);
+        if (activity != null) activity.finish();
+    }
+
+    /** The page's one-line summary: the first thing that scrolls, right under the bar. */
+    private View pageIntro(String text) {
+        TextView view = new TextView(context);
+        view.setText(text);
+        view.setTextSize(Tokens.SUBTITLE_SP);
+        view.setTextColor(Tokens.TEXT_SECONDARY);
+        view.setTypeface(Fonts.face(false));
+        view.setPadding(
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_1),
+                Tokens.dp(context, Tokens.SPACE_4),
+                0);
+        return view;
+    }
+
+    private View categoryRow(Category category, String summary) {
+        RowView row = new RowView(context, category.title, summary, chevron());
+        row.setOnClickListener(view -> showCategory(category));
+        return row;
+    }
+
+    private View chevron() {
+        return new ChevronView(context);
+    }
+
+    private void addFeed(LinearLayout page) {
+        page.addView(section(context, "Name"));
         boolean masterOn = HandleSettings.isEnabled(context);
         List<RowView> dependents = new ArrayList<>();
 
         ToggleView masterToggle = new ToggleView(context);
         masterToggle.setChecked(masterOn);
-        column.addView(new RowView(
+        page.addView(new RowView(
                 context,
                 "Handle stamp",
                 "Only the @handle. The region and the post time have their own switches below.",
                 masterToggle));
 
-        for (int i = 0; i < SURFACE_ROWS.length; i++) {
-            column.addView(divider(context));
+        for (String[] surfaceRow : SURFACE_ROWS) {
+            page.addView(divider(context));
             RowView row = new RowView(
                     context,
-                    SURFACE_ROWS[i][1],
-                    SURFACE_ROWS[i][2],
-                    surfaceToggle(context, SURFACE_ROWS[i][0]));
+                    surfaceRow[1],
+                    surfaceRow[2],
+                    surfaceToggle(context, surfaceRow[0]));
             dependents.add(row);
-            column.addView(row);
+            page.addView(row);
         }
 
-        // Independent of the master: the region and the post time share the header's time view,
-        // so neither is part of the @handle stamp.
-        column.addView(divider(context));
-        column.addView(new RowView(
+        page.addView(divider(context));
+        page.addView(new RowView(
                 context,
                 "Region \u00b7 CC",
                 "Append the country code after the post time, on every surface that shows one.",
                 toggle(context, HandleSettings.isRegionEnabled(context),
                         checked -> HandleSettings.setRegionEnabled(context, checked))));
-        column.addView(divider(context));
-        column.addView(new RowView(
+        page.addView(divider(context));
+        page.addView(new RowView(
                 context,
                 "Post time",
                 "Show when the video was posted, even when TikTok hides it. Off removes the time, "
@@ -103,144 +367,84 @@ public final class TweaksScreen {
         });
         for (RowView row : dependents) row.setRowEnabled(masterOn);
 
-        // Independent of the master: what the clipboard receives is not what a name is drawn
-        // with, so the @handle stamp and the comment surface switch do not govern it.
-        column.addView(section(context, "Comments"));
-        column.addView(new RowView(
-                context,
-                "Copy without username",
-                "Copy a comment's own text and leave the username in front of it out.",
-                toggle(context, CommentCopySettings.isEnabled(context),
-                        checked -> CommentCopySettings.setEnabled(context, checked))));
-
-        // Independent of everything above: the puzzle is not the @handle stamp and not the
-        // filter, and its own switch is the feature.
-        column.addView(section(context, "Captcha"));
-        column.addView(new RowView(
-                context,
-                "Hide CAPTCHA popups",
-                "Skip the risk-control puzzle while browsing. Account verification (login, SMS, "
-                        + "two-factor) is never hidden.",
-                toggle(context, CaptchaSettings.isEnabled(context),
-                        checked -> CaptchaSettings.setEnabled(context, checked))));
-
         long[] views = FeedFilterSettings.minMaxViews();
         long[] likes = FeedFilterSettings.minMaxLikes();
-        column.addView(section(context, "Feed filter"));
-        column.addView(new RowView(
+        page.addView(section(context, "Feed filter"));
+        page.addView(new RowView(
                 context,
                 "Remove ads",
                 "Drop ads and promotional-music posts from the feed.",
                 toggle(context, FeedFilterSettings.isAdsEnabled(context),
                         checked -> FeedFilterSettings.setAdsEnabled(context, checked))));
-        column.addView(divider(context));
-        column.addView(new RowView(
+        page.addView(divider(context));
+        page.addView(new RowView(
                 context,
                 "Min/Max views",
                 "Hide videos outside this play-count range. Set the range to turn it on.",
                 RangeAction.create(context, "Min/Max views", views[0], views[1],
                         (min, max) -> FeedFilterSettings.setViewsRange(context, min, max))));
-        column.addView(divider(context));
-        column.addView(new RowView(
+        page.addView(divider(context));
+        page.addView(new RowView(
                 context,
                 "Min/Max likes",
                 "Hide videos outside this digg-count range. Set the range to turn it on.",
                 RangeAction.create(context, "Min/Max likes", likes[0], likes[1],
                         (min, max) -> FeedFilterSettings.setLikesRange(context, min, max))));
 
-        boolean downloadOn = DownloadSettings.isEnabled(context);
-        List<RowView> downloadDependents = new ArrayList<>();
-
-        column.addView(section(context, "Download"));
-        ToggleView downloadMaster = new ToggleView(context);
-        downloadMaster.setChecked(downloadOn);
-        column.addView(new RowView(
+        page.addView(section(context, "Pause"));
+        page.addView(new RowView(
                 context,
-                "Download",
-                "Fetch the media from the share sheet. Each part below has its own switch.",
-                downloadMaster));
+                "Disable image search on pause",
+                "Hide the image-search entries while a video is paused. Off restores TikTok's entries.",
+                toggle(context, PauseImageSearchSettings.isDisabled(context),
+                        checked -> PauseImageSearchSettings.setDisabled(context, checked))));
+    }
 
-        column.addView(divider(context));
-        RowView noWatermarkRow = new RowView(
+    private void addContent(LinearLayout page) {
+        page.addView(section(context, "Comments"));
+        page.addView(new RowView(
                 context,
-                "No watermark",
-                "Take the address that carries no watermark.",
-                toggle(context, DownloadSettings.isNoWatermarkEnabled(context),
-                        checked -> DownloadSettings.setNoWatermarkEnabled(context, checked)));
-        downloadDependents.add(noWatermarkRow);
-        column.addView(noWatermarkRow);
+                "Copy without username",
+                "Copy a comment's own text and leave the username in front of it out.",
+                toggle(context, CommentCopySettings.isEnabled(context),
+                        checked -> CommentCopySettings.setEnabled(context, checked))));
 
-        column.addView(divider(context));
-        RowView everySheetRow = new RowView(
-                context,
-                "Every share sheet",
-                "Offer the row for a video as well, not only for a photo post.",
-                toggle(context, DownloadSettings.isEverySheetEnabled(context),
-                        checked -> DownloadSettings.setEverySheetEnabled(context, checked)));
-        downloadDependents.add(everySheetRow);
-        column.addView(everySheetRow);
-
-        column.addView(divider(context));
-        RowView bestQualityRow = new RowView(
-                context,
-                "Best quality",
-                "Take the highest quality among the variants this feed carries, not the highest "
-                        + "the server has: a lower one is possible when the feed omits the top.",
-                toggle(context, DownloadSettings.isBestQualityEnabled(context),
-                        checked -> DownloadSettings.setBestQualityEnabled(context, checked)));
-        downloadDependents.add(bestQualityRow);
-        column.addView(bestQualityRow);
-
-        downloadMaster.setOnCheckedChangeListener(checked -> {
-            DownloadSettings.setEnabled(context, checked);
-            for (RowView row : downloadDependents) row.setRowEnabled(checked);
-        });
-        for (RowView row : downloadDependents) row.setRowEnabled(downloadOn);
-
-        // Independent of the master: the profile background is not the
-        // @handle stamp, and its gate is the app's own AB decision, not a
-        // switch above it.
-        column.addView(section(context, "Profile background"));
-        column.addView(new RowView(
+        page.addView(section(context, "Profile background"));
+        page.addView(new RowView(
                 context,
                 "Profile background",
                 "Set a static image or a video as the profile background, on "
-                        + "accounts TikTok has not rolled it out to. Others see it, not you: the "
-                        + "background shows on your profile to everyone who opens it, so pick an "
-                        + "image you are happy to publish, or choose one from your posts",
+                        + "accounts TikTok has not rolled it out to. You may not see it on your "
+                        + "own profile; only other people do when they open it. Pick an image you "
+                        + "are happy to publish, or choose one from your posts.",
                 toggle(context, ProfileBgSettings.isEnabled(context),
                         checked -> ProfileBgSettings.setEnabled(context, checked))));
 
-        // Independent of the master: the custom font is not the
-        // @handle stamp, and its switch is the feature itself. The
-        // picker brings a font in; the list below picks the face
-        // the app draws with. Every change asks for the restart
-        // the text already on screen needs.
         boolean fontOn = CustomFontSettings.isEnabled(context);
         List<RowView> fontDependents = new ArrayList<>();
 
-        column.addView(section(context, "Custom font"));
+        page.addView(section(context, "Custom font"));
         ToggleView fontMaster = new ToggleView(context);
         fontMaster.setChecked(fontOn);
-        column.addView(new RowView(
+        page.addView(new RowView(
                 context,
                 "Custom font",
                 "Render TikTok's own text with an imported font file.",
                 fontMaster));
 
-        column.addView(divider(context));
+        page.addView(divider(context));
         RowView importRow = new RowView(
                 context,
                 "Import a font file",
                 "Pick a .ttf or .otf. It is copied into the app's own files.",
                 new ActionView(context, "Pick", () -> pickFontFile(context)));
         fontDependents.add(importRow);
-        column.addView(importRow);
+        page.addView(importRow);
 
         LinearLayout fontList = new LinearLayout(context);
         fontList.setOrientation(LinearLayout.VERTICAL);
         fillFontList(context, fontList);
-        column.addView(fontList);
+        page.addView(fontList);
         for (RowView row : fontDependents) row.setRowEnabled(fontOn);
         setFontRowsEnabled(fontList, fontOn);
 
@@ -249,16 +453,121 @@ public final class TweaksScreen {
             for (RowView row : fontDependents) row.setRowEnabled(checked);
             setFontRowsEnabled(fontList, checked);
         });
+    }
 
-        column.addView(section(context, "About"));
-        column.addView(description(
+    private void addPrivacy(LinearLayout page) {
+        page.addView(section(context, "Captcha"));
+        page.addView(new RowView(
+                context,
+                "Hide CAPTCHA popups",
+                "Skip the risk-control puzzle while browsing. Account verification (login, SMS, "
+                        + "two-factor) is never hidden.",
+                toggle(context, CaptchaSettings.isEnabled(context),
+                        checked -> CaptchaSettings.setEnabled(context, checked))));
+    }
+
+    private void addDownload(LinearLayout page) {
+        boolean downloadOn = DownloadSettings.isEnabled(context);
+        List<RowView> dependents = new ArrayList<>();
+
+        page.addView(section(context, "Download"));
+        ToggleView master = new ToggleView(context);
+        master.setChecked(downloadOn);
+        page.addView(new RowView(
+                context,
+                "Download",
+                "Fetch the media from the share sheet. Each part below has its own switch.",
+                master));
+
+        page.addView(divider(context));
+        RowView noWatermarkRow = new RowView(
+                context,
+                "No watermark",
+                "Take the address that carries no watermark.",
+                toggle(context, DownloadSettings.isNoWatermarkEnabled(context),
+                        checked -> DownloadSettings.setNoWatermarkEnabled(context, checked)));
+        dependents.add(noWatermarkRow);
+        page.addView(noWatermarkRow);
+
+        page.addView(divider(context));
+        RowView everySheetRow = new RowView(
+                context,
+                "Every share sheet",
+                "Offer the row for a video as well, not only for a photo post.",
+                toggle(context, DownloadSettings.isEverySheetEnabled(context),
+                        checked -> DownloadSettings.setEverySheetEnabled(context, checked)));
+        dependents.add(everySheetRow);
+        page.addView(everySheetRow);
+
+        page.addView(divider(context));
+        RowView bestQualityRow = new RowView(
+                context,
+                "Best quality",
+                "Take the highest quality among the variants this feed carries, not the highest "
+                        + "the server has: a lower one is possible when the feed omits the top.",
+                toggle(context, DownloadSettings.isBestQualityEnabled(context),
+                        checked -> DownloadSettings.setBestQualityEnabled(context, checked)));
+        dependents.add(bestQualityRow);
+        page.addView(bestQualityRow);
+
+        master.setOnCheckedChangeListener(checked -> {
+            DownloadSettings.setEnabled(context, checked);
+            for (RowView row : dependents) row.setRowEnabled(checked);
+        });
+        for (RowView row : dependents) row.setRowEnabled(downloadOn);
+    }
+
+    private void addMisc(LinearLayout page) {
+        page.addView(section(context, "Refresh rate"));
+        int rateIndex = rateIndex(RefreshRateSettings.fps(context));
+        page.addView(new RowView(
+                context,
+                "App refresh rate",
+                "Ask the app for a fixed rate. Default leaves the choice to Android and TikTok.",
+                ChoiceAction.create(context, "App refresh rate", RATE_LABELS, rateIndex, index -> {
+                    RefreshRateSettings.setFps(context, RefreshRateSettings.CHOICES[index]);
+                    if (RefreshRate.isInstalled()) RefreshRate.applyNow(context);
+                })));
+
+        page.addView(section(context, "Settings backup"));
+        page.addView(new RowView(
+                context,
+                "Export settings",
+                "Save every setting to a JSON file.",
+                new ActionView(context, "Export", () -> exportSettings(context))));
+        page.addView(divider(context));
+        page.addView(new RowView(
+                context,
+                "Import settings",
+                "Load settings from a JSON file.",
+                new ActionView(context, "Import", () -> importSettings(context))));
+    }
+
+    private void addAbout(LinearLayout page) {
+        page.addView(description(
                 context,
                 "Tweaks for TikTok 47.7.1 and 47.7.2. "
                         + "The display name is read, never rewritten."));
-        column.addView(diagnostics(context));
-        column.addView(actions(context));
+        page.addView(diagnostics(context));
+        page.addView(actions(context));
+    }
 
-        return column;
+    private String feedSummary() {
+        return Category.FEED.summary;
+    }
+
+    private String privacySummary() {
+        return CaptchaSettings.isEnabled(context) ? "CAPTCHA hidden." : "CAPTCHA shown.";
+    }
+
+    private String downloadSummary() {
+        return DownloadSettings.isEnabled(context)
+                ? "On. Watermark, share sheets and quality."
+                : "Off. Nothing is downloaded unless the share sheet asks for it.";
+    }
+
+    private String miscSummary() {
+        return "Refresh rate: " + RATE_LABELS[rateIndex(RefreshRateSettings.fps(context))];
     }
 
     /**
@@ -268,7 +577,7 @@ public final class TweaksScreen {
      * the same as pasting it: the block is also written to the log on every tap, so the log carries
      * the state as it was when it was read.
      */
-    private static View diagnostics(Context context) {
+    private View diagnostics(Context context) {
         TextView view = new TextView(context);
         view.setText(body() + "\nTap to copy");
         view.setTextSize(Tokens.ROW_SUMMARY_SP);
@@ -285,8 +594,6 @@ public final class TweaksScreen {
             String text = body();
             Debug.print("state: " + text.replace('\n', ' '));
             copy(context, text);
-            view.setText("Copied to clipboard");
-            view.postDelayed(() -> view.setText(text + "\nTap to copy"), 1600);
         });
         return view;
     }
@@ -323,36 +630,6 @@ public final class TweaksScreen {
         return row;
     }
 
-    private static View header(Context context) {
-        LinearLayout block = new LinearLayout(context);
-        block.setOrientation(LinearLayout.VERTICAL);
-        block.setPadding(
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_2),
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_6));
-
-        TextView title = new TextView(context);
-        title.setText("Tweaks");
-        title.setTextSize(Tokens.TITLE_SP);
-        title.setTypeface(Fonts.face(true));
-        title.setTextColor(Tokens.TEXT_PRIMARY);
-        block.addView(title);
-
-        TextView subtitle = new TextView(context);
-        subtitle.setText("Handle stamp, region, post time, comment copy, captcha, feed filter, "
-                + "download, profile background, custom font");
-        subtitle.setTextSize(Tokens.SUBTITLE_SP);
-        subtitle.setTextColor(Tokens.TEXT_SECONDARY);
-        subtitle.setTypeface(Fonts.face(false));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.topMargin = Tokens.dp(context, Tokens.SPACE_1);
-        subtitle.setLayoutParams(params);
-        block.addView(subtitle);
-        return block;
-    }
-
     private static View section(Context context, String label) {
         TextView view = new TextView(context);
         view.setText(label.toUpperCase());
@@ -364,7 +641,7 @@ public final class TweaksScreen {
                 Tokens.dp(context, Tokens.SPACE_4),
                 Tokens.dp(context, Tokens.SPACE_6),
                 Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_2));
+                0);
         return view;
     }
 
@@ -506,9 +783,40 @@ public final class TweaksScreen {
         activity.startActivityForResult(pick, CustomFontBridge.REQUEST_PICK_FONT);
     }
 
+    @SuppressWarnings("deprecation")
+    private static void exportSettings(Context context) {
+        Activity activity = Activities.of(context);
+        if (activity == null || activity.isFinishing()) return;
+        Intent create = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        create.addCategory(Intent.CATEGORY_OPENABLE);
+        create.setType("application/json");
+        create.putExtra(Intent.EXTRA_TITLE, "tiktok-tweaks-settings.json");
+        activity.startActivityForResult(create, SettingsBackup.REQUEST_EXPORT);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void importSettings(Context context) {
+        Activity activity = Activities.of(context);
+        if (activity == null || activity.isFinishing()) return;
+        Intent open = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        open.addCategory(Intent.CATEGORY_OPENABLE);
+        open.setType("*/*");
+        open.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                "application/json", "text/json", "text/plain", "application/octet-stream"});
+        activity.startActivityForResult(open, SettingsBackup.REQUEST_IMPORT);
+    }
+
     private static ToggleView surfaceToggle(Context context, String surface) {
         return toggle(context, HandleSettings.isSurfaceEnabled(context, surface),
                 checked -> HandleSettings.setSurfaceEnabled(context, surface, checked));
+    }
+
+    /** The index of the saved rate in the option list, or the default option when it is unknown. */
+    private static int rateIndex(int fps) {
+        for (int i = 0; i < RefreshRateSettings.CHOICES.length; i++) {
+            if (RefreshRateSettings.CHOICES[i] == fps) return i;
+        }
+        return 0;
     }
 
     private static ToggleView toggle(

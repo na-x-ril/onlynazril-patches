@@ -16,6 +16,7 @@ import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.formats.Instruction35c
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import app.onlynazril.patches.shared.Constants.COMPATIBILITY_TIKTOK
+import app.onlynazril.patches.tiktok.shared.ApplicationOnCreateFingerprint
 
 private const val HANDLE_DELEGATE = "Lapp/onlynazril/extension/tiktok/HandleDelegate;"
 private const val BIND_BRIDGE = "Lapp/onlynazril/extension/tiktok/BindBridge;"
@@ -132,7 +133,7 @@ private fun MutableMethod.injectBeforeReturns(body: String) {
  */
 @Suppress("unused")
 val tiktokHandlePatch = bytecodePatch(
-    name = "Always @handle · region · post time",
+    name = "Handle, time & region",
     description = "Shows the @handle, the region and the post time on feed videos and comments, " +
         "including a video shared into a chat. Each surface and each part has a switch in Tweaks.",
     default = true,

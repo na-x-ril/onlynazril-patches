@@ -1,9 +1,9 @@
 package app.onlynazril.patches.tiktok.handle
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.methodCall
 import app.morphe.util.getReference
 import com.android.tools.smali.dexlib2.Opcode
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 /**
@@ -30,9 +30,9 @@ object UserGetNicknameFingerprint : Fingerprint(
  */
 object VideoAuthorInfoVMBinderFingerprint : Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/feed/assem/base/FeedBaseViewModel;",
+    name = "paramSync2StateAccept",
     custom = { method, _ ->
-        method.name == "paramSync2StateAccept" &&
-            method.parameterTypes.size == 2 &&
+        method.parameterTypes.size == 2 &&
             method.parameterTypes[1].toString().contains("VideoItemParams") &&
             method.implementation != null &&
             (method.implementation?.registerCount ?: 99) < 16
@@ -75,17 +75,15 @@ object AuthorInfoViewFingerprint : Fingerprint(
 object AuthorInfoItemFingerprint : Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/feed/assem/videoauthorinfo/VideoAuthorInfoRelationAssem;",
     returnType = "V",
-    custom = { method, classDef ->
-        method.parameterTypes == listOf(ITEM) &&
-            method.implementation?.instructions?.any { instruction ->
-                if (instruction.opcode != Opcode.INVOKE_VIRTUAL) return@any false
-                val reference = (instruction as? ReferenceInstruction)?.reference as? MethodReference
-                    ?: return@any false
-                reference.definingClass == classDef.type &&
-                    reference.returnType == "V" &&
-                    reference.parameterTypes == listOf(ITEM)
-            } == true
-    },
+    parameters = listOf(ITEM),
+    filters = listOf(
+        methodCall(
+            definingClass = "this",
+            returnType = "V",
+            parameters = listOf(ITEM),
+            opcode = Opcode.INVOKE_VIRTUAL,
+        ),
+    ),
 )
 
 /**
@@ -117,17 +115,6 @@ private const val COMMENT_MODEL = "Lcom/ss/android/ugc/aweme/comment/model/Comme
 private const val TEXT_VIEW = "Landroid/widget/TextView;"
 
 private const val ITEM = "Lcom/ss/android/ugc/aweme/feed/model/Aweme;"
-
-/**
- * The process's Application. Real-named (`AwemeHostApplication`) and read straight from the
- * manifest, so it is the earliest reliable place to hand the extension a Context.
- */
-object ApplicationOnCreateFingerprint : Fingerprint(
-    definingClass = "Lcom/ss/android/ugc/aweme/app/host/AwemeHostApplication;",
-    name = "onCreate",
-    returnType = "V",
-    parameters = emptyList(),
-)
 
 /**
  * Backstop hook is intentionally implemented via the same VideoAuthorInfoVM

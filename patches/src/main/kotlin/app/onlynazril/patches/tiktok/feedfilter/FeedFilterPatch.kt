@@ -70,14 +70,32 @@ val tiktokFeedFilterPatch = bytecodePatch(
         // next read sees rather than a copy that is replaced.
         val models = mutableListOf<ClassDef>()
         classDefForEach { classDef ->
-            val names = classDef.methods.map { it.name }.toSet()
-            if (!names.containsAll(PAGER_MODEL_METHODS)) return@classDefForEach
-            val takesItems = classDef.methods.any { method ->
-                method.name == PAGER_MODEL_INSERT &&
-                    method.parameterTypes.size == 2 &&
-                    method.implementation != null
+            // One pass, no set allocated per class, and an early exit as soon as the
+            // four names and the taking method have been seen: the pager's class has
+            // hundreds of methods, and most classes have none of these.
+            var hasGetItems = false
+            var hasCount = false
+            var hasInsert = false
+            var hasSet = false
+            var takesItems = false
+            for (method in classDef.methods) {
+                when (method.name) {
+                    PAGER_MODEL_GET_ITEMS -> hasGetItems = true
+                    PAGER_MODEL_GET_COUNT -> hasCount = true
+                    PAGER_MODEL_SET -> hasSet = true
+                    PAGER_MODEL_INSERT -> {
+                        hasInsert = true
+                        if (!takesItems &&
+                            method.parameterTypes.size == 2 &&
+                            method.implementation != null
+                        ) {
+                            takesItems = true
+                        }
+                    }
+                }
+                if (hasGetItems && hasCount && hasInsert && hasSet && takesItems) break
             }
-            if (takesItems) models += classDef
+            if (hasGetItems && hasCount && hasInsert && hasSet && takesItems) models += classDef
         }
 
         // The contract, and any base class above it, carries the same method names. The pager holds

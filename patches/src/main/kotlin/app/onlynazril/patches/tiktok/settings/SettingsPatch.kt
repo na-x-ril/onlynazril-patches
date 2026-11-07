@@ -1,11 +1,13 @@
 package app.onlynazril.patches.tiktok.settings
 
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.onlynazril.patches.shared.Constants
+import app.onlynazril.patches.tiktok.customfont.BaseActivityOnActivityResultFingerprint
 import app.morphe.patches.tiktok.shared.requireLocals
 import app.morphe.util.implementationOrPatchException
 import app.morphe.util.indexOfFirstInstructionOrThrow
@@ -15,6 +17,9 @@ import com.android.tools.smali.dexlib2.iface.instruction.formats.Instruction35c
 
 private const val SETTINGS_EXTENSION_CLASS_DESCRIPTOR =
     "Lapp/onlynazril/extension/tiktok/settings/TikTokActivityHook;"
+
+private const val ACTIVITY_RESULTS_EXTENSION_CLASS_DESCRIPTOR =
+    "Lapp/onlynazril/extension/tiktok/ActivityResults;"
 
 /**
  * Hosts the Tweaks screen in TikTok's ad-personalisation activity.
@@ -68,6 +73,17 @@ val settingsPatch = bytecodePatch(
                     return-void
                 """,
                 ExternalLabel("do_not_open", getInstruction(initializeSettingsIndex)),
+            )
+        }
+
+        // The screen owns both pickers, so every activity result in the app is
+        // offered here: settings export/import first, then the font picker.
+        BaseActivityOnActivityResultFingerprint.method.apply {
+            addInstructions(
+                0,
+                """
+                    invoke-static/range {p0 .. p3}, $ACTIVITY_RESULTS_EXTENSION_CLASS_DESCRIPTOR->onActivityResult(Landroid/app/Activity;IILandroid/content/Intent;)V
+                """.trimIndent(),
             )
         }
 

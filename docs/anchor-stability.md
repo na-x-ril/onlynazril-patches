@@ -24,6 +24,13 @@ the code that implements each hook is the source of truth for its shape.
    "succeeds" without doing anything costs more than a patch that fails the build.
 5. **Registers are never hardcoded.** Use `requireRegisters`/`requireLocals` with
    `getFreeRegisterProvider`/`findFreeRegister`.
+6. **Ask the patcher's indexes before walking the bundle.** A real-named class is a class-map
+   lookup (`classDefBy`, or `definingClass` on a `Fingerprint`); a surviving string is a `strings`
+   filter or `classDefByStrings` (the string index); a literal, type, call or field access is a
+   `literal`/`newInstance`/`methodCall`/`fieldAccess` filter (the instruction index).
+   `classDefForEach` is the last resort, for a shape no index can express (the pager's method-name
+   set, the list contract's implementations). A `custom` block still visits every method the other
+   fields leave, so declare the shape as a filter whenever it can be written as one.
 
 ## Anchors
 
@@ -34,7 +41,7 @@ the code that implements each hook is the source of truth for its shape.
 | `Aweme#getRegion()` | the source of the country code | same | same |
 | `FeedBaseViewModel#paramSync2StateAccept` | entering the feed bind path | matched structurally: 2 params, the second a `VideoItemParams`, register count < 16 | patch fails |
 | `com.ss.android.ugc.now.interaction.assem.Comment*`, `com.ss.android.ugc.aweme.comment*`, `com.ss.android.ugc.aweme.commentv2*` (class names) | the comment surface | recognised from the **class on the stack** while a name is rendered, so it does not depend on which obfuscated method calls the getter | the comment surface stops (checked by `VerifyAnchors`) |
-| `AwemeHostApplication#onCreate` | the earliest Context for the extension | real-named, read from the manifest, framework `onCreate` | every switch other than the feed falls back to its default (the feature looks ON but does nothing) |
+| `AwemeHostApplication#onCreate` | the earliest Context for the extension, and the point where the refresh-rate lifecycle callback is installed | real-named, read from the manifest, framework `onCreate` | every switch other than the feed falls back to its default (the feature looks ON but does nothing), and the refresh-rate choice is not applied |
 | `VideoAuthorInfoRelationAssem#onViewCreated(View)` | the header's root view, where `tv_post_time` is found | the method is a library API | feed time and region stop |
 | `VideoAuthorInfoRelationAssem` item renderer `(Aweme) -> V` | the item being rendered (the source of time and region) | three methods have the `(Aweme) -> V` shape; the one used is the only one that calls another `(Aweme) -> V` method on itself, while the others call a no-argument or an int-returning method | patch fails (the anchor has to be unique) |
 | id `tv_post_time` (resource) | finding the time TextView | the resource name is readable; the header's other ids are obfuscated | nothing is written, and it is logged |
@@ -49,6 +56,8 @@ the code that implements each hook is the source of truth for its shape.
 | `FeedItemList#setItems(List)` | the feed filter's second hook: every list stored as a page's items | real-named model accessor, and the method's write to the `items` field is checked too | the patch fails (`FeedItemList#setItems was not found`) |
 | `FeedItemList#clone()` | the feed filter's third hook: the copy of a page, whose `items` is written directly | real-named model accessor; the one write to `items` that is not a setter call | the patch fails (`FeedItemList#clone was not found`) |
 | the pager's item model, and the storage behind its list contract | the feed filter's fourth hook, where the items the feed renders are kept | structural: the class carrying `getItems`/`getListCount`/`insertItemList`/`setItems` that no other such class sits above, then the contract its `getItems` calls, then that contract's implementations — no obfuscated name is written down | the patch fails, naming the candidates it found |
+| the pause item manager, and its list-returning method | the pause-image-search switch: an empty list hides the image-search entry while a video is paused | structural: the one constructor that asks the real-named `com.ss.android.ugc.aweme.vision.IPhotoSearchService` for its pause item, plus the class's single method returning `java.util.List`. The obfuscated names move (`X.1QhK` on 47.7.2, `X.1NRr` on 47.7.1), but the service call and the list shape do not | the patch fails hard when the constructor or the list method is gone; the switch alone does nothing |
+| the visual search tag trigger, and its `(VideoItemParams) -> boolean` gate | the `Find similar` / `Search this image` pill on a paused video; returning false keeps the tag out of the interact area | structural: the real-named `SearchVisualTagComponentTrigger` and the real-named `VideoItemParams` parameter; the method itself moves (`lq` on 47.7.2, `tq` on 47.7.1), so the signature is what is matched | the patch fails hard; the pill keeps showing |
 | `Aweme#isAd`, `#isSoftAd`, `#isWithPromotionalMusic`, `#getAwemeRawAd` | what the ad filter drops | real-named flags and payload read by the extension through reflection, so checked here | that signal stops matching (the item is kept) |
 | `Aweme#getStatistics` → `AwemeStatistics#getPlayCount` / `#getDiggCount` | the view and like ranges | real-named getters, same reading | that count stops filtering (the item is kept, never dropped wrongly) |
 | `ACLCommonShare#getCode()` / `#getShowType()` / `#getTranscode()` | the app's download restriction and the watermark | real-named getters on the real-named model, two instructions each; the values are adapted from ReVanced's TikTok download patch | the download stays restricted and the file keeps its watermark |

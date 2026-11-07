@@ -17,7 +17,7 @@ public final class Tokens {
     public static final int HAIRLINE = 0xFF1C1C1C;
 
     /** The prompt's own panel, one step lighter than the rows it sits above. */
-    public static final int PANEL = 0xFF101010;
+    public static final int PANEL = BACKGROUND;
 
     public static final int TEXT_PRIMARY = 0xFFF5F5F5;
     public static final int TEXT_SECONDARY = 0xFF9A9A9A;
@@ -42,7 +42,6 @@ public final class Tokens {
     public static final int SPACE_8 = 32;
     public static final int SPACE_12 = 48;
 
-    public static final float TITLE_SP = 28f;
     public static final float SUBTITLE_SP = 14f;
     public static final float SECTION_SP = 13f;
     public static final float ROW_TITLE_SP = 18f;

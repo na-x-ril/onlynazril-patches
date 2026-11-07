@@ -7,10 +7,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowInsets;
-import android.widget.ScrollView;
+
+import java.lang.ref.WeakReference;
 
 import app.onlynazril.extension.tiktok.internal.AppContext;
-import app.onlynazril.extension.tiktok.ui.Tokens;
 import app.onlynazril.extension.tiktok.ui.TweaksScreen;
 
 import com.bytedance.ies.ugc.aweme.commercialize.compliance.personalization.AdPersonalizationActivity;
@@ -19,28 +19,23 @@ import com.bytedance.ies.ugc.aweme.commercialize.compliance.personalization.AdPe
  * Hosts the Tweaks screen in TikTok's ad-personalisation activity, reached from the Home tab.
  *
  * The screen is built directly into the activity instead of through a Fragment: the whole state
- * lives in shared preferences, so a recreate (rotation, process death) just rebuilds it, and there
- * is no fragment lifecycle or back stack to keep in step.
+ * lives in shared preferences, so a recreate (rotation, process death) just rebuilds it. The
+ * screen owns its category back stack; this class only forwards the activity's back press to it.
  */
 @SuppressWarnings("unused")
 public class TikTokActivityHook {
     private static final String ACTION = "morphe_settings";
     private static final String EXTRA = "morphe";
 
+    private static WeakReference<TweaksScreen> currentScreen = new WeakReference<>(null);
+
     public static boolean initialize(AdPersonalizationActivity base) {
         Intent intent = base.getIntent();
         if (!isOurs(intent)) return false;
         AppContext.set(base.getApplicationContext());
 
-        ScrollView screen = new ScrollView(base);
-        screen.setBackgroundColor(Tokens.BACKGROUND);
-        screen.setFillViewport(true);
-        screen.setOverScrollMode(ScrollView.OVER_SCROLL_NEVER);
-        screen.addView(
-                TweaksScreen.build(base),
-                new ScrollView.LayoutParams(
-                        ScrollView.LayoutParams.MATCH_PARENT,
-                        ScrollView.LayoutParams.WRAP_CONTENT));
+        TweaksScreen screen = new TweaksScreen(base);
+        currentScreen = new WeakReference<>(screen);
         padForSystemBars(screen);
         base.setContentView(screen);
         return true;
@@ -83,6 +78,8 @@ public class TikTokActivityHook {
 
     public static boolean handleBackPressed(AdPersonalizationActivity activity) {
         if (!isOurs(activity.getIntent())) return false;
+        TweaksScreen screen = currentScreen.get();
+        if (screen != null && screen.goBack()) return true;
         activity.finish();
         return true;
     }
