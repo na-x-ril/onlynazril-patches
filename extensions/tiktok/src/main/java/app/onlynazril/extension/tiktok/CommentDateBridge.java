@@ -46,10 +46,12 @@ public final class CommentDateBridge {
                         Reflect.string(comment, "getReplyToUserId", "replyToUserId"));
             }
             if (!HandleSettings.surfaceEnabled(Surfaces.COMMENTS)) {
+                strip(timeView);
                 report("comments surface off");
                 return;
             }
             if (!HandleSettings.regionOn(Surfaces.COMMENTS)) {
+                strip(timeView);
                 report("region switch off");
                 return;
             }
@@ -66,8 +68,11 @@ public final class CommentDateBridge {
                 report("no region for this commenter");
                 return;
             }
+            if (HandleSettings.isRegionName(timeView.getContext())) {
+                region = CountryName.of(timeView.getContext(), region);
+            }
             String current = textOf(timeView);
-            String time = StampText.withoutRegion(current);
+            String time = StampText.baseText(timeView, current);
             // An empty time view is no reason to drop the region: it is written on its own, the same
             // way the feed header does it, so the region switch stands without the post-time one.
             String target = StampText.withRegion(time, region);
@@ -75,12 +80,24 @@ public final class CommentDateBridge {
                 report("already '" + current + "'");
                 return;
             }
+            timeView.setTag(StampText.TARGET_TAG, target);
+            timeView.setTag(StampText.BASE_TAG, time);
             timeView.setText(target);
             report((time.isEmpty() ? "no time on the view -> '" : "'") + target + "'");
         } catch (Throwable t) {
             Log.w(TAG, "comment time region failed", t);
             report("failed: " + t);
         }
+    }
+
+    /** Removes a region this bridge previously added, before the switch that put it there goes off. */
+    private static void strip(TextView timeView) {
+        if (timeView == null) return;
+        String current = textOf(timeView);
+        String base = StampText.baseText(timeView, current);
+        if (!base.equals(current)) timeView.setText(base);
+        timeView.setTag(StampText.TARGET_TAG, null);
+        timeView.setTag(StampText.BASE_TAG, null);
     }
 
     private static String textOf(TextView view) {

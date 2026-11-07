@@ -19,9 +19,17 @@ public final class Tokens {
     /** The prompt's own panel, one step lighter than the rows it sits above. */
     public static final int PANEL = BACKGROUND;
 
+    public static final int BG_WHITE = 0xFFFFFFFF;
+    public static final int TEXT_ON_LIGHT = 0xFF121212;
+    public static final int RIPPLE_DARK  = 0x26000000;
+
     public static final int TEXT_PRIMARY = 0xFFF5F5F5;
     public static final int TEXT_SECONDARY = 0xFF9A9A9A;
     public static final int TEXT_DISABLED = 0xFF5A5A5A;
+    public static final int TEXT_DANGER = 0xFFFF5252;
+
+    public static final int BORDER_DANGER = 0x55FF5252;
+    public static final int RIPPLE_ERROR  = 0x4DFF5252;
 
     public static final int ACCENT = 0xFFFFFFFF;
     public static final int TRACK_ON = 0xFFFFFFFF;
@@ -50,6 +58,7 @@ public final class Tokens {
     public static final float ACTION_SP = 15f;
     /** The prompt's title: one step above a row title, below the screen's own title. */
     public static final float PANEL_TITLE_SP = 20f;
+    public static final float PAGE_TITLE_SP = 26f;
 
     private Tokens() {}
 

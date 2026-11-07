@@ -19,13 +19,14 @@ public final class ChoiceAction {
     public static ActionView create(
             Context context,
             String title,
+            String hint,
             String[] labels,
             int selected,
             OnChoiceChangeListener save) {
         int[] current = {selected};
         ActionView[] button = new ActionView[1];
         button[0] = new ActionView(context, labels[current[0]], () -> ChoiceDialog.show(
-                context, title, labels, current[0], index -> {
+                context, title, hint, labels, current[0], index -> {
                     current[0] = index;
                     button[0].setText(labels[index]);
                     save.onChoiceChanged(index);

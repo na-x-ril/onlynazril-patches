@@ -20,8 +20,15 @@ public final class HandleSettings {
     private static final String PREFS = "tiktokHandle_prefs";
     private static final String KEY_ENABLED = "handle_enabled";
     private static final String KEY_REGION = "region_enabled";
+    private static final String KEY_REGION_NAME = "region_name";
     private static final String KEY_POST_TIME = "post_time_enabled";
+    private static final String KEY_COMPACT = "post_time_compact";
+    private static final String KEY_DATE = "date_format";
     private static final String KEY_SURFACE = "surface_";
+
+    public static final int DATE_AUTO = 0;
+    public static final int DATE_MM_DD_YY = 1;
+    public static final int DATE_DD_MMM_YYYY = 2;
 
     private HandleSettings() {}
 
@@ -53,6 +60,47 @@ public final class HandleSettings {
 
     public static void setRegionEnabled(Context ctx, boolean v) {
         prefs(ctx).edit().putBoolean(KEY_REGION, v).apply();
+    }
+
+    /** When the region is on, show the country name instead of its code. */
+    public static boolean isRegionName(Context ctx) {
+        return ctx != null && prefs(ctx).getBoolean(KEY_REGION_NAME, false);
+    }
+
+    public static void setRegionName(Context ctx, boolean v) {
+        prefs(ctx).edit().putBoolean(KEY_REGION_NAME, v).apply();
+    }
+
+    /** 0 = off, 1 = code, 2 = name. */
+    public static int regionMode(Context ctx) {
+        if (!isRegionEnabled(ctx)) return 0;
+        return isRegionName(ctx) ? 2 : 1;
+    }
+
+    public static void setRegionMode(Context ctx, int mode) {
+        setRegionEnabled(ctx, mode != 0);
+        setRegionName(ctx, mode == 2);
+    }
+
+    /** Remove the space between a time's number and unit. */
+    public static boolean isCompactEnabled(Context ctx) {
+        return ctx == null || prefs(ctx).getBoolean(KEY_COMPACT, true);
+    }
+
+    public static void setCompactEnabled(Context ctx, boolean v) {
+        prefs(ctx).edit().putBoolean(KEY_COMPACT, v).apply();
+    }
+
+    /** How a post older than a week is dated. */
+    public static int dateFormat(Context ctx) {
+        if (ctx == null) return DATE_AUTO;
+        int value = prefs(ctx).getInt(KEY_DATE, DATE_AUTO);
+        return value >= DATE_AUTO && value <= DATE_DD_MMM_YYYY ? value : DATE_AUTO;
+    }
+
+    public static void setDateFormat(Context ctx, int mode) {
+        int value = mode >= DATE_AUTO && mode <= DATE_DD_MMM_YYYY ? mode : DATE_AUTO;
+        prefs(ctx).edit().putInt(KEY_DATE, value).apply();
     }
 
     /** Independent of the handle switches: the post time and the region share the time view. */

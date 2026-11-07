@@ -7,18 +7,21 @@ import android.os.Bundle;
 import android.view.Window;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import app.onlynazril.extension.tiktok.internal.Activities;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
 
 /**
  * Applies the refresh-rate choice to every activity.
- *
+ * <p>
  * One lifecycle callback is installed at process start. On each resume the saved rate is put on
  * the activity's window as `preferredRefreshRate`, which is the public request the window manager
  * uses to pick a matching display mode. The default choice writes zero, which clears a rate chosen
  * earlier.
- *
+ * <p>
  * A rate the panel does not support stays a request: the platform picks the closest mode it has.
  * Nothing here forces a mode id, so the app cannot be left on a mode the display did not offer.
  */
@@ -70,26 +73,26 @@ public final class RefreshRate {
 
     private static final class Lifecycle implements Application.ActivityLifecycleCallbacks {
         @Override
-        public void onActivityCreated(Activity activity, Bundle state) {}
+        public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle state) {}
 
         @Override
-        public void onActivityStarted(Activity activity) {}
+        public void onActivityStarted(@NonNull Activity activity) {}
 
         @Override
-        public void onActivityResumed(Activity activity) {
+        public void onActivityResumed(@NonNull Activity activity) {
             RefreshRate.apply(activity);
         }
 
         @Override
-        public void onActivityPaused(Activity activity) {}
+        public void onActivityPaused(@NonNull Activity activity) {}
 
         @Override
-        public void onActivityStopped(Activity activity) {}
+        public void onActivityStopped(@NonNull Activity activity) {}
 
         @Override
-        public void onActivitySaveInstanceState(Activity activity, Bundle state) {}
+        public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle state) {}
 
         @Override
-        public void onActivityDestroyed(Activity activity) {}
+        public void onActivityDestroyed(@NonNull Activity activity) {}
     }
 }

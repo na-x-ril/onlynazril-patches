@@ -1,7 +1,14 @@
 package app.onlynazril.extension.tiktok;
 
+import android.os.Build;
 import android.widget.TextView;
 
+import app.onlynazril.extension.tiktok.settings.HandleSettings;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -25,7 +32,7 @@ public final class StampText {
     /** Tag holding exactly what this extension last rendered on the view, if anything. */
     public static final int TARGET_TAG = 0x7f0f9999;
 
-    /** Tag holding the time text that render was built from, before the dot and the region. */
+    /** Tag holding the time text a render was built from, before the region. */
     public static final int BASE_TAG = 0x7f0f9998;
 
     /** A trailing "· XX" — a country code, whether TikTok put it there or this extension did. */
@@ -34,18 +41,9 @@ public final class StampText {
     /** A separator already in front of the time, so the forced dot is added exactly once. */
     private static final Pattern LEADING_SEPARATOR = Pattern.compile("^[\\s\\u00b7]+");
 
-    /**
-     * The shapes the header writes a post's age in, and this extension writes itself: "3d ago" and,
-     * past a week, "05-01". Deliberately narrow — anything else on screen is left alone, because it
-     * is wording that cannot be judged here and TikTok's own is to be kept.
-     */
-    private static final Pattern AGE_SHAPE = Pattern.compile(
-            "(?i)^(?:now|\\d{1,3}\\s*[mhd]\\s*ago|\\d{2}-\\d{2})$");
-
     private static final long MINUTE = 60_000L;
     private static final long HOUR = 60L * MINUTE;
     private static final long DAY = 24L * HOUR;
-    private static final long WEEK = 7L * DAY;
     /** TikTok stores the post time in seconds; anything smaller is not epoch millis. */
     private static final long SECONDS_LIMIT = 100_000_000_000L;
 
@@ -66,7 +64,7 @@ public final class StampText {
     public static String headerTime(String base, String region) {
         if (base.isEmpty()) return region == null ? "" : LEADING_DOT + region;
         String target = LEADING_DOT + base;
-        if (region == null || hasRegion(base)) return target;
+        if (region == null || hasRegion(base) || endsWithRegion(base, region)) return target;
         return target + SEPARATOR + region;
     }
 
@@ -74,43 +72,45 @@ public final class StampText {
     public static String withRegion(String time, String region) {
         if (region == null) return time;
         if (time.isEmpty()) return region;
-        if (hasRegion(time)) return time;
+        if (hasRegion(time) || endsWithRegion(time, region)) return time;
         return time + SEPARATOR + region;
     }
 
+    /** Whether the text already carries this exact region, code or name. */
+    private static boolean endsWithRegion(String text, String region) {
+        if (region == null || region.isEmpty()) return false;
+        return text.endsWith(SEPARATOR + region)
+                || text.endsWith(LEADING_DOT + region)
+                || text.equals(region);
+    }
+
     /**
-     * What the time view should read: the time text this extension last built for this view, else
-     * TikTok's own. With the post time on, an age-shaped text that disagrees with this item is
-     * replaced by the age computed from it — that is the recycled-view case, where the neighbour's
-     * age is on the view.
-     *
-     * Our own render is recognised by the exact string that was written, not by rebuilding it from
-     * the text: a view that carries a region on its own has no time to rebuild from, and guessing
-     * whether a word is a time or a country code is how the two get mixed up.
+     * The time text this extension writes. The epoch is the source: TikTok's own text is used only
+     * when the item carries no create time, so the same video reads the same on every surface.
      */
     public static String timeText(
-            TextView timeView, String current, long createTime, boolean allowOurs) {
-        Object rendered = timeView.getTag(TARGET_TAG);
-        Object base = timeView.getTag(BASE_TAG);
-        String text;
-        if (rendered instanceof String && current.equals(rendered) && base instanceof String) {
-            text = (String) base;
-        } else {
-            // TikTok's own text, or a render from an older install that left no tag behind.
-            text = withoutRegion(withoutLeadingSeparator(current));
-        }
-        if (!allowOurs) return text;
-        String expected = relative(createTime);
-        if (expected.isEmpty()) return text;
-        // The view TikTok left empty is the one case the post time exists for.
-        if (text.isEmpty()) return expected;
-        if (expected.equalsIgnoreCase(text)) return text;
-        return AGE_SHAPE.matcher(text).matches() ? expected : text;
+            TextView timeView, String current, long createTime, boolean allowOurs, boolean compact,
+            int dateFormat) {
+        String fallback = baseText(timeView, current);
+        if (!allowOurs) return fallback;
+        Locale locale = AppLocale.of(timeView.getContext());
+        String expected = relative(createTime, locale, compact, dateFormat);
+        return expected.isEmpty() ? fallback : expected;
     }
 
     /** The text without the region suffix this extension may have appended to it. */
     public static String withoutRegion(String text) {
         return REGION_SUFFIX.matcher(text).replaceFirst("");
+    }
+
+    /** The time before this extension added the region, recovered from its own last render. */
+    public static String baseText(TextView view, String current) {
+        Object rendered = view.getTag(TARGET_TAG);
+        Object base = view.getTag(BASE_TAG);
+        if (rendered instanceof String && current.equals(rendered) && base instanceof String) {
+            return (String) base;
+        }
+        return withoutRegion(withoutLeadingSeparator(current));
     }
 
     public static boolean hasRegion(String text) {
@@ -122,21 +122,72 @@ public final class StampText {
     }
 
     /**
-     * Compact age, shaped like the header's own: a number, a unit and "ago", then a date once the
-     * video is a week old. Used only when TikTok left the view empty.
-     *
-     * TikTok's own wording lives in its i18n packs — it is neither a string resource nor a literal
-     * in the dex — so the verified samples are "2d ago" and, past a week, "09-02". This follows
-     * that shape with "ago" on every unit rather than only on days.
+     * Compact age in the app's language. English and Indonesian follow TikTok's own shapes; every
+     * other locale uses the platform CLDR formatter, whose wording may differ from TikTok's.
      */
-    private static String relative(long createTime) {
+    private static String relative(long createTime, Locale locale, boolean compact, int dateFormat) {
         if (createTime <= 0) return "";
         long millis = createTime < SECONDS_LIMIT ? createTime * 1000L : createTime;
         long delta = System.currentTimeMillis() - millis;
-        if (delta < MINUTE) return "now";
-        if (delta < HOUR) return (delta / MINUTE) + "m ago";
-        if (delta < DAY) return (delta / HOUR) + "h ago";
-        if (delta < WEEK) return (delta / DAY) + "d ago";
-        return String.format(Locale.ROOT, "%1$tm-%1$td", millis);
+        if (isIndonesian(locale)) {
+            if (delta < MINUTE) {
+                long seconds = delta / 1000L;
+                return seconds <= 0 ? "baru saja" : unit(seconds, "dtk", "lalu", compact);
+            }
+            if (delta < HOUR) return unit(delta / MINUTE, "mnt", "lalu", compact);
+            if (delta < DAY) return unit(delta / HOUR, "j", "lalu", compact);
+            long days = delta / DAY;
+            if (days <= 7) return unit(days, "h", "lalu", compact);
+            return date(millis, locale, "%1$td-%1$tm", dateFormat);
+        }
+        if (isEnglish(locale)) {
+            if (delta < MINUTE) return "now";
+            if (delta < HOUR) return unit(delta / MINUTE, "m", "ago", compact);
+            if (delta < DAY) return unit(delta / HOUR, "h", "ago", compact);
+            long days = delta / DAY;
+            if (days <= 7) return unit(days, "d", "ago", compact);
+            return date(millis, locale, "%1$tm-%1$td", dateFormat);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            return IcuAgeText.relative(delta, millis, locale, compact, dateFormat);
+        }
+        return "";
+    }
+
+    /**
+     * A date without the year while it is this year, and a full localized date otherwise, so an
+     * older post cannot read as one from this year. An explicit format overrides both.
+     */
+    static String date(long millis, Locale locale, String sameYearPattern, int dateFormat) {
+        Date value = new Date(millis);
+        if (dateFormat == HandleSettings.DATE_MM_DD_YY) {
+            return new SimpleDateFormat("MM-dd-yy", locale).format(value);
+        }
+        if (dateFormat == HandleSettings.DATE_DD_MMM_YYYY) {
+            return new SimpleDateFormat("dd MMM yyyy", locale).format(value);
+        }
+        if (sameYearPattern == null) {
+            return DateFormat.getDateInstance(DateFormat.SHORT, locale).format(value);
+        }
+        Calendar now = Calendar.getInstance();
+        Calendar then = Calendar.getInstance();
+        then.setTimeInMillis(millis);
+        if (now.get(Calendar.YEAR) == then.get(Calendar.YEAR)) {
+            return String.format(Locale.ROOT, sameYearPattern, millis);
+        }
+        return DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(value);
+    }
+
+    private static String unit(long value, String unit, String suffix, boolean compact) {
+        return compact ? value + unit + " " + suffix : value + " " + unit + " " + suffix;
+    }
+
+    private static boolean isEnglish(Locale locale) {
+        return locale != null && "en".equals(locale.getLanguage());
+    }
+
+    private static boolean isIndonesian(Locale locale) {
+        String language = locale == null ? "" : locale.getLanguage();
+        return "id".equals(language) || "in".equals(language);
     }
 }

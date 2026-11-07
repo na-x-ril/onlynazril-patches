@@ -147,8 +147,15 @@ public final class AuthorInfoBridge {
             // here would leave TikTok's time on screen, which is what a switch called "post time"
             // cannot look like. What may remain is the region, which is a separate switch.
             String current = currentText(timeView);
-            String base = showTime ? StampText.timeText(timeView, current, createTime, true) : "";
+            boolean compact = HandleSettings.isCompactEnabled(timeView.getContext());
+            int dateFormat = HandleSettings.dateFormat(timeView.getContext());
+            String base = showTime
+                    ? StampText.timeText(timeView, current, createTime, true, compact, dateFormat)
+                    : "";
             String region = showRegion ? RegionSource.forAweme(aweme) : null;
+            if (region != null && HandleSettings.isRegionName(timeView.getContext())) {
+                region = CountryName.of(timeView.getContext(), region);
+            }
             if (base.isEmpty() && region == null) {
                 hide(timeView);
                 reportHide(showTime, showRegion);
@@ -161,9 +168,7 @@ public final class AuthorInfoBridge {
             String target = StampText.headerTime(base, region);
             report(aweme, region, createTime, showTime, showRegion, current, target);
             if (target.equals(current) && timeView.getVisibility() == View.VISIBLE) return;
-            // Exactly what was rendered, and the time text it was built from. The base is
-            // remembered rather than recovered from the text later: a view carrying a region on its
-            // own has no time to rebuild from, and a recycled view is recognised by its own render.
+            // Exactly what was rendered, so the watcher can put it back if TikTok overwrites it.
             // Written before the text, because the watcher reads the tag: with the old target still
             // on the view it would put the previous render back the moment this one is set.
             timeView.setTag(StampText.TARGET_TAG, target);
@@ -178,11 +183,11 @@ public final class AuthorInfoBridge {
     /**
      * Takes TikTok's own time off this view, and its copy with it. Called when the time element is
      * off and there is no region to keep, so nothing on the view belongs to the extension and
-     * TikTok's text is not left behind. The tags go too: a view that carries no render must not be
-     * read as one, or turning the switch back on rebuilds from a base that was never on screen.
+     * TikTok's text is not left behind. The tag goes too: a view that carries no render must not be
+     * read as one, or turning the switch back on restores a render that was never on screen.
      */
     private static void hide(TextView timeView) {
-        // The tags go first: the watcher restores whatever the tag holds, and this is the one write
+        // The tag goes first: the watcher restores whatever the tag holds, and this is the one write
         // that has to stand. A view the extension has nothing to put on must stay empty.
         timeView.setTag(StampText.TARGET_TAG, null);
         timeView.setTag(StampText.BASE_TAG, null);

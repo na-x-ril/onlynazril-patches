@@ -91,7 +91,10 @@ public final class SettingsBackup {
 
         root.put("handle_enabled", HandleSettings.isEnabled(context));
         root.put("region_enabled", HandleSettings.isRegionEnabled(context));
+        root.put("region_name", HandleSettings.isRegionName(context));
         root.put("post_time_enabled", HandleSettings.isPostTimeEnabled(context));
+        root.put("post_time_compact", HandleSettings.isCompactEnabled(context));
+        root.put("date_format", HandleSettings.dateFormat(context));
         root.put("surface_feed", HandleSettings.isSurfaceEnabled(context, Surfaces.FEED));
         root.put("surface_comments", HandleSettings.isSurfaceEnabled(context, Surfaces.COMMENTS));
 
@@ -129,8 +132,17 @@ public final class SettingsBackup {
             if (root.has("region_enabled")) {
                 HandleSettings.setRegionEnabled(context, root.optBoolean("region_enabled"));
             }
+            if (root.has("region_name")) {
+                HandleSettings.setRegionName(context, root.optBoolean("region_name"));
+            }
             if (root.has("post_time_enabled")) {
                 HandleSettings.setPostTimeEnabled(context, root.optBoolean("post_time_enabled"));
+            }
+            if (root.has("post_time_compact")) {
+                HandleSettings.setCompactEnabled(context, root.optBoolean("post_time_compact"));
+            }
+            if (root.has("date_format")) {
+                HandleSettings.setDateFormat(context, root.optInt("date_format"));
             }
             if (root.has("surface_feed")) {
                 HandleSettings.setSurfaceEnabled(

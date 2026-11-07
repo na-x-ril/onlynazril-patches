@@ -3,10 +3,12 @@ package app.onlynazril.extension.tiktok.ui;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
@@ -33,6 +35,7 @@ public final class ChoiceDialog {
     public static void show(
             Context context,
             String title,
+            String hintText,
             String[] labels,
             int selected,
             OnChoiceListener save) {
@@ -41,7 +44,7 @@ public final class ChoiceDialog {
 
         Dialog dialog = new Dialog(activity);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(panel(activity, dialog, title, labels, selected, save));
+        dialog.setContentView(panel(activity, dialog, title, hintText, labels, selected, save));
 
         Window window = dialog.getWindow();
         if (window != null) {
@@ -62,6 +65,7 @@ public final class ChoiceDialog {
             Activity activity,
             Dialog dialog,
             String title,
+            String hintText,
             String[] labels,
             int selected,
             OnChoiceListener save) {
@@ -82,30 +86,60 @@ public final class ChoiceDialog {
         heading.setGravity(Gravity.CENTER);
         column.addView(heading);
 
-        TextView hint = new TextView(activity);
-        hint.setText("The panel may pick the closest rate it supports.");
-        hint.setTextSize(Tokens.SUBTITLE_SP);
-        hint.setTextColor(Tokens.TEXT_SECONDARY);
-        hint.setTypeface(Fonts.face(false));
-        hint.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        hintParams.topMargin = Tokens.dp(activity, Tokens.SPACE_2);
-        hint.setLayoutParams(hintParams);
-        column.addView(hint);
+        if (hintText != null && !hintText.isEmpty()) {
+            TextView hint = new TextView(activity);
+            hint.setText(hintText);
+            hint.setTextSize(Tokens.SUBTITLE_SP);
+            hint.setTextColor(Tokens.TEXT_SECONDARY);
+            hint.setTypeface(Fonts.face(false));
+            hint.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            hintParams.topMargin = Tokens.dp(activity, Tokens.SPACE_2);
+            hintParams.bottomMargin = Tokens.dp(activity, Tokens.SPACE_6);
+            hint.setLayoutParams(hintParams);
+            column.addView(hint);
+        }
 
         for (int i = 0; i < labels.length; i++) {
             final int index = i;
-            String label = (i == selected ? "\u2713  " : "") + labels[i];
-            ActionView option = new ActionView(
-                    activity,
-                    label,
-                    Tokens.PANEL,
-                    i == selected ? Tokens.ACCENT : Tokens.TEXT_PRIMARY,
-                    () -> {
-                        save.onChoice(index);
-                        dialog.dismiss();
-                    });
+            LinearLayout option = new LinearLayout(activity);
+            option.setOrientation(LinearLayout.HORIZONTAL);
+            option.setGravity(Gravity.CENTER_VERTICAL);
+            option.setPadding(
+                    Tokens.dp(activity, Tokens.SPACE_4),
+                    Tokens.dp(activity, Tokens.SPACE_2),
+                    Tokens.dp(activity, Tokens.SPACE_4),
+                    Tokens.dp(activity, Tokens.SPACE_2));
+            option.setBackground(ActionView.outline(activity, Tokens.PANEL));
+            option.setClickable(true);
+            option.setFocusable(true);
+            option.setContentDescription(labels[i]);
+            option.setOnClickListener(view -> {
+                save.onChoice(index);
+                dialog.dismiss();
+            });
+
+            View mark;
+            if (i == selected) {
+                mark = new CheckView(activity);
+            } else {
+                mark = new View(activity);
+                mark.setVisibility(View.INVISIBLE);
+            }
+            LinearLayout.LayoutParams markParams = new LinearLayout.LayoutParams(
+                    Tokens.dp(activity, Tokens.SPACE_4), Tokens.dp(activity, Tokens.SPACE_4));
+            markParams.rightMargin = Tokens.dp(activity, Tokens.SPACE_2);
+            option.addView(mark, markParams);
+
+            TextView label = new TextView(activity);
+            label.setText(labels[i]);
+            label.setTextSize(Tokens.ACTION_SP);
+            label.setTextColor(i == selected ? Tokens.ACCENT : Tokens.TEXT_PRIMARY);
+            label.setTypeface(Fonts.face(false));
+            option.addView(label, new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -113,12 +147,22 @@ public final class ChoiceDialog {
             column.addView(option, params);
         }
 
+        float fullRadius = Tokens.dp(activity, 999);
         ActionView cancel = new ActionView(
-                activity, "Cancel", Tokens.PANEL, Tokens.TEXT_SECONDARY, dialog::dismiss);
+                activity, "Cancel", Color.TRANSPARENT, Tokens.TEXT_DANGER, dialog::dismiss);
+        GradientDrawable cancelBg = new GradientDrawable();
+        cancelBg.setColor(Color.TRANSPARENT);
+        cancelBg.setCornerRadius(fullRadius);
+        cancelBg.setStroke(Tokens.dp(activity, 1), Tokens.BORDER_DANGER);
+        GradientDrawable cancelMask = new GradientDrawable();
+        cancelMask.setColor(Color.WHITE);
+        cancelMask.setCornerRadius(fullRadius);
+        cancel.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(Tokens.RIPPLE_ERROR), cancelBg, cancelMask));
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        cancelParams.topMargin = Tokens.dp(activity, Tokens.SPACE_4);
+        cancelParams.topMargin = Tokens.dp(activity, Tokens.SPACE_12);
         column.addView(cancel, cancelParams);
 
         return column;

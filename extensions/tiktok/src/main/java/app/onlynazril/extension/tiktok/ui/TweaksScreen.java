@@ -6,6 +6,10 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
@@ -50,6 +54,10 @@ public final class TweaksScreen extends FrameLayout {
     };
 
     private static final String[] RATE_LABELS = {"Default", "60 fps", "90 fps", "120 fps"};
+
+    private static final String[] REGION_MODES = {"Off", "Code", "Name"};
+
+    private static final String[] DATE_LABELS = {"Auto", "MM-dd-yy", "dd MMM yyyy"};
 
     /** How far the outgoing page trails the incoming one. */
     private static final float PARALLAX_FACTOR = 0.25f;
@@ -281,7 +289,7 @@ public final class TweaksScreen extends FrameLayout {
 
         TextView title = new TextView(context);
         title.setText(titleText);
-        title.setTextSize(Tokens.PANEL_TITLE_SP);
+        title.setTextSize(Tokens.PAGE_TITLE_SP);
         title.setTypeface(Fonts.face(true));
         title.setTextColor(Tokens.TEXT_PRIMARY);
         title.setSingleLine(true);
@@ -348,18 +356,52 @@ public final class TweaksScreen extends FrameLayout {
         page.addView(divider(context));
         page.addView(new RowView(
                 context,
-                "Region \u00b7 CC",
-                "Append the country code after the post time, on every surface that shows one.",
-                toggle(context, HandleSettings.isRegionEnabled(context),
-                        checked -> HandleSettings.setRegionEnabled(context, checked))));
+                "Display country",
+                "Show the country after the time. Off hides it; Code is the two-letter code; "
+                        + "Name follows the app language.",
+                ChoiceAction.create(context, "Display country",
+                        "Name follows the app language.",
+                        REGION_MODES,
+                        HandleSettings.regionMode(context),
+                        index -> HandleSettings.setRegionMode(context, index))));
         page.addView(divider(context));
+
+        boolean postTimeOn = HandleSettings.isPostTimeEnabled(context);
+        RowView compactRow = new RowView(
+                context,
+                "Compact time units",
+                "Remove the space between the number and the unit: 2h, 2mnt. Off keeps the "
+                        + "language's own spacing.",
+                toggle(context, HandleSettings.isCompactEnabled(context),
+                        checked -> HandleSettings.setCompactEnabled(context, checked)));
+        RowView dateRow = new RowView(
+                context,
+                "Date format",
+                "How a post older than a week is written. Auto keeps the compact current-year form "
+                        + "and adds the year on older posts.",
+                ChoiceAction.create(context, "Date format",
+                        "Auto adds the year for posts from another year.",
+                        DATE_LABELS,
+                        HandleSettings.dateFormat(context),
+                        index -> HandleSettings.setDateFormat(context, index)));
+        ToggleView postTimeToggle = toggle(context, postTimeOn, checked -> {
+            HandleSettings.setPostTimeEnabled(context, checked);
+            compactRow.setRowEnabled(checked);
+            dateRow.setRowEnabled(checked);
+        });
         page.addView(new RowView(
                 context,
                 "Post time",
                 "Show when the video was posted, even when TikTok hides it. Off removes the time, "
-                        + "including TikTok's own.",
-                toggle(context, HandleSettings.isPostTimeEnabled(context),
-                        checked -> HandleSettings.setPostTimeEnabled(context, checked))));
+                        + "including TikTok's own. Other languages use CLDR wording, so the text may "
+                        + "differ slightly from TikTok's own.",
+                postTimeToggle));
+        page.addView(divider(context));
+        page.addView(compactRow);
+        page.addView(divider(context));
+        page.addView(dateRow);
+        compactRow.setRowEnabled(postTimeOn);
+        dateRow.setRowEnabled(postTimeOn);
 
         masterToggle.setOnCheckedChangeListener(checked -> {
             HandleSettings.setEnabled(context, checked);
@@ -524,7 +566,9 @@ public final class TweaksScreen extends FrameLayout {
                 context,
                 "App refresh rate",
                 "Ask the app for a fixed rate. Default leaves the choice to Android and TikTok.",
-                ChoiceAction.create(context, "App refresh rate", RATE_LABELS, rateIndex, index -> {
+                ChoiceAction.create(context, "App refresh rate",
+                        "The panel may pick the closest rate it supports.",
+                        RATE_LABELS, rateIndex, index -> {
                     RefreshRateSettings.setFps(context, RefreshRateSettings.CHOICES[index]);
                     if (RefreshRate.isInstalled()) RefreshRate.applyNow(context);
                 })));
@@ -721,16 +765,28 @@ public final class TweaksScreen extends FrameLayout {
         LinearLayout controls = new LinearLayout(context);
         controls.setOrientation(LinearLayout.HORIZONTAL);
         controls.setGravity(Gravity.CENTER_VERTICAL);
-        ActionView delete = new ActionView(context, "Delete", () -> {
+        float fullRadius = Tokens.dp(context, 999);
+        ActionView delete = new ActionView(
+                context, "Delete", Color.TRANSPARENT, Tokens.TEXT_DANGER, () -> {
             CustomFontSettings.deleteFont(context, name);
             fillFontList(context, list);
             RestartPrompt.askNow(context);
         });
+        GradientDrawable deleteBg = new GradientDrawable();
+        deleteBg.setColor(Color.TRANSPARENT);
+        deleteBg.setCornerRadius(fullRadius);
+        deleteBg.setStroke(Tokens.dp(context, 1), Tokens.BORDER_DANGER);
+        GradientDrawable deleteMask = new GradientDrawable();
+        deleteMask.setColor(Color.WHITE);
+        deleteMask.setCornerRadius(fullRadius);
+        delete.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(Tokens.RIPPLE_ERROR), deleteBg, deleteMask));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         controls.addView(delete, params);
         return controls;
     }
+
 
     /** The bottom of the list: the way out of every imported font at once. */
     private static View clearAllFonts(Context context, final LinearLayout list) {
