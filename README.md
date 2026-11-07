@@ -9,9 +9,9 @@ and follow the [Morphe patcher](https://github.com/MorpheApp/morphe-patcher). Th
 targets TikTok, where it shows the account handle, the region and the post time next to names on
 the feed (including a video shared into a chat) and in comments; filters ads and out-of-range videos
 out of the feed; saves a share sheet's media without the watermark; sets a profile background where
-the rollout has not reached; and draws the app's text in a font file you import. Holding the Home
-tab in the bottom bar opens Tweaks, where every one of those is switched on or off. More apps are
-planned.
+the rollout has not reached; draws the app's text in a font file you import; and asks for a
+display refresh rate from Tweaks. Holding the Home tab in the bottom bar opens Tweaks, where every
+one of those is switched on or off. More apps are planned.
 
 > The AMOLED theme patch is experimental and on by default. It rewrites resource colours and
 > code-held constants to black, can leave some screens uneven or affect the light theme, and is

@@ -71,6 +71,40 @@
       "options": []
     },
     {
+      "name": "App refresh rate",
+      "description": "Sets the app's preferred display refresh rate. In Tweaks: Default (system), 60 fps, 90 fps or 120 fps. On by default; Default leaves the rate to Android.",
+      "default": true,
+      "category": null,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "com.zhiliaoapp.musically",
+          "name": "TikTok",
+          "description": "Handle, region and post time next to names, feed filtering, watermark-free downloads, profile backgrounds, an imported font, comment copying without the username, and CAPTCHA popups hidden.",
+          "apkFileType": "APK",
+          "appIconColor": "#FE2C55",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "47.7.1",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            },
+            {
+              "version": "47.7.2",
+              "versionCodes": null,
+              "isExperimental": false,
+              "minSdk": null,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
       "name": "Copy comments without username",
       "description": "Leaves the username out of a copied comment: the clipboard gets the comment's own text. On by default; the switch is in Tweaks.",
       "default": true,

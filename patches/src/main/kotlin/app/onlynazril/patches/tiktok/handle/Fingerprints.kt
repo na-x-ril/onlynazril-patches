@@ -117,17 +117,6 @@ private const val TEXT_VIEW = "Landroid/widget/TextView;"
 private const val ITEM = "Lcom/ss/android/ugc/aweme/feed/model/Aweme;"
 
 /**
- * The process's Application. Real-named (`AwemeHostApplication`) and read straight from the
- * manifest, so it is the earliest reliable place to hand the extension a Context.
- */
-object ApplicationOnCreateFingerprint : Fingerprint(
-    definingClass = "Lcom/ss/android/ugc/aweme/app/host/AwemeHostApplication;",
-    name = "onCreate",
-    returnType = "V",
-    parameters = emptyList(),
-)
-
-/**
  * Backstop hook is intentionally implemented via the same VideoAuthorInfoVM
  * binder (no separate TextView fingerprint needed for zero-flicker). If a
  * future build bypasses getNickname via direct iget, add a TextView.setText

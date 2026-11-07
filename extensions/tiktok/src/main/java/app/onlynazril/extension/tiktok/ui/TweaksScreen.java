@@ -20,6 +20,7 @@ import app.onlynazril.extension.tiktok.feedfilter.FeedFilterStats;
 import app.onlynazril.extension.tiktok.internal.Activities;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
+import app.onlynazril.extension.tiktok.refreshrate.RefreshRate;
 import app.onlynazril.extension.tiktok.settings.CaptchaSettings;
 import app.onlynazril.extension.tiktok.settings.CommentCopySettings;
 import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
@@ -27,11 +28,12 @@ import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
 import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
+import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
 
 /**
  * Builds the screen: header, one Handle section (master switch on top, then one row per surface,
  * then the region), then one section per remaining feature (Comments, Captcha, Feed filter,
- * Download, Profile background, Custom font), and About.
+ * Download, Profile background, Custom font, Refresh rate), and About.
  *
  * With the master off the dependent rows stay visible but greyed and inert, so their own state
  * survives and comes back unchanged when the master returns.
@@ -250,6 +252,19 @@ public final class TweaksScreen {
             setFontRowsEnabled(fontList, checked);
         });
 
+        // Independent of everything above: the display rate is not a name, a filter or a font.
+        String[] rateLabels = {"Default", "60 fps", "90 fps", "120 fps"};
+        int rateIndex = rateIndex(RefreshRateSettings.fps(context));
+        column.addView(section(context, "Refresh rate"));
+        column.addView(new RowView(
+                context,
+                "App refresh rate",
+                "Ask the app for a fixed rate. Default leaves the choice to Android and TikTok.",
+                ChoiceAction.create(context, "App refresh rate", rateLabels, rateIndex, index -> {
+                    RefreshRateSettings.setFps(context, RefreshRateSettings.CHOICES[index]);
+                    if (RefreshRate.isInstalled()) RefreshRate.applyNow(context);
+                })));
+
         column.addView(section(context, "About"));
         column.addView(description(
                 context,
@@ -341,7 +356,7 @@ public final class TweaksScreen {
 
         TextView subtitle = new TextView(context);
         subtitle.setText("Handle stamp, region, post time, comment copy, captcha, feed filter, "
-                + "download, profile background, custom font");
+                + "download, profile background, custom font, refresh rate");
         subtitle.setTextSize(Tokens.SUBTITLE_SP);
         subtitle.setTextColor(Tokens.TEXT_SECONDARY);
         subtitle.setTypeface(Fonts.face(false));
@@ -509,6 +524,14 @@ public final class TweaksScreen {
     private static ToggleView surfaceToggle(Context context, String surface) {
         return toggle(context, HandleSettings.isSurfaceEnabled(context, surface),
                 checked -> HandleSettings.setSurfaceEnabled(context, surface, checked));
+    }
+
+    /** The index of the saved rate in the option list, or the default option when it is unknown. */
+    private static int rateIndex(int fps) {
+        for (int i = 0; i < RefreshRateSettings.CHOICES.length; i++) {
+            if (RefreshRateSettings.CHOICES[i] == fps) return i;
+        }
+        return 0;
     }
 
     private static ToggleView toggle(

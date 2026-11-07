@@ -16,6 +16,7 @@ import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.formats.Instruction35c
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import app.onlynazril.patches.shared.Constants.COMPATIBILITY_TIKTOK
+import app.onlynazril.patches.tiktok.shared.ApplicationOnCreateFingerprint
 
 private const val HANDLE_DELEGATE = "Lapp/onlynazril/extension/tiktok/HandleDelegate;"
 private const val BIND_BRIDGE = "Lapp/onlynazril/extension/tiktok/BindBridge;"
