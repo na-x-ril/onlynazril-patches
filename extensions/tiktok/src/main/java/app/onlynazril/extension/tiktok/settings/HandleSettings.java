@@ -113,6 +113,11 @@ public final class HandleSettings {
         return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    /** Flushes every pending write before a restart ends the process. */
+    static void flush(Context ctx) {
+        prefs(ctx).edit().commit();
+    }
+
     static Context appContext() {
         Context c = app.onlynazril.extension.tiktok.internal.AppContext.get();
         if (c != null) return c;

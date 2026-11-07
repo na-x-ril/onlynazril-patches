@@ -17,7 +17,7 @@ public final class Tokens {
     public static final int HAIRLINE = 0xFF1C1C1C;
 
     /** The prompt's own panel, one step lighter than the rows it sits above. */
-    public static final int PANEL = 0xFF101010;
+    public static final int PANEL = BACKGROUND;
 
     public static final int TEXT_PRIMARY = 0xFFF5F5F5;
     public static final int TEXT_SECONDARY = 0xFF9A9A9A;

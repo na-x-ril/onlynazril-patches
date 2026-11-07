@@ -2,7 +2,6 @@ package app.onlynazril.patches.tiktok.customfont
 
 import app.morphe.patcher.StringComparisonType
 import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
-import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.PatchException
@@ -52,11 +51,6 @@ private const val BRIDGE = "Lapp/onlynazril/extension/tiktok/CustomFontBridge;"
  * What it cannot do is keep the weights: the resolvers ask for faces by
  * weight (bold, medium) and the file carries one face, so a style that
  * needs a heavier face draws in the file's own.
- *
- * The picker's answer rides on the foundation activity's
- * onActivityResult, which the activities the Tweaks screen lives
- * in inherit: every activity result in the app passes through it,
- * and the bridge keeps only the font picker's own request.
  */
 @Suppress("unused")
 val tiktokCustomFontPatch = bytecodePatch(
@@ -164,20 +158,6 @@ val tiktokCustomFontPatch = bytecodePatch(
             0,
             "invoke-static {p1, p2}, $BRIDGE->onPageFinished(Landroid/webkit/WebView;Ljava/lang/String;)V",
         )
-
-        // The picker's answer: the foundation activity delivers every
-        // activity result through this method, so the picker's file
-        // arrives here whatever activity asked for it. The bridge
-        // keeps only its own request code; everything else falls
-        // through to the app's own handling.
-        BaseActivityOnActivityResultFingerprint.method.apply {
-            addInstructions(
-                0,
-                """
-                    invoke-static/range {p0 .. p3}, $BRIDGE->onActivityResult(Landroid/app/Activity;IILandroid/content/Intent;)V
-                """.trimIndent(),
-            )
-        }
     }
 }
 

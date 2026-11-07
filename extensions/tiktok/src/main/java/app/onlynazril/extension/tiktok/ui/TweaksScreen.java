@@ -34,6 +34,7 @@ import app.onlynazril.extension.tiktok.settings.HandleSettings;
 import app.onlynazril.extension.tiktok.settings.PauseImageSearchSettings;
 import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
+import app.onlynazril.extension.tiktok.settings.SettingsBackup;
 
 /**
  * Tweaks screen: a root category list and one full page per category.
@@ -413,9 +414,9 @@ public final class TweaksScreen extends FrameLayout {
                 context,
                 "Profile background",
                 "Set a static image or a video as the profile background, on "
-                        + "accounts TikTok has not rolled it out to. Others see it, not you: the "
-                        + "background shows on your profile to everyone who opens it, so pick an "
-                        + "image you are happy to publish, or choose one from your posts",
+                        + "accounts TikTok has not rolled it out to. You may not see it on your "
+                        + "own profile; only other people do when they open it. Pick an image you "
+                        + "are happy to publish, or choose one from your posts.",
                 toggle(context, ProfileBgSettings.isEnabled(context),
                         checked -> ProfileBgSettings.setEnabled(context, checked))));
 
@@ -527,6 +528,19 @@ public final class TweaksScreen extends FrameLayout {
                     RefreshRateSettings.setFps(context, RefreshRateSettings.CHOICES[index]);
                     if (RefreshRate.isInstalled()) RefreshRate.applyNow(context);
                 })));
+
+        page.addView(section(context, "Settings backup"));
+        page.addView(new RowView(
+                context,
+                "Export settings",
+                "Save every setting to a JSON file.",
+                new ActionView(context, "Export", () -> exportSettings(context))));
+        page.addView(divider(context));
+        page.addView(new RowView(
+                context,
+                "Import settings",
+                "Load settings from a JSON file.",
+                new ActionView(context, "Import", () -> importSettings(context))));
     }
 
     private void addAbout(LinearLayout page) {
@@ -767,6 +781,29 @@ public final class TweaksScreen extends FrameLayout {
                 "application/x-font-ttf", "application/x-font-otf",
                 "application/octet-stream"});
         activity.startActivityForResult(pick, CustomFontBridge.REQUEST_PICK_FONT);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void exportSettings(Context context) {
+        Activity activity = Activities.of(context);
+        if (activity == null || activity.isFinishing()) return;
+        Intent create = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        create.addCategory(Intent.CATEGORY_OPENABLE);
+        create.setType("application/json");
+        create.putExtra(Intent.EXTRA_TITLE, "tiktok-tweaks-settings.json");
+        activity.startActivityForResult(create, SettingsBackup.REQUEST_EXPORT);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void importSettings(Context context) {
+        Activity activity = Activities.of(context);
+        if (activity == null || activity.isFinishing()) return;
+        Intent open = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        open.addCategory(Intent.CATEGORY_OPENABLE);
+        open.setType("*/*");
+        open.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                "application/json", "text/json", "text/plain", "application/octet-stream"});
+        activity.startActivityForResult(open, SettingsBackup.REQUEST_IMPORT);
     }
 
     private static ToggleView surfaceToggle(Context context, String surface) {
