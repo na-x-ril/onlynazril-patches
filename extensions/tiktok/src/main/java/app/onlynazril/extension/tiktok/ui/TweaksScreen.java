@@ -1,10 +1,12 @@
 package app.onlynazril.extension.tiktok.ui;
 
+import android.animation.TimeInterpolator;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -34,16 +36,12 @@ import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
 
 /**
- * The Tweaks screen, split into a category list and one page per category.
+ * Tweaks screen: a root category list and one full page per category.
  *
- * The root page is a menu, not a long settings list: Feed, Content & appearance, Privacy, Download,
- * Misc and About. Each category page carries the rows that used to sit in the single scroll, so a
- * feature is reached in one tap instead of by scrolling past every other feature.
- *
- * The screen owns its own back stack. {@link #goBack()} returns to the root before the activity is
- * finished, which is what the activity's hooked onBackPressed asks first.
+ * Each page is one unit: its top bar, arrow and content slide together, while only the rows
+ * scroll. {@link #goBack()} returns to the root before the activity handles back.
  */
-public final class TweaksScreen extends ScrollView {
+public final class TweaksScreen extends FrameLayout {
     /** {surface id, title, summary} for the surface rows. */
     private static final String[][] SURFACE_ROWS = {
         {Surfaces.FEED, "Feed videos", "The author line, the region and the post time in the feed."},
@@ -52,9 +50,14 @@ public final class TweaksScreen extends ScrollView {
 
     private static final String[] RATE_LABELS = {"Default", "60 fps", "90 fps", "120 fps"};
 
-    /** How far the outgoing page trails the incoming one during a page transition. */
+    /** How far the outgoing page trails the incoming one. */
     private static final float PARALLAX_FACTOR = 0.25f;
-    private final int PAGE_ANIMATION_MS = getResources().getInteger(android.R.integer.config_shortAnimTime);
+
+    /** Page easing: easeOutQuint with a stronger settle at the end. */
+    private static final TimeInterpolator PAGE_EASE =
+            t -> (t >= 1f) ? 1f : (float) ((1 - Math.pow(2, -7 * t)) / (1 - Math.pow(2, -7)));
+
+    private final int PAGE_ANIMATION_MS = getResources().getInteger(android.R.integer.config_shortAnimTime) + 40;
 
     private enum Category {
         FEED("Feed", "Handle, region, post time, feed filters and pause search."),
@@ -82,16 +85,13 @@ public final class TweaksScreen extends ScrollView {
     public TweaksScreen(Context context) {
         super(context);
         this.context = context;
-        setFillViewport(true);
         setBackgroundColor(Tokens.BACKGROUND);
-        setOverScrollMode(OVER_SCROLL_NEVER);
 
         host = new FrameLayout(context);
         host.setBackgroundColor(Tokens.BACKGROUND);
-        host.setLayoutParams(new ScrollView.LayoutParams(
-                ScrollView.LayoutParams.MATCH_PARENT,
-                ScrollView.LayoutParams.WRAP_CONTENT));
-        addView(host);
+        addView(host, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
 
         showRoot(false);
     }
@@ -105,58 +105,58 @@ public final class TweaksScreen extends ScrollView {
 
     private void showRoot(boolean animateBack) {
         current = null;
-        LinearLayout page = page();
-        page.addView(header());
+        Page page = page(topBar("Tweaks", true));
+        page.content.addView(pageIntro("Choose a group. Every change is saved as you make it."));
 
-        page.addView(categoryRow(Category.FEED, feedSummary()));
-        page.addView(divider(context));
-        page.addView(categoryRow(Category.CONTENT, Category.CONTENT.summary));
-        page.addView(divider(context));
-        page.addView(categoryRow(Category.PRIVACY, privacySummary()));
-        page.addView(divider(context));
-        page.addView(categoryRow(Category.DOWNLOAD, downloadSummary()));
-        page.addView(divider(context));
-        page.addView(categoryRow(Category.MISC, miscSummary()));
-        page.addView(divider(context));
-        page.addView(categoryRow(Category.ABOUT, Category.ABOUT.summary));
-        show(page, !animateBack);
+        View first = categoryRow(Category.FEED, feedSummary());
+        LinearLayout.LayoutParams firstParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        firstParams.topMargin = Tokens.dp(context, Tokens.SPACE_3);
+        page.content.addView(first, firstParams);
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.CONTENT, Category.CONTENT.summary));
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.PRIVACY, privacySummary()));
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.DOWNLOAD, downloadSummary()));
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.MISC, miscSummary()));
+        page.content.addView(divider(context));
+        page.content.addView(categoryRow(Category.ABOUT, Category.ABOUT.summary));
+        show(page.root, !animateBack);
     }
 
     private void showCategory(Category category) {
         current = category;
-        LinearLayout page = page();
-        page.addView(categoryHeader(category));
+        Page page = page(topBar(category.title, false));
+        page.content.addView(pageIntro(category.summary));
         switch (category) {
             case FEED:
-                addFeed(page);
+                addFeed(page.content);
                 break;
             case CONTENT:
-                addContent(page);
+                addContent(page.content);
                 break;
             case PRIVACY:
-                addPrivacy(page);
+                addPrivacy(page.content);
                 break;
             case DOWNLOAD:
-                addDownload(page);
+                addDownload(page.content);
                 break;
             case MISC:
-                addMisc(page);
+                addMisc(page.content);
                 break;
             case ABOUT:
-                addAbout(page);
+                addAbout(page.content);
                 break;
         }
-        show(page, true);
+        show(page.root, true);
     }
 
-    /**
-     * Replaces the visible page and animates the change with a 1/4 parallax: the outgoing page
-     * trails the incoming one by a quarter of the screen. Forward moves the old page left; back
-     * moves it right and lets the root return from the left.
-     */
-    private void show(LinearLayout page, boolean forward) {
+    /** Slides the old page out and the new one in with a 1/4 parallax; the whole page moves. */
+    private void show(View page, boolean forward) {
         if (transitioning) return;
-        scrollTo(0, 0);
 
         if (currentView == null) {
             currentView = page;
@@ -184,10 +184,12 @@ public final class TweaksScreen extends ScrollView {
         outgoing.animate()
                 .translationX(endOld)
                 .setDuration(PAGE_ANIMATION_MS)
+                .setInterpolator(PAGE_EASE)
                 .start();
         page.animate()
                 .translationX(0f)
                 .setDuration(PAGE_ANIMATION_MS)
+                .setInterpolator(PAGE_EASE)
                 .withEndAction(() -> {
                     host.removeView(outgoing);
                     outgoing.setTranslationX(0f);
@@ -200,92 +202,112 @@ public final class TweaksScreen extends ScrollView {
     private static FrameLayout.LayoutParams pageParams() {
         return new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT);
+                FrameLayout.LayoutParams.MATCH_PARENT);
     }
 
-    private LinearLayout page() {
-        LinearLayout page = new LinearLayout(context);
-        page.setOrientation(LinearLayout.VERTICAL);
-        page.setBackgroundColor(Tokens.BACKGROUND);
-        page.setPadding(0, 0, 0, Tokens.dp(context, Tokens.SPACE_8));
-        // A short page (Privacy, Misc) would otherwise expose the page underneath it during the
-        // parallax transition. Every page surface covers at least the viewport.
-        page.setMinimumHeight(viewportHeight());
-        return page;
+    /** Builds a full page: top bar above, scrollable content below. */
+    private Page page(View bar) {
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Tokens.BACKGROUND);
+        root.addView(bar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        ScrollView scroll = new ScrollView(context);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(Tokens.BACKGROUND);
+        scroll.setOverScrollMode(OVER_SCROLL_NEVER);
+        root.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f));
+
+        LinearLayout content = new LinearLayout(context);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(Tokens.BACKGROUND);
+        content.setPadding(0, 0, 0, Tokens.dp(context, Tokens.SPACE_8));
+        scroll.addView(content, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT));
+        return new Page(root, content);
     }
 
-    private int viewportHeight() {
-        int height = getHeight();
-        return height > 0 ? height : getResources().getDisplayMetrics().heightPixels;
+    /** A page's root (bar + scroll) and the content inside that scroll. */
+    private static final class Page {
+        final LinearLayout root;
+        final LinearLayout content;
+
+        Page(LinearLayout root, LinearLayout content) {
+            this.root = root;
+            this.content = content;
+        }
     }
 
-    private View header() {
-        LinearLayout block = new LinearLayout(context);
-        block.setOrientation(LinearLayout.VERTICAL);
-        block.setPadding(
+    /** Shared top bar. The arrow goes back, or closes the screen on the root page. */
+    private View topBar(String titleText, boolean root) {
+        LinearLayout bar = new LinearLayout(context);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setMinimumHeight(Tokens.dp(context, Tokens.SPACE_12));
+        bar.setPadding(
                 Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_2),
+                0,
                 Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_6));
+                0);
 
-        TextView title = new TextView(context);
-        title.setText("Tweaks");
-        title.setTextSize(Tokens.TITLE_SP);
-        title.setTypeface(Fonts.face(true));
-        title.setTextColor(Tokens.TEXT_PRIMARY);
-        block.addView(title);
-
-        TextView subtitle = new TextView(context);
-        subtitle.setText("Choose a group. Every change is saved as you make it.");
-        subtitle.setTextSize(Tokens.SUBTITLE_SP);
-        subtitle.setTextColor(Tokens.TEXT_SECONDARY);
-        subtitle.setTypeface(Fonts.face(false));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.topMargin = Tokens.dp(context, Tokens.SPACE_1);
-        subtitle.setLayoutParams(params);
-        block.addView(subtitle);
-        return block;
-    }
-
-    private View categoryHeader(Category category) {
-        LinearLayout block = new LinearLayout(context);
-        block.setOrientation(LinearLayout.VERTICAL);
-        block.setPadding(
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_2),
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_4));
-
-        TextView back = new TextView(context);
-        back.setText("\u2039  Tweaks");
-        back.setTextSize(Tokens.ACTION_SP);
-        back.setTextColor(Tokens.ACCENT);
-        back.setTypeface(Fonts.face(false));
-        back.setPadding(0, Tokens.dp(context, Tokens.SPACE_2), 0, Tokens.dp(context, Tokens.SPACE_1));
+        FrameLayout back = new FrameLayout(context);
         back.setClickable(true);
         back.setFocusable(true);
-        back.setOnClickListener(view -> showRoot(true));
-        block.addView(back);
+        back.setContentDescription(root ? "Close Tweaks" : "Back to category list");
+        back.setOnClickListener(view -> {
+            if (root) {
+                finishScreen();
+            } else {
+                showRoot(true);
+            }
+        });
+        bar.addView(back, new LinearLayout.LayoutParams(
+                Tokens.dp(context, Tokens.SPACE_12),
+                Tokens.dp(context, Tokens.SPACE_12)));
+
+        ArrowView arrow = new ArrowView(context);
+        FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(
+                Tokens.dp(context, Tokens.SPACE_6),
+                Tokens.dp(context, Tokens.SPACE_6));
+        arrowParams.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        back.addView(arrow, arrowParams);
 
         TextView title = new TextView(context);
-        title.setText(category.title);
-        title.setTextSize(Tokens.TITLE_SP);
+        title.setText(titleText);
+        title.setTextSize(Tokens.PANEL_TITLE_SP);
         title.setTypeface(Fonts.face(true));
         title.setTextColor(Tokens.TEXT_PRIMARY);
-        block.addView(title);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        bar.addView(title, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        return bar;
+    }
 
-        TextView subtitle = new TextView(context);
-        subtitle.setText(category.summary);
-        subtitle.setTextSize(Tokens.SUBTITLE_SP);
-        subtitle.setTextColor(Tokens.TEXT_SECONDARY);
-        subtitle.setTypeface(Fonts.face(false));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.topMargin = Tokens.dp(context, Tokens.SPACE_1);
-        subtitle.setLayoutParams(params);
-        block.addView(subtitle);
-        return block;
+    private void finishScreen() {
+        Activity activity = Activities.of(context);
+        if (activity != null) activity.finish();
+    }
+
+    /** The page's one-line summary: the first thing that scrolls, right under the bar. */
+    private View pageIntro(String text) {
+        TextView view = new TextView(context);
+        view.setText(text);
+        view.setTextSize(Tokens.SUBTITLE_SP);
+        view.setTextColor(Tokens.TEXT_SECONDARY);
+        view.setTypeface(Fonts.face(false));
+        view.setPadding(
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_1),
+                Tokens.dp(context, Tokens.SPACE_4),
+                0);
+        return view;
     }
 
     private View categoryRow(Category category, String summary) {
@@ -295,13 +317,7 @@ public final class TweaksScreen extends ScrollView {
     }
 
     private View chevron() {
-        TextView view = new TextView(context);
-        view.setText("\u203a");
-        view.setTextSize(Tokens.PANEL_TITLE_SP);
-        view.setTextColor(Tokens.TEXT_SECONDARY);
-        view.setTypeface(Fonts.face(false));
-        view.setPadding(Tokens.dp(context, Tokens.SPACE_2), 0, Tokens.dp(context, Tokens.SPACE_2), 0);
-        return view;
+        return new ChevronView(context);
     }
 
     private void addFeed(LinearLayout page) {
@@ -317,13 +333,13 @@ public final class TweaksScreen extends ScrollView {
                 "Only the @handle. The region and the post time have their own switches below.",
                 masterToggle));
 
-        for (int i = 0; i < SURFACE_ROWS.length; i++) {
+        for (String[] surfaceRow : SURFACE_ROWS) {
             page.addView(divider(context));
             RowView row = new RowView(
                     context,
-                    SURFACE_ROWS[i][1],
-                    SURFACE_ROWS[i][2],
-                    surfaceToggle(context, SURFACE_ROWS[i][0]));
+                    surfaceRow[1],
+                    surfaceRow[2],
+                    surfaceToggle(context, surfaceRow[0]));
             dependents.add(row);
             page.addView(row);
         }
@@ -613,7 +629,7 @@ public final class TweaksScreen extends ScrollView {
                 Tokens.dp(context, Tokens.SPACE_4),
                 Tokens.dp(context, Tokens.SPACE_6),
                 Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_2));
+                0);
         return view;
     }
 

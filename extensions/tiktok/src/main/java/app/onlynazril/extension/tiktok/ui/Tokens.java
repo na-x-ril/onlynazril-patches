@@ -42,7 +42,6 @@ public final class Tokens {
     public static final int SPACE_8 = 32;
     public static final int SPACE_12 = 48;
 
-    public static final float TITLE_SP = 28f;
     public static final float SUBTITLE_SP = 14f;
     public static final float SECTION_SP = 13f;
     public static final float ROW_TITLE_SP = 18f;
