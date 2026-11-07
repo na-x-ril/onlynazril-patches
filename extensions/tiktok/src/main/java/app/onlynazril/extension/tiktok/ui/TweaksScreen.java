@@ -580,8 +580,6 @@ public final class TweaksScreen extends FrameLayout {
             String text = body();
             Debug.print("state: " + text.replace('\n', ' '));
             copy(context, text);
-            view.setText("Copied to clipboard");
-            view.postDelayed(() -> view.setText(text + "\nTap to copy"), 1600);
         });
         return view;
     }
