@@ -38,6 +38,7 @@ import app.onlynazril.extension.tiktok.settings.HandleSettings;
 import app.onlynazril.extension.tiktok.settings.PauseImageSearchSettings;
 import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
+import app.onlynazril.extension.tiktok.settings.ResumePlaybackSettings;
 import app.onlynazril.extension.tiktok.settings.SettingsBackup;
 
 /**
@@ -432,6 +433,47 @@ public final class TweaksScreen extends FrameLayout {
                 "Hide videos outside this digg-count range. Set the range to turn it on.",
                 RangeAction.create(context, "Min/Max likes", likes[0], likes[1],
                         (min, max) -> FeedFilterSettings.setLikesRange(context, min, max))));
+
+        page.addView(section(context, "Resume playback"));
+        boolean resumeOn = ResumePlaybackSettings.isEnabled(context);
+        ToggleView resumeToggle = new ToggleView(context);
+        resumeToggle.setChecked(resumeOn);
+
+        RowView startRow = new RowView(
+                context,
+                "Skip from start",
+                "Seconds before a position is remembered.",
+                NumberAction.create(context, "Skip from start",
+                        "Seconds counted from the beginning of the video.",
+                        "s", ResumePlaybackSettings.startSeconds(context),
+                        seconds -> ResumePlaybackSettings.setStartSeconds(context, seconds)));
+        RowView endRow = new RowView(
+                context,
+                "Skip from end",
+                "Seconds before the end that are not remembered.",
+                NumberAction.create(context, "Skip from end",
+                        "Seconds counted back from the end of the video.",
+                        "s", ResumePlaybackSettings.endSeconds(context),
+                        seconds -> ResumePlaybackSettings.setEndSeconds(context, seconds)));
+
+        page.addView(new RowView(
+                context,
+                "Resume playback",
+                "Continue a video from where you stopped. The twelve most recently opened videos "
+                        + "are kept until the app closes.",
+                resumeToggle));
+        page.addView(divider(context));
+        page.addView(startRow);
+        page.addView(divider(context));
+        page.addView(endRow);
+
+        resumeToggle.setOnCheckedChangeListener(checked -> {
+            ResumePlaybackSettings.setEnabled(context, checked);
+            startRow.setRowEnabled(checked);
+            endRow.setRowEnabled(checked);
+        });
+        startRow.setRowEnabled(resumeOn);
+        endRow.setRowEnabled(resumeOn);
 
         page.addView(section(context, "Pause"));
         page.addView(new RowView(

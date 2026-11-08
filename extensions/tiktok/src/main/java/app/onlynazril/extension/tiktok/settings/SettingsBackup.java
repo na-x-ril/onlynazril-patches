@@ -106,6 +106,10 @@ public final class SettingsBackup {
         root.put("feed_filter_likes_min", likes[0]);
         root.put("feed_filter_likes_max", likes[1]);
 
+        root.put("resume_playback_enabled", ResumePlaybackSettings.isEnabled(context));
+        root.put("resume_playback_start_s", ResumePlaybackSettings.startSeconds(context));
+        root.put("resume_playback_end_s", ResumePlaybackSettings.endSeconds(context));
+
         root.put("captcha_hide_enabled", CaptchaSettings.isEnabled(context));
         root.put("comment_copy_without_username", CommentCopySettings.isEnabled(context));
         root.put("custom_font_enabled", CustomFontSettings.isEnabled(context));
@@ -158,6 +162,19 @@ public final class SettingsBackup {
             }
             applyRange(context, root, "feed_filter_views", true);
             applyRange(context, root, "feed_filter_likes", false);
+
+            if (root.has("resume_playback_enabled")) {
+                ResumePlaybackSettings.setEnabled(
+                        context, root.optBoolean("resume_playback_enabled"));
+            }
+            if (root.has("resume_playback_start_s")) {
+                ResumePlaybackSettings.setStartSeconds(
+                        context, root.optLong("resume_playback_start_s"));
+            }
+            if (root.has("resume_playback_end_s")) {
+                ResumePlaybackSettings.setEndSeconds(
+                        context, root.optLong("resume_playback_end_s"));
+            }
 
             if (root.has("captcha_hide_enabled")) {
                 CaptchaSettings.setEnabled(context, root.optBoolean("captcha_hide_enabled"));
