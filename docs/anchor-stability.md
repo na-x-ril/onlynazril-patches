@@ -53,9 +53,7 @@ the code that implements each hook is the source of truth for its shape.
 | `User#getUniqueId` / `.uniqueId`, `User#getNickname` / `.nickname`, `User#getRegion` / `.region` | the region map keys and the displayed name | same | patch fails, or no country code |
 | `AdPersonalizationActivity#onCreate/onBackPressed` | the host of the Tweaks screen | real-named activity | patch fails |
 | `IFeedApi#fetchFeedList` (the class implementing it) | the feed filter's hook, at the page's return | structural: the one class implementing `com.ss.android.ugc.aweme.feed.cache.IFeedApi` whose single-parameter method returns the page and has a body. The names are real today (`feed.FeedApiService#fetchFeedList`) but are not the anchor | the patch fails (`expected one implementation …`) |
-| `FeedItemList#setItems(List)` | the feed filter's second hook: every list stored as a page's items | real-named model accessor, and the method's write to the `items` field is checked too | the patch fails (`FeedItemList#setItems was not found`) |
-| `FeedItemList#clone()` | the feed filter's third hook: the copy of a page, whose `items` is written directly | real-named model accessor; the one write to `items` that is not a setter call | the patch fails (`FeedItemList#clone was not found`) |
-| the pager's item model, and the storage behind its list contract | the feed filter's fourth hook, where the items the feed renders are kept | structural: the class carrying `getItems`/`getListCount`/`insertItemList`/`setItems` that no other such class sits above, then the contract its `getItems` calls, then that contract's implementations — no obfuscated name is written down | the patch fails, naming the candidates it found |
+| the pager's item model, and the storage behind its list contract | the feed filter's second hook, where the items the feed renders are kept | structural: the class carrying `getItems`/`getListCount`/`insertItemList`/`setItems` that no other such class sits above, then the contract its `getItems` calls, then that contract's implementations; no obfuscated name is written down. `FeedItemList#setItems`/`#clone` are also hooked, but with the **ad filter only**: that model is shared with the profile, search and repost lists, where a like-count range hides the profile owner's own posts | the patch fails, naming the candidates it found |
 | the pause item manager, and its list-returning method | the pause-image-search switch: an empty list hides the image-search entry while a video is paused | structural: the one constructor that asks the real-named `com.ss.android.ugc.aweme.vision.IPhotoSearchService` for its pause item, plus the class's single method returning `java.util.List`. The obfuscated names move (`X.1QhK` on 47.7.2, `X.1NRr` on 47.7.1), but the service call and the list shape do not | the patch fails hard when the constructor or the list method is gone; the switch alone does nothing |
 | the visual search tag trigger, and its `(VideoItemParams) -> boolean` gate | the `Find similar` / `Search this image` pill on a paused video; returning false keeps the tag out of the interact area | structural: the real-named `SearchVisualTagComponentTrigger` and the real-named `VideoItemParams` parameter; the method itself moves (`lq` on 47.7.2, `tq` on 47.7.1), so the signature is what is matched | the patch fails hard; the pill keeps showing |
 | `PlayerController#onPlayProgressChange(String, long, long)` | resume playback's save hook: the tick that carries the position and duration | real-named feed controller and exact shape; the write to `lastPosition` and the read of `mCurrentAid` are checked too, so the empty single-float overload cannot match | the patch fails (`onPlayProgressChange … was not found`) |
@@ -213,18 +211,27 @@ account is in the rollout.
 
 ## Feed filter
 
-Four places, because a page's items are written, copied and re-stored before the feed shows them.
+See [feed-filter.md](feed-filter.md) for the full behaviour and the list-wrapper design.
+
+Five hooks, scoped by what each list is allowed to remove.
 
 1. **The fetch's return**: `com.ss.android.ugc.aweme.feed.FeedApiService#fetchFeedList`.
    The chain is `FeedApiService#fetchFeedList → FeedApi#LIZIZ → FeedApi#LIZ`, and `LIZIZ` is what
-   reads the page's `hasAd` and `preloadAds`, so the page seen here already carries the merged ads.
-2. **`FeedItemList#setItems`** — every list stored as a page's items, filtered on entry.
-3. **`FeedItemList#clone`** — the copy, filtered before it returns.
-4. **The pager's list storage** — the list the feed renders from, of which the page's `items` is only
-   a snapshot.
+   reads the page's `hasAd` and `preloadAds`. The hook also clears `preloadAds` before the page is
+   returned, so a slot the page carries on the side cannot be merged in during a later scroll.
+2. **`FeedItemList#setItems`**: the generic page model, shared with profile/search/repost. Only the
+   **ad filter** runs here; a count range would hide the profile owner's own posts.
+3. **`FeedItemList#clone`**: the same ad-only filter for the copy.
+4. **The feed panel's insert callback** (`yX2` on 47.7.1, `xX2` on 47.7.2): the detail feed's
+   `DataLayerAbility` inserts an ad with a bare list here, without touching the page model or the
+   pager storage. Ad-only, because live and survey cards use the same callback.
+5. **The pager's list storage**: the list the feed renders from, full filter. Its own `ArrayList`
+   field is also replaced at construction with an `AdFreeList`, so a direct `add` from the ad SDK is
+   refused even when no insert callback runs. The storage's `getList` returns a copy, so the field is
+   found by its declared `ArrayList` type, never through that getter.
 
-Hooks 1–3 did not hold on their own. The page model's `getData` sets a page's items three times: the parsed
-list, the clone, then the model's own list — and the last overwrites everything the first two
+The fetch hook alone did not hold. The page model's `getData` sets a page's items three times: the
+parsed list, the clone, then the model's own list, and the last overwrites everything the fetch
 removed. The items have to be stopped where they enter the model's storage.
 
 That storage is reached without writing an obfuscated name down. The pager model is the class
@@ -234,17 +241,21 @@ contract's implementations that take a list are the storage. Every void method t
 `java.util.List` is hooked, because the storage is filled by
 additions and not by the setter alone (the setter carried 2 of 200 calls in a session).
 
+`FeedItemList#setItems` and `#clone` are generic to every `AwemeList`, so they run the ad filter
+only. The profile/search/repost lists must never take a like/view range; the feed's own hooks carry
+those.
+
 **Filtering the read is wrong, and was tried.** Removing from the list `getItems` returns shrinks
 what the pager counts, so its positions shift and it runs to *No more results* while items remain —
 the loading spinner after every few scrolls is that, not TikTok's paging. A drop only belongs where
 no position holds the item yet.
 
-The hooks do not hand over the same shape, and the extension accepts both: the fetch and the copy
-pass a page, the setter and the storage pass a bare list.
+A single-item batch is never filtered unless that item is an ad. That batch is the deep-link or
+current video being inserted; removing it leaves the surface with nothing to open. A lone ad still
+goes.
 
-A further path is still open and only a device can close it: a page served from the preload task or
-the `X.04MJ` static without any of those writes. The census line says which happened — `ads=0` with
-`preload=` above zero means the ad came from a slot the page did not carry in `items`.
+The census line says what happened: `ads=0` with `preload=` above zero means the ad came from a slot
+the page did not carry in `items`; `preload=N cleared` means it was removed before the merge.
 
 **Read the outcome off the screen, not the log.** The Tweaks screen's About section prints the build
 marker and the filter's own tally, and tapping it copies the block (build, tally, log path) while
