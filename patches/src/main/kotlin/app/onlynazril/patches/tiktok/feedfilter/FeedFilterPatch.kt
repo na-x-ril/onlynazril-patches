@@ -16,15 +16,18 @@ import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 /**
  * Drops ads and out-of-range videos from the feed page.
  *
- * Three hooks, because a page's `items` is written in three ways on 47.0.3 — the parse inside the
- * fetch, the setter, and `clone`. A filter with only the first looks correct and does nothing once
- * the app copies the page, which is what "the ad is still there" turns out to be.
+ * Five hooks, scoped by what the list is allowed to remove:
  *
- *  1. the fetch's return, after the app has merged its preloaded ads into the page;
- *  2. `FeedItemList#setItems`, on entry, for every list stored as a page's items;
- *  3. `FeedItemList#clone`, before it returns, for the copy.
+ *  1. the fetch's return, after the app has merged its preloaded ads into the page , full filter;
+ *  2. `FeedItemList#setItems` , the generic page model, shared with the profile, search and repost
+ *     lists , **ads only**, so a like/view range can never hide the profile owner's own posts;
+ *  3. `FeedItemList#clone` , the same ad-only filter for the copy;
+ *  4. the feed panel's insert callback, reached by the detail feed's `DataLayerAbility` ad inserts ,
+ *     ad-only, because this is also where live/survey cards enter;
+ *  5. the pager item model's storage, where the list the feed renders is taking items in , full
+ *     filter.
  *
- * The extension reads its own switches, so a build with everything off pays three calls per page.
+ * The extension reads its own switches, so a build with everything off pays five calls per page.
  */
 @Suppress("unused")
 val tiktokFeedFilterPatch = bytecodePatch(
@@ -47,25 +50,37 @@ val tiktokFeedFilterPatch = bytecodePatch(
         }
         matches.single().method.filterOnReturns("filterFetch")
 
-        // The list that is stored: filtered on entry, because that is the only moment the setter's
-        // argument is in hand. `p0` is the page itself on an instance method, so there is no local to
-        // borrow here and none is needed.
+        // The generic page model is shared with the profile, search and repost lists. Only the ad
+        // filter is safe there: a like/view range would drop the profile owner's own posts, but an
+        // item marked as an ad is not wanted on any surface.
         val setItems = FeedItemListSetItemsFingerprint.methodOrNull
             ?: throw PatchException("Feed filter: FeedItemList#setItems was not found.")
         setItems.addInstructions(
             0,
-            "invoke-static {p1}, $FEED_FILTER_CLASS->filterSet(Ljava/lang/Object;)V",
+            "invoke-static {p1}, $FEED_FILTER_CLASS->filterGenericSet(Ljava/lang/Object;)V",
         )
 
         val clone = FeedItemListCloneFingerprint.methodOrNull
             ?: throw PatchException("Feed filter: FeedItemList#clone was not found.")
-        clone.filterOnReturns("filterClone")
+        clone.filterOnReturns("filterGenericClone")
 
-        // The pager's own item model — the list the feed renders from, behind the fetched page.
+        // The feed panel's insert callback. The ad path in the detail feed does not touch
+        // `FeedItemList` or the pager storage; it inserts the ad through `DataLayerAbility`, which
+        // ends here with a bare list. `p3` is that list, replaced with a copy without ads.
+        val insert = FeedPanelInsertFingerprint.methodOrNull
+            ?: throw PatchException("Feed filter: the feed panel's insert callback was not found.")
+        insert.addInstructions(
+            0,
+            "invoke-static {p3}, $FEED_FILTER_CLASS->filterInsertList(" +
+                "Ljava/util/List;)Ljava/util/List;\n" +
+                "move-result-object p3",
+        )
+
+        // The pager's own item model , the list the feed renders from, behind the fetched page.
         //
         // Filtering where items are *taken in* was tried and did nothing: the two hooks fired but
         // never removed anything, and the page kept rebuilding from this model. So the filter goes
-        // where the pager *reads* the list instead — the model's own accessor, which returns the
+        // where the pager *reads* the list instead , the model's own accessor, which returns the
         // live list (`X.07zq#getItems` → `X.07sw#getList` on 47.0.3), so a removal changes what the
         // next read sees rather than a copy that is replaced.
         val models = mutableListOf<ClassDef>()
@@ -131,10 +146,10 @@ val tiktokFeedFilterPatch = bytecodePatch(
         // Filtering the *read* was tried and is wrong: the pager counts the list it is handed, so a
         // shorter list shifts its positions and it runs to "No more results" while items remain. The
         // filter belongs where items enter the storage instead, as if the page had never carried
-        // them — nothing is ever removed under a position the pager already has.
+        // them , nothing is ever removed under a position the pager already has.
         //
         // The contract is named by the model itself: its `getItems` calls exactly one method, and
-        // that method's owner is the contract — no obfuscated name has to be written down.
+        // that method's owner is the contract , no obfuscated name has to be written down.
         val contract = model.methods
             .singleOrNull { it.name == "getItems" && it.returnType == "Ljava/util/List;" }
             ?.implementationOrPatchException("Feed filter")
@@ -177,9 +192,71 @@ val tiktokFeedFilterPatch = bytecodePatch(
                 )
                 hooks++
             }
+
+            // The storage's own list, replaced at construction with one that refuses a direct add.
+            // This is the path the ad SDK uses without calling any of the methods above.
+            for (method in store.methods) {
+                if (method.name != "<init>" || method.implementation == null) continue
+                val mutableInit = mutableStore.findMutableMethodOf(method)
+                val returns = mutableInit.implementation
+                    ?.instructions
+                    ?.withIndex()
+                    ?.filter { it.value.opcode == Opcode.RETURN_VOID }
+                    ?.map { it.index }
+                    ?.sortedDescending()
+                    ?: emptyList()
+                for (index in returns) {
+                    mutableInit.addInstructions(
+                        index,
+                        "invoke-static {p0}, $FEED_FILTER_CLASS->wrapStorage(Ljava/lang/Object;)V",
+                    )
+                }
+            }
         }
         if (hooks == 0) {
             throw PatchException("Feed filter: $contract stores take no list to filter.")
+        }
+
+        // The adapter's own item model, one step behind the panel: `X.09e6` (adapter) holds
+        // `X.09gj`, whose `ArrayList` is what the pager binds from. Ads can be added there directly,
+        // after the storage, so its constructor is wrapped the same way.
+        val panel = insert.definingClass.let { classDefByOrNull(it) }
+        val adapter = panel?.fields
+            ?.mapNotNull { classDefByOrNull(it.type) }
+            ?.singleOrNull { candidate ->
+                candidate.methods.any {
+                    it.name == "setData" && it.parameterTypes == listOf("Ljava/util/List;")
+                } &&
+                    candidate.methods.any { it.name == "getCount" && it.parameterTypes.isEmpty() } &&
+                    candidate.methods.any { it.name == "getItem" && it.parameterTypes == listOf("I") }
+            }
+        val adapterModel = adapter?.fields
+            ?.mapNotNull { classDefByOrNull(it.type) }
+            ?.singleOrNull { candidate ->
+                candidate.fields.any { it.type == "Ljava/util/ArrayList;" } &&
+                    candidate.methods.any {
+                        it.returnType == "Ljava/util/List;" && it.parameterTypes.isEmpty()
+                    }
+            }
+        if (adapterModel != null) {
+            val mutableModel = mutableClassDefBy(adapterModel)
+            for (method in adapterModel.methods) {
+                if (method.name != "<init>" || method.implementation == null) continue
+                val mutableInit = mutableModel.findMutableMethodOf(method)
+                val returns = mutableInit.implementation
+                    ?.instructions
+                    ?.withIndex()
+                    ?.filter { it.value.opcode == Opcode.RETURN_VOID }
+                    ?.map { it.index }
+                    ?.sortedDescending()
+                    ?: emptyList()
+                for (index in returns) {
+                    mutableInit.addInstructions(
+                        index,
+                        "invoke-static {p0}, $FEED_FILTER_CLASS->wrapStorage(Ljava/lang/Object;)V",
+                    )
+                }
+            }
         }
     }
 }

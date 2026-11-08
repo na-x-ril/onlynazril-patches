@@ -33,11 +33,9 @@ internal val FeedApiFetchFingerprint = Fingerprint(
 )
 
 /**
- * Every list that becomes the page's items — the write the fetch hook cannot cover.
- *
- * The fetch's return is not the last write. `FeedItemList#setItems` has 66 callers on 47.0.3: the
- * feed stack rebuilds the list on insert, rerank and cache restore, so an ad or an out-of-range
- * video that arrives after the fetch is one the return hook never sees.
+ * Every list that becomes a page's items , the generic model, shared by the profile, search and
+ * repost lists as well as the feed. Only the ad filter runs here; a count range would hide a
+ * profile owner's own posts, but an item marked as an ad belongs nowhere.
  *
  * Matched on the field it writes as well as on its name: this is a real-named model accessor, and
  * the write to `items` is what makes it the setter being hooked rather than a namesake.
@@ -57,11 +55,8 @@ internal val FeedItemListSetItemsFingerprint = Fingerprint(
 )
 
 /**
- * The page's copy — the third write to `items`, and the one that is not a setter call.
- *
- * `clone()` writes the new page's `items` field directly, so a copy taken from a page the filter
- * never saw — a cache restored without a fetch — is invisible to both other hooks. Eleven callers
- * on 47.0.3, and the copy is what gets displayed when the app keeps the original back.
+ * The page's copy , the write to `items` that is not a setter call. Hooked for the ad filter only,
+ * for the same reason as the setter above.
  */
 internal val FeedItemListCloneFingerprint = Fingerprint(
     definingClass = FEED_ITEM_LIST,
@@ -71,11 +66,23 @@ internal val FeedItemListCloneFingerprint = Fingerprint(
 )
 
 /**
- * The pager's own item model — the list the feed actually renders, of which the fetched page is
+ * The feed panel's insert callback: `(int, String, List)`. The name moves between builds
+ * (`yX2` on 47.7.1, `xX2` on 47.7.2), so only the real-named panel class and the shape are
+ * matched. The list is what `DataLayerAbility` hands over for an insert, including ads.
+ */
+internal val FeedPanelInsertFingerprint = Fingerprint(
+    definingClass = "Lcom/ss/android/ugc/aweme/feed/panel/BaseListFragmentPanel;",
+    returnType = "V",
+    parameters = listOf("I", "Ljava/lang/String;", "Ljava/util/List;"),
+    custom = { method, _ -> method.implementation != null },
+)
+
+/**
+ * The pager's own item model , the list the feed actually renders, of which the fetched page is
  * only a snapshot.
  *
  * `X.07zq#getData` on 47.0.3 sets a page's items three times: the parsed list, the clone, then
- * `X.07zo#getItems()` — the model's own list, which overwrites everything the first two hooks
+ * `X.07zo#getItems()` , the model's own list, which overwrites everything the first two hooks
  * removed. So filtering the page is filtering a copy; the items have to be stopped where they enter
  * the model instead.
  *
