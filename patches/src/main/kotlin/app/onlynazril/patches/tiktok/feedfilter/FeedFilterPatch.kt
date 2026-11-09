@@ -26,7 +26,9 @@ import com.android.tools.smali.dexlib2.iface.reference.MethodReference
  *     the batch's source string;
  *  5. the direct survey-card insert on the same panel: skipped when the survey switch is on;
  *  6. the pager item model's storage, where the list the feed renders is taking items in: full
- *     filter.
+ *     filter. The storage's live `ArrayList`, and the adapter model's list behind it, are wrapped
+ *     separately to refuse a direct ad; that wrapper is ads-only because the same list is rebuilt
+ *     for the detail feed and a profile's video list.
  *
  * The extension reads its own switches, so a build with everything off pays six calls per page.
  */
@@ -206,8 +208,10 @@ val tiktokFeedFilterPatch = bytecodePatch(
                 hooks++
             }
 
-            // The storage's own list, replaced at construction with one that refuses a direct add.
-            // This is the path the ad SDK uses without calling any of the methods above.
+            // The storage's own list, replaced at construction with one that refuses a direct ad.
+            // This is the path the ad SDK uses without calling any of the methods above. Only ads
+            // are refused: this storage is also rebuilt for the detail feed and a profile's video
+            // list, where dropping the opened item leaves a black screen or the previous list.
             for (method in store.methods) {
                 if (method.name != "<init>" || method.implementation == null) continue
                 val mutableInit = mutableStore.findMutableMethodOf(method)
@@ -232,7 +236,8 @@ val tiktokFeedFilterPatch = bytecodePatch(
 
         // The adapter's own item model, one step behind the panel: `X.09e6` (adapter) holds
         // `X.09gj`, whose `ArrayList` is what the pager binds from. Ads can be added there directly,
-        // after the storage, so its constructor is wrapped the same way.
+        // after the storage, so its constructor is wrapped the same way. This list is shared with
+        // the detail feed, so the wrapper stays ads-only there too.
         val panel = classDefByOrNull(insert.definingClass)
         val adapter = panel?.fields
             ?.mapNotNull { classDefByOrNull(it.type) }

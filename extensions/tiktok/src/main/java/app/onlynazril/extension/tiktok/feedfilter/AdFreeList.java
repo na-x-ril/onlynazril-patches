@@ -6,13 +6,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- * The feed storage's item list, with ads refused at insertion.
+ * The pager storage's item list, with ads refused at insertion.
  * <p>
  * The pager storage is a plain {@code ArrayList} that the ad SDK can also add to directly, without
  * going through the setter or any of the insert callbacks the filter hooks. Wrapping the field
  * itself is the only point every path shares: a direct {@code add}, an insert callback and a page
  * restore all end here. The list is still an {@code ArrayList}, so existing casts and iteration are
  * unchanged.
+ * <p>
+ * Only ads are refused. The same storage class backs the detail feed and the profile's own feed;
+ * refusing a LIVE or drama item there removes the video the user just opened, which is a black
+ * screen and, when the list keeps its previous items, the wrong video. The feed's own hooks remove
+ * those items from the feed.
  */
 public final class AdFreeList extends ArrayList<Object> {
     public AdFreeList(Collection<?> source) {

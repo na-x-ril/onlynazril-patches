@@ -31,23 +31,29 @@ drops the batch at the callback when the source contains `survey`, and makes the
 return early when `FeedFilterSettings.isSurveyEnabled()` is true.
 
 **LIVE.** The item filter asks the app's own `AwemeSaaSExtKt.isLive(Aweme)`, resolved once by
-reflection. It runs in the feed's full filter and in the live-list guard, so a LIVE item added
-directly is refused too. The LIVE entry card is inserted with a source beginning `live_card`; the
-panel callback drops that batch when the LIVE switch is on. Profile, search and repost lists keep
-their LIVE items because those surfaces only run the ad filter.
+reflection. It runs in the feed's full filter (the fetch and the pager storage) and in the panel
+insert callback. The LIVE entry card is inserted with a source beginning `live_card`; the panel
+callback drops that batch when the LIVE switch is on. The storage's direct-add wrapper is ads-only,
+because that list is shared with the detail feed and a profile's own video list; refusing a LIVE
+item there removes the video the user just opened. Profile, search and repost lists keep their LIVE
+items because those surfaces only run the ad filter.
 
 **Drama.** A video is drama when its `PaidContentInfo` carries a `miniDramaInfo` string, a
 `miniDramaCardInfo`, a `paidContentMiniDramaInfo`, an `episodeNumber`, or the limited-free
-short-drama flag. The filter runs in the feed's full filter and in the list guard, so a drama item
-added directly is refused too. A card whose insert source contains `drama` is dropped at the panel
-callback. Profile, search and repost lists keep drama items because they only run the ad filter.
+short-drama flag. The filter runs in the feed's full filter (the fetch and the pager storage) and in
+the panel insert callback. A card whose insert source contains `drama` is dropped at the panel
+callback. Profile, search and repost lists keep drama items because they only run the ad filter; the
+storage's direct-add wrapper is ads-only for the same reason as LIVE.
 
 ## Why the storage lists are wrapped
 
 The ad SDK can add to the pager's live `ArrayList` directly, without calling a setter or an insert
 callback. Each storage's `ArrayList` field, and the adapter model's list behind it, is replaced at
 construction with `AdFreeList`: an `ArrayList` subclass whose `add`, `addAll` and `set` refuse an
-item the ad filter recognises. The field is found through the class hierarchy, because the actual
+item the ad filter recognises. Only ads are refused. The same storage and adapter model are rebuilt
+for the detail feed and a profile's video list; refusing a LIVE or drama item there drops the video
+that was just opened, which shows as a black screen or keeps the previous surface's video. The feed's
+own hooks carry those filters. The field is found through the class hierarchy, because the actual
 instance is often a subclass of the class that declares it.
 
 The storage's `getList()` returns a copy, so it is never used to find the live field.
@@ -60,7 +66,7 @@ goes through the normal filter.
 
 ## Alternatives considered
 
-The live-list wrapper is not the only possible design. It is the one that survived the paths seen
+The storage-list wrapper is not the only possible design. It is the one that survived the paths seen
 on 47.7.x:
 
 | Approach | Strength | Cost |
@@ -69,7 +75,7 @@ on 47.7.x:
 | Hook every insert callback | Not invasive | Many insert paths, and they change between builds; this is what let ads through |
 | Filter where the list is read | Simple | The pager count shifts, so it runs to *No more results* while items remain |
 | Hide the cell at bind time | Always looks gone | Leaves an empty page; the pager still counts the ad |
-| **Hook inserts and wrap the live lists** | Catches a direct `add` too, including paths no callback sees | Reflection into obfuscated fields; slightly invasive; fields must be found through subclasses |
+| **Hook inserts and wrap the live lists** | Catches a direct ad `add` too, including paths no callback sees | Reflection into obfuscated fields; slightly invasive; fields must be found through subclasses |
 
 The wrapper is the last line, not the only line. The fetch, page-model and panel-insert hooks stay
 because each build reaches the list by a different route.
@@ -89,8 +95,6 @@ Useful lines:
 ```
 feedfilter: storage list wrapped field=09gj.LIZ size=0
 feedfilter: storage refused ad@mastercard
-feedfilter: storage refused live@somecreator
-feedfilter: storage refused drama@somecreator
 feedfilter: generic-set ... ads=1 dropped=[ad@shopee_id]
 feedfilter: store ... likes[2000..MAX]=1 dropped=[likes=343@user]
 feedfilter: insert source=survey_card items=1 kept=0 dropped=survey

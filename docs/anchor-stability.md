@@ -233,9 +233,11 @@ Six hooks, scoped by what each list is allowed to remove.
    when the survey switch is on. The name is obfuscated, the literal and shape are the anchor.
 6. **The pager's list storage**: the list the feed renders from, full filter. Its own `ArrayList`
    field is also replaced at construction with an `AdFreeList`, so a direct `add` from the ad SDK is
-   refused even when no insert callback runs. With the LIVE and drama switches on, the guard refuses
-   those items too. The storage's `getList` returns a copy, so the field is found by its declared
-   `ArrayList` type, never through that getter.
+   refused even when no insert callback runs. The wrapper is **ads-only**: the same storage and
+   adapter model are rebuilt for the detail feed and a profile's video list, where refusing the
+   opened LIVE or drama item leaves a black screen or the previous surface's video. The storage's
+   `getList` returns a copy, so the field is found by its declared `ArrayList` type, never through
+   that getter.
 
 The fetch hook alone did not hold. The page model's `getData` sets a page's items three times: the
 parsed list, the clone, then the model's own list, and the last overwrites everything the fetch

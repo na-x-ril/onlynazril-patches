@@ -14,10 +14,15 @@ import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 /**
  * Drops the items a page should not show, in place, on the list the app is about to use.
  * <p>
- * Four call sites. The feed's own path , the fetch's return and the pager item model's storage ,
- * runs the full filter. The generic `FeedItemList` setter and clone, which are shared with the
- * profile, search and repost lists, run the **ad filter only**: a like-count range there would hide
- * the profile owner's own posts, but an ad is not wanted on any surface.
+ * Four call sites. The feed's own paths , the fetch return, the panel insert and the pager item
+ * model's storage , run the full filter. The generic `FeedItemList` setter and clone, which are
+ * shared with the profile, search and repost lists, run the **ad filter only**: a like-count range
+ * there would hide the profile owner's own posts, but an ad is not wanted on any surface.
+ * <p>
+ * The storage's live list is wrapped separately, and that wrapper refuses **ads only**. The adapter
+ * model behind it is rebuilt for the detail feed and for a profile's own video list; refusing a
+ * LIVE or drama item there drops the video the user just opened, which is the black screen and the
+ * previous surface's video that a profile tap showed. The feed's own hooks carry those filters.
  * <p>
  * The list is walked with an `Iterator` and items are removed through it. Rebuilding the list would
  * leave the pager holding the old one, and `removeIf` needs Android 7 while the app reaches lower.
@@ -81,12 +86,15 @@ public final class FeedFilter {
         return FeedFilterSettings.isSurveyEnabled();
     }
 
-    /** Ads and, when their switches are on, LIVE and drama items. Used by the feed list guard. */
+    /**
+     * Ads only. The live-list wrapper is shared with the detail feed, the profile's own feed and
+     * every other list that uses the same storage, so a LIVE or drama item must not be refused
+     * there: refusing the video the profile just opened leaves the detail pager with nothing to
+     * show (or with the previous feed's items), and a drama video can still be opened from a
+     * profile. The feed's own hooks carry those filters.
+     */
     public static boolean shouldRefuse(Object item) {
-        if (item == null) return false;
-        if (FeedFilterSettings.isAdsEnabled() && new AdsFilter().shouldRemove(item)) return true;
-        if (FeedFilterSettings.isLiveEnabled() && new LiveFilter().shouldRemove(item)) return true;
-        return FeedFilterSettings.isDramaEnabled() && new DramaFilter().shouldRemove(item);
+        return isAdItem(item);
     }
 
     private static int refusedItems;
@@ -94,12 +102,7 @@ public final class FeedFilter {
     /** A feed list refused a direct add, which is a path no insert callback sees. */
     public static void logRefusedItem(Object item) {
         if (refusedItems++ >= MAX_ACTIONS) return;
-        String kind = FeedFilterSettings.isAdsEnabled() && new AdsFilter().shouldRemove(item)
-                ? "ad"
-                : FeedFilterSettings.isLiveEnabled() && new LiveFilter().shouldRemove(item)
-                ? "live"
-                : "drama";
-        Debug.print("feedfilter: storage refused " + kind + "@" + handle(item));
+        Debug.print("feedfilter: storage refused ad@" + handle(item));
     }
 
     private static String handle(Object item) {
