@@ -21,12 +21,12 @@ import app.onlynazril.extension.tiktok.internal.Activities;
 
 /**
  * The one prompt the extension shows: a title, a message, and a confirm/dismiss pair.
- *
+ * <p>
  * Built from the screen's own palette instead of a dialog theme, because a theme brings its own
  * corner radius, panel colour and button chrome, and the app decides all three. The shape, the
  * palette and the control style therefore live here once, and every caller supplies only its copy
  * and what confirming does.
- *
+ * <p>
  * One at a time: a second request while a prompt is on screen is dropped rather than stacked, which
  * matters for the change prompt, where a run of switches can be flipped in a row.
  */
@@ -105,21 +105,20 @@ public final class Prompt {
             String message,
             String confirmLabel,
             Runnable onConfirm) {
-        Context context = activity;
-        LinearLayout column = new LinearLayout(context);
+        LinearLayout column = new LinearLayout(activity);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setBackground(panelBackground(context));
+        column.setBackground(panelBackground(activity));
         column.setPadding(
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_4),
-                Tokens.dp(context, Tokens.SPACE_4));
+                Tokens.dp(activity, Tokens.SPACE_4),
+                Tokens.dp(activity, Tokens.SPACE_4),
+                Tokens.dp(activity, Tokens.SPACE_4),
+                Tokens.dp(activity, Tokens.SPACE_4));
 
         // Title and message run the panel's full width and centre their text in it, so the content
         // reads as one centred block while the actions keep the bottom-right corner. Either may be
         // left out: a prompt that says everything in one line passes only a title.
         if (title != null && !title.isEmpty()) {
-            TextView heading = new TextView(context);
+            TextView heading = new TextView(activity);
             heading.setText(title);
             heading.setTextSize(Tokens.PANEL_TITLE_SP);
             heading.setTypeface(Fonts.face(true));
@@ -131,31 +130,31 @@ public final class Prompt {
         }
 
         if (message != null && !message.isEmpty()) {
-            TextView body = new TextView(context);
+            TextView body = new TextView(activity);
             body.setText(message);
             body.setTextSize(Tokens.SUBTITLE_SP);
             body.setTextColor(Tokens.TEXT_SECONDARY);
             body.setTypeface(Fonts.face(false));
             body.setGravity(Gravity.CENTER);
-            body.setLineSpacing(Tokens.dp(context, Tokens.SPACE_1), 1f);
+            body.setLineSpacing(Tokens.dp(activity, Tokens.SPACE_1), 1f);
             LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            bodyParams.topMargin = Tokens.dp(context, Tokens.SPACE_2);
-            bodyParams.bottomMargin = Tokens.dp(context, Tokens.SPACE_2);
+            bodyParams.topMargin = Tokens.dp(activity, Tokens.SPACE_2);
+            bodyParams.bottomMargin = Tokens.dp(activity, Tokens.SPACE_2);
             body.setLayoutParams(bodyParams);
             column.addView(body);
         }
 
         // Two equal actions at the bottom. Only the gap above them is tight: the title and the
         // message keep the panel's full padding.
-        LinearLayout actions = new LinearLayout(context);
+        LinearLayout actions = new LinearLayout(activity);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        actions.setPadding(0, Tokens.dp(context, Tokens.SPACE_4), 0, 0);
+        actions.setPadding(0, Tokens.dp(activity, Tokens.SPACE_4), 0, 0);
 
         ActionView confirm = new ActionView(
-                context, confirmLabel, Tokens.BG_WHITE, Tokens.TEXT_ON_LIGHT, () -> {
+                activity, confirmLabel, Tokens.BG_WHITE, Tokens.TEXT_ON_LIGHT, () -> {
             dialog.dismiss();
             onConfirm.run();
         });
@@ -163,13 +162,13 @@ public final class Prompt {
 
         GradientDrawable confirmBg = new GradientDrawable();
         confirmBg.setColor(Tokens.BG_WHITE);
-        confirmBg.setCornerRadius(Tokens.dp(context, 999));
+        confirmBg.setCornerRadius(Tokens.dp(activity, 999));
         confirm.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(Tokens.RIPPLE_DARK), confirmBg, null));
 
         LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        confirmParams.leftMargin = Tokens.dp(context, Tokens.SPACE_2);
+        confirmParams.leftMargin = Tokens.dp(activity, Tokens.SPACE_2);
         actions.addView(confirm, confirmParams);
 
         column.addView(actions);

@@ -22,12 +22,12 @@ private const val ACTIVITY_RESULTS_EXTENSION_CLASS_DESCRIPTOR =
     "Lapp/onlynazril/extension/tiktok/ActivityResults;"
 
 /**
- * Hosts the Tweaks screen in TikTok's ad-personalisation activity.
+ * Hosts the Tweaks screen in TikTok's ad-personalization activity.
  *
- * There is no row in TikTok's settings any more: the screen is reached by holding the Home tab in
+ * There is no row in TikTok's settings anymore: the screen is reached by holding the Home tab in
  * the bottom bar, which the extension installs at runtime. What is left here is the activity
  * itself: replace its content when the intent is ours, and close it on back instead of letting
- * TikTok's own ad-personalisation screen appear.
+ * TikTok's own ad-personalization screen appear.
  */
 @Suppress("unused")
 val settingsPatch = bytecodePatch(

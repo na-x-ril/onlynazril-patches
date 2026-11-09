@@ -11,7 +11,7 @@ import android.widget.TextView;
 /**
  * A pressable action, drawn to match the screen: hairline outline, no elevation, no platform
  * button chrome that would bring its own colour and shape between Android versions.
- *
+ * <p>
  * The padding is only what a label needs — a platform button adds its own, and that is what makes a
  * small word sit in a large pill. The fill is a parameter because the prompt's panel is a step
  * lighter than the rows, and a button on it should read as part of that panel.

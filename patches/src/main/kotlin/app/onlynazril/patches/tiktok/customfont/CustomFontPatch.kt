@@ -98,13 +98,13 @@ val tiktokCustomFontPatch = bytecodePatch(
 
         val nativeFactory = nativeFactories.singleOrNull()
             ?: throw PatchException(
-                "Custom font: expected one factory reading ${FONT_KEYS} " +
+                "Custom font: expected one factory reading $FONT_KEYS " +
                     "with the nine-parameter resolver, found ${nativeFactories.size}: " +
                     "${nativeFactories.joinToString { it.holder.type }}.",
             )
         val composeLoader = composeLoaders.singleOrNull()
             ?: throw PatchException(
-                "Custom font: expected one Compose loader reading ${FONT_KEYS} " +
+                "Custom font: expected one Compose loader reading $FONT_KEYS " +
                     "with a (Context, request) resolver, found ${composeLoaders.size}: " +
                     "${composeLoaders.joinToString { it.holder.type }}.",
             )

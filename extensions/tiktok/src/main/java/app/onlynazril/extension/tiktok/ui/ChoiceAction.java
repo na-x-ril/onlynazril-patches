@@ -5,7 +5,7 @@ import android.content.Context;
 /**
  * The control a choice row carries: an {@link ActionView} that shows the current label and opens
  * {@link ChoiceDialog} to change it.
- *
+ * <p>
  * The value lives in the settings, and the label is what the dialog last saved; a control keeping
  * its own copy could disagree with what the feature reads.
  */

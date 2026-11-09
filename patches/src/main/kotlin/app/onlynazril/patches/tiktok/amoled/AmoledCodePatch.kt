@@ -14,10 +14,10 @@ import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.WideLiteralInstruction
 
 /**
- * Opaque dark surface colours that appear as constants in code rather than as resources.
+ * Opaque dark surface colors that appear as constants in code rather than as resources.
  *
- * Compose colour schemes and a few hand-built views carry their surface as a literal. The values
- * are the same ones [AMOLED] maps in resources, restricted to opaque colours so a random integer
+ * Compose color schemes and a few hand-built views carry their surface as a literal. The values
+ * are the same ones [AMOLED] maps in resources, restricted to opaque colors so a random integer
  * that happens to be small is not mistaken for one.
  */
 private val DARK_LITERALS = setOf(
@@ -56,8 +56,7 @@ private fun isDarkNarrow(instruction: Instruction): Boolean {
  */
 private fun isDarkWide(instruction: Instruction): Boolean {
     val literal = (instruction as? WideLiteralInstruction)?.wideLiteral ?: return false
-    if (literal ushr 32 != 0L) return false
-    return (literal and 0xFFFFFFFFL) in DARK_LITERALS
+    return literal ushr 32 == 0L && (literal and 0xFFFFFFFFL) in DARK_LITERALS
 }
 
 /**

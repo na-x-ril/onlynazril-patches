@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 
 /**
  * The pause-panel image-search switch.
- *
+ * <p>
  * On out of the box, so both image-search surfaces are hidden until the user asks for them back.
  * Off makes the pause item manager return its list and the visual search tag gate answer as before,
  * which restores TikTok's entries without touching the photo-search feature itself.

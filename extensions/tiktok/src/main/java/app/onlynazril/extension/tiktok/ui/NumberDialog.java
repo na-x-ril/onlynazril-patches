@@ -23,9 +23,9 @@ import app.onlynazril.extension.tiktok.internal.Activities;
 
 /**
  * The dialog behind a one-number row: a single numeric field and Save/Cancel.
- *
+ * <p>
  * Built on the screen's own palette rather than a dialog theme, the same as {@link RangeDialog},
- * so the panel colour, corner radius and button chrome do not depend on the activity's theme.
+ * so the panel color, corner radius and button chrome do not depend on the activity's theme.
  * An empty field means zero, which is how a threshold is turned off.
  */
 public final class NumberDialog {

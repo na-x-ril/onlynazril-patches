@@ -8,7 +8,7 @@ import android.view.View;
 
 /**
  * Right chevron for a row that opens a page.
- *
+ * <p>
  * Drawn with round ends so it keeps its shape whatever font is imported.
  */
 public final class ChevronView extends View {

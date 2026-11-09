@@ -23,11 +23,11 @@ import app.onlynazril.extension.tiktok.internal.Activities;
 
 /**
  * The dialog behind a Min/Max row: two numeric fields and Save/Cancel.
- *
+ * <p>
  * Built on the screen's own palette rather than a dialog theme, the same as the restart prompt — a
  * theme brings its own corner radius, panel colour and button chrome, and the app's theme decides
  * all three.
- *
+ * <p>
  * An empty field means "no bound on this side", so a maximum is only typed when one is wanted; the
  * whole range is spelled out as both fields empty. The values are normalised on Save — a minimum
  * above the maximum swaps them — and the dialog closes, so nothing half-typed is ever stored.

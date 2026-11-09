@@ -58,7 +58,7 @@ public final class Tokens {
     public static final float ACTION_SP = 15f;
     /** The prompt's title: one step above a row title, below the screen's own title. */
     public static final float PANEL_TITLE_SP = 20f;
-    public static final float PAGE_TITLE_SP = 26f;
+    public static final float PAGE_TITLE_SP = 22f;
 
     private Tokens() {}
 

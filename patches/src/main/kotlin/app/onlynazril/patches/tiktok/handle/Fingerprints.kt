@@ -69,7 +69,7 @@ object AuthorInfoViewFingerprint : Fingerprint(
  * calls one returning an int — so the call it makes is the anchor, not its obfuscated name.
  *
  * This is where the item is taken from: reading "the component's current item" returns the
- * neighbouring video once the feed starts prefetching, which is what made the For You feed show
+ * neighboring video once the feed starts prefetching, which is what made the For You feed show
  * another video's region and age while search and DM (no prefetch) looked right.
  */
 object AuthorInfoItemFingerprint : Fingerprint(

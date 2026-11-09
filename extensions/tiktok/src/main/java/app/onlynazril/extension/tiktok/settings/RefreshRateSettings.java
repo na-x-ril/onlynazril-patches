@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 
 /**
  * The app-refresh-rate choice.
- *
+ * <p>
  * `0` means the system default: Android and TikTok keep their own decision. The other values are
  * the fixed rates the Tweaks screen offers. Anything else falls back to the default, so a bad
  * stored value can never make the app ask for a rate the screen does not show.

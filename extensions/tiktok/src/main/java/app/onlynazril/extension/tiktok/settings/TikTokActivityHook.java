@@ -16,10 +16,10 @@ import app.onlynazril.extension.tiktok.ui.TweaksScreen;
 import com.bytedance.ies.ugc.aweme.commercialize.compliance.personalization.AdPersonalizationActivity;
 
 /**
- * Hosts the Tweaks screen in TikTok's ad-personalisation activity, reached from the Home tab.
- *
+ * Hosts the Tweaks screen in TikTok's ad-personalization activity, reached from the Home tab.
+ * <p>
  * The screen is built directly into the activity instead of through a Fragment: the whole state
- * lives in shared preferences, so a recreate (rotation, process death) just rebuilds it. The
+ * lives in shared preferences, so a recreation (rotation, process death) just rebuilds it. The
  * screen owns its category back stack; this class only forwards the activity's back press to it.
  */
 @SuppressWarnings("unused")
@@ -43,11 +43,11 @@ public class TikTokActivityHook {
 
     /**
      * Keeps the screen's content clear of the status and navigation bars.
-     *
+     * <p>
      * The app targets SDK 36, and from Android 15 the platform enforces edge to edge: the window
      * reaches under both bars whatever the activity asks for, so a plain `setContentView` puts the
      * title behind the clock and the last row behind the navigation bar.
-     *
+     * <p>
      * The insets are taken as padding rather than by asking the window to stop being edge to edge:
      * the background still reaches the edges, the content does not, and it works the same on a build
      * where the window is not edge to edge, because the bars report a zero inset there.

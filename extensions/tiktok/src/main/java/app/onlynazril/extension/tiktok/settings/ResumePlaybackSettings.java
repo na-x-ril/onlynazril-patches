@@ -6,12 +6,12 @@ import android.content.SharedPreferences;
 /**
  * Resume playback's own switches: whether the feature runs, and the two thresholds that decide
  * which positions are worth keeping.
- *
+ * <p>
  * A position is saved only when it is past the start threshold and still at least the end
  * threshold away from the video's end. The defaults are 4 seconds on each side, so opening a video,
  * glancing at the first seconds and leaving does not create a resume point, and neither does
  * stopping just before the video finishes.
- *
+ * <p>
  * Stored in the shared prefs file so the settings export carries them like every other switch.
  */
 public final class ResumePlaybackSettings {
@@ -32,7 +32,7 @@ public final class ResumePlaybackSettings {
 
     public static boolean isEnabled() {
         Context ctx = appContext();
-        return ctx != null && isEnabled(ctx);
+        return isEnabled(ctx);
     }
 
     public static void setEnabled(Context ctx, boolean value) {

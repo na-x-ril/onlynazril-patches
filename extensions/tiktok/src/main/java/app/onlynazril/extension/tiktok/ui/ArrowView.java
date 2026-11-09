@@ -8,7 +8,7 @@ import android.view.View;
 
 /**
  * Left arrow for the top bar: a shaft and a 45-degree head with round ends.
- *
+ * <p>
  * Drawn here so its shape never depends on the imported font.
  */
 public final class ArrowView extends View {

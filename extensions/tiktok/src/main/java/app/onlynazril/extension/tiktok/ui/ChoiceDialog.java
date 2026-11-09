@@ -20,9 +20,9 @@ import app.onlynazril.extension.tiktok.internal.Activities;
 
 /**
  * The dialog behind a choice row: one button per option, the current one marked, and Cancel.
- *
+ * <p>
  * Built on the screen's own palette for the same reason as the range and restart dialogs: a
- * theme brings its own corner radius, panel colour and button chrome, and the app's theme decides
+ * theme brings its own corner radius, panel color and button chrome, and the app's theme decides
  * all three.
  */
 public final class ChoiceDialog {
