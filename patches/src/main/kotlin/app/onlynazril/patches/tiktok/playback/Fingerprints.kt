@@ -91,6 +91,144 @@ internal val FeedPauseFingerprint = Fingerprint(
 )
 
 /**
+ * The item is being prepared: the open boundary the progress callback cannot provide. The
+ * one-string overload is the non-event path; the event overload carries the same source id.
+ */
+internal val FeedPrepareFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onPreparePlay",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;"),
+)
+
+internal val FeedPrepareEventFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onPreparePlay",
+    returnType = "V",
+    custom = { method, _ ->
+        method.parameterTypes.size == 2 && method.parameterTypes[0] == "Ljava/lang/String;"
+    },
+)
+
+/** The user drags or taps the seek bar: `(sourceId, offset, progress)`. */
+internal val FeedSeekStartFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onSeekStart",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;", "I", "F"),
+)
+
+/** The user seek has ended: `(sourceId, success)`. */
+internal val FeedSeekEndFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onSeekEnd",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;", "Z"),
+)
+
+/** The seek's rendered frame; a second completion point when the player skips `onSeekEnd`. */
+internal val FeedRenderSeekCompleteFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onRenderSeekComplete",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;", "Z"),
+)
+
+/** The video reached its end: `(sourceId)` and the compatibility `(sourceId, reason)` overload. */
+internal val FeedPlayCompletedFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onPlayCompleted",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;"),
+)
+
+internal val FeedPlayCompletedCountFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onPlayCompleted",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;", "I"),
+)
+
+/** The video looped: the position is about to reset without a user seek. */
+internal val FeedLoopPlayFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onLoopPlay",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;", "I"),
+)
+
+/** The player is released, and the stop callback before it: the last chance to save. */
+internal val FeedPlayReleaseFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onPlayRelease",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;"),
+)
+
+internal val FeedStopPlayFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onStopPlay",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;"),
+)
+
+/**
+ * A play failure and a retry: both can report a position of zero while the surface recovers.
+ * The error type is obfuscated, so the source-id first parameter and the arity are the anchor.
+ */
+internal val FeedPlayFailedFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onPlayFailed",
+    returnType = "V",
+    custom = { method, _ ->
+        method.parameterTypes.size == 3 && method.parameterTypes[0] == "Ljava/lang/String;"
+    },
+)
+
+internal val FeedPlayFailedShortFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onPlayFailed",
+    returnType = "V",
+    custom = { method, _ ->
+        method.parameterTypes.size == 2 && method.parameterTypes[0] == "Ljava/lang/String;"
+    },
+)
+
+internal val FeedRetryFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onRetryOnError",
+    returnType = "V",
+    custom = { method, _ ->
+        method.parameterTypes.size == 2 && method.parameterTypes[0] == "Ljava/lang/String;"
+    },
+)
+
+internal val FeedRetryShortFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onRetryOnError",
+    returnType = "V",
+    custom = { method, _ -> method.parameterTypes.size == 1 },
+)
+
+/** A resolution switch can re-prepare the player and report a zero position for a moment. */
+internal val FeedResolutionSwitchFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onResolutionSwitchComplete",
+    returnType = "V",
+    custom = { method, _ ->
+        method.parameterTypes.size == 4 && method.parameterTypes[0] == "Ljava/lang/String;"
+    },
+)
+
+/** A first frame after the app resumes from the background, not the item's first open. */
+internal val FeedFirstFrameFromResumeFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    name = "onRenderFirstFrameFromResume",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/String;"),
+)
+
+/**
  * The event pause overload: `onPausePlay(sourceId, event)`.
  *
  * The event type is obfuscated and renamed between builds (`X.0AIw` on 47.7.1, `X.0AIt` on

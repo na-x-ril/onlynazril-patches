@@ -28,6 +28,7 @@ import app.onlynazril.extension.tiktok.feedfilter.FeedFilterStats;
 import app.onlynazril.extension.tiktok.internal.Activities;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
+import app.onlynazril.extension.tiktok.playback.ResumePlayback;
 import app.onlynazril.extension.tiktok.refreshrate.RefreshRate;
 import app.onlynazril.extension.tiktok.settings.CaptchaSettings;
 import app.onlynazril.extension.tiktok.settings.CommentCopySettings;
@@ -711,6 +712,7 @@ public final class TweaksScreen extends FrameLayout {
         File sink = Debug.sink();
         return "Build " + Debug.BUILD + "\n"
                 + "Feed filter: " + FeedFilterStats.summary() + "\n"
+                + "Resume playback: " + ResumePlayback.summary() + "\n"
                 + "Log: " + (sink == null ? "not written yet" : sink.getAbsolutePath());
     }
 
