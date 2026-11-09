@@ -1,3 +1,19 @@
+## [1.6.0-dev.3](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0-dev.2...v1.6.0-dev.3) (2026-11-09)
+
+### 🐛 Bug Fixes
+
+* **TikTok - Feed filter:** Ads still appear in the detail feed ([bcdc603](https://github.com/na-x-ril/onlynazril-patches/commit/bcdc603f3d43ab42df88471e84f726a41ca31039))
+* **TikTok - Resume playback:** Replace record helper that crashes the extension ([1e7175f](https://github.com/na-x-ril/onlynazril-patches/commit/1e7175fcb9965ed22bf083aef72b3c9a809c6a5b))
+
+### ✨ New Features
+
+* **TikTok - Feed filter:** Add survey, LIVE and drama filters and date formats ([b3b2163](https://github.com/na-x-ril/onlynazril-patches/commit/b3b2163f8e15dba5fb9eedceebd201883b7b5a8c))
+* **TikTok - Resume playback:** Add `Resume playback` patch ([1d0839f](https://github.com/na-x-ril/onlynazril-patches/commit/1d0839f5159c596baeb352b35c66eba6e0ff7930))
+* **TikTok - time-region:** Add localized time and settings ([15c4901](https://github.com/na-x-ril/onlynazril-patches/commit/15c4901a5785c4fbcaad95b73fdfbb9d8550772a))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.6.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0-dev.1...v1.6.0-dev.2) (2026-11-07)
 
 ### 🐛 Bug Fixes
