@@ -1,3 +1,16 @@
+## [1.6.0-dev.4](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0-dev.3...v1.6.0-dev.4) (2026-11-09)
+
+### 🐛 Bug Fixes
+
+* **TikTok - Feed filter:** Keep LIVE and drama items on shared lists ([f08e51b](https://github.com/na-x-ril/onlynazril-patches/commit/f08e51ba07b23383d3f7d7a0d5059e7a454a5cd0))
+
+### ✨ New Features
+
+* **TikTok - Resume playback:** Track seek, completion and recovery states ([6036012](https://github.com/na-x-ril/onlynazril-patches/commit/6036012061d7f010cc6fe8059a2a1befcb1716b6))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.6.0-dev.3](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0-dev.2...v1.6.0-dev.3) (2026-11-09)
 
 ### 🐛 Bug Fixes
