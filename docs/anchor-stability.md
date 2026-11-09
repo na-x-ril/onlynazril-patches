@@ -58,7 +58,7 @@ the code that implements each hook is the source of truth for its shape.
 | the visual search tag trigger, and its `(VideoItemParams) -> boolean` gate | the `Find similar` / `Search this image` pill on a paused video; returning false keeps the tag out of the interact area | structural: the real-named `SearchVisualTagComponentTrigger` and the real-named `VideoItemParams` parameter; the method itself moves (`lq` on 47.7.2, `tq` on 47.7.1), so the signature is what is matched | the patch fails hard; the pill keeps showing |
 | `PlayerController#onPlayProgressChange(String, long, long)` | resume playback's save hook: the tick that carries the position and duration | real-named feed controller and exact shape; the write to `lastPosition` and the read of `mCurrentAid` are checked too, so the empty single-float overload cannot match | the patch fails (`onPlayProgressChange … was not found`) |
 | `PlayerController#onPausePlay(String)` and `#onPausePlay(String, event)` | resume playback's exact save hook: the playhead is read here, after the progress tick has fallen behind | real-named controller and both pause overloads (source id alone, and source id plus event); the event type (`X.0AIw` on 47.7.1, `X.0AIt` on 47.7.2) is obfuscated, so only the shape is matched. The event overload is hooked first because it runs before the legacy callback forward; `onPlayStop` is deliberately not used because its position has already fallen back to the older `lastPosition` | the patch fails (`the feed player's pause callback was not found`) |
-| `PlayerController#onRenderFirstFrame(String, event)` | resume playback's apply hook: the first frame, where the saved position is seeked to | real-named controller and method; the obfuscated event type (`X.0BKd` on 47.7.1, `X.0BKZ` on 47.7.2) is never written down, only the real-named source-id parameter and the two-parameter shape | the patch fails (`onRenderFirstFrame … was not found`) |
+| `PlayerController#onRenderFirstFrame(String, event)` | resume playback's apply hook: the first frame, where the saved position is sought to | real-named controller and method; the obfuscated event type (`X.0BKd` on 47.7.1, `X.0BKZ` on 47.7.2) is never written down, only the real-named source-id parameter and the two-parameter shape | the patch fails (`onRenderFirstFrame … was not found`) |
 | `Aweme#isAd`, `#isSoftAd`, `#isWithPromotionalMusic`, `#getAwemeRawAd` | what the ad filter drops | real-named flags and payload read by the extension through reflection, so checked here | that signal stops matching (the item is kept) |
 | `Aweme#getStatistics` → `AwemeStatistics#getPlayCount` / `#getDiggCount` | the view and like ranges | real-named getters, same reading | that count stops filtering (the item is kept, never dropped wrongly) |
 | `ACLCommonShare#getCode()` / `#getShowType()` / `#getTranscode()` | the app's download restriction and the watermark | real-named getters on the real-named model, two instructions each; the values are adapted from ReVanced's TikTok download patch | the download stays restricted and the file keeps its watermark |
@@ -120,6 +120,9 @@ Both live in the header's **time TextView** (which is already dimmer than the na
   `getCreateTime()` in the same shapes. TikTok's own wording **cannot be copied**: it exists neither
   as a string resource nor as a literal in the dex (checked with `aapt2 dump resources` and a string
   scan) — it arrives from their i18n packs;
+- the date format is one of `Auto`, `MM-dd-yy`, `MMM dd yyyy` and `dd MMM yyyy`. `Auto` keeps the
+  current-year shape above and switches to a medium date for another year; the explicit patterns
+  use the app language's month name;
 - the base that was used is stored in the view's tag (an int key), so re-writing is idempotent and a
   recycled view is updated again when the item changes;
 - the region and time values are read from **the item the item renderer was given** (`(Aweme) -> V`),
@@ -213,22 +216,26 @@ account is in the rollout.
 
 See [feed-filter.md](feed-filter.md) for the full behaviour and the list-wrapper design.
 
-Five hooks, scoped by what each list is allowed to remove.
+Six hooks, scoped by what each list is allowed to remove.
 
 1. **The fetch's return**: `com.ss.android.ugc.aweme.feed.FeedApiService#fetchFeedList`.
    The chain is `FeedApiService#fetchFeedList → FeedApi#LIZIZ → FeedApi#LIZ`, and `LIZIZ` is what
    reads the page's `hasAd` and `preloadAds`. The hook also clears `preloadAds` before the page is
    returned, so a slot the page carries on the side cannot be merged in during a later scroll.
 2. **`FeedItemList#setItems`**: the generic page model, shared with profile/search/repost. Only the
-   **ad filter** runs here; a count range would hide the profile owner's own posts.
+   **ad filter** runs here; a count, LIVE or drama filter would hide the profile owner's own posts.
 3. **`FeedItemList#clone`**: the same ad-only filter for the copy.
 4. **The feed panel's insert callback** (`yX2` on 47.7.1, `xX2` on 47.7.2): the detail feed's
-   `DataLayerAbility` inserts an ad with a bare list here, without touching the page model or the
-   pager storage. Ad-only, because live and survey cards use the same callback.
-5. **The pager's list storage**: the list the feed renders from, full filter. Its own `ArrayList`
+   `DataLayerAbility` inserts an ad with a bare list here. Ads, survey cards, LIVE cards and drama
+   cards are selected by the batch's source string.
+5. **The direct survey insert** on the same panel: a `(int, Aweme)` method whose body carries the
+   literal `"survey_card"`. It does not pass through the callback above; the hook returns early
+   when the survey switch is on. The name is obfuscated, the literal and shape are the anchor.
+6. **The pager's list storage**: the list the feed renders from, full filter. Its own `ArrayList`
    field is also replaced at construction with an `AdFreeList`, so a direct `add` from the ad SDK is
-   refused even when no insert callback runs. The storage's `getList` returns a copy, so the field is
-   found by its declared `ArrayList` type, never through that getter.
+   refused even when no insert callback runs. With the LIVE and drama switches on, the guard refuses
+   those items too. The storage's `getList` returns a copy, so the field is found by its declared
+   `ArrayList` type, never through that getter.
 
 The fetch hook alone did not hold. The page model's `getData` sets a page's items three times: the
 parsed list, the clone, then the model's own list, and the last overwrites everything the fetch

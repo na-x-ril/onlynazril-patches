@@ -1,7 +1,8 @@
 # Feed filter
 
-The `Feed filter` patch removes ads, promotional-music posts, and videos outside a view/like range
-from the feed. It is a bytecode patch plus the `extensions/tiktok/feedfilter` code.
+The `Feed filter` patch removes ads, promotional-music posts, survey cards, LIVE items, drama
+videos, and videos outside a view/like range from the feed. It is a bytecode patch plus the
+`extensions/tiktok/feedfilter` code.
 
 Version scope: 47.7.1 and 47.7.2.
 
@@ -11,13 +12,35 @@ Two filter sets run, because the lists are not all the feed:
 
 | Surface | Filter | Why |
 |---|---|---|
-| Feed API return | ads + views + likes | the main feed |
-| Feed pager storage | ads + views + likes | the list the feed renders from |
-| `FeedItemList#setItems` / `#clone` | ads only | shared with profile, search and repost lists; a count range there would hide the profile owner's own posts |
-| Feed panel insert callback | ads only | also carries live and survey cards |
+| Feed API return | ads + LIVE + drama + views + likes | the main feed |
+| Feed pager storage | ads + LIVE + drama + views + likes | the list the feed renders from |
+| `FeedItemList#setItems` / `#clone` | ads only | shared with profile, search and repost lists; a count, LIVE or drama filter there would hide the profile owner's own posts |
+| Feed panel insert callback | ads, survey cards, LIVE cards, drama cards | the batch's source names the card; the item filter handles ads, LIVE and drama videos |
 
 The generic model being ads-only is the fix for "my own posts are missing from my profile". The
-feed's own hooks still apply the view/like ranges.
+feed's own hooks still apply the view/like and LIVE filters.
+
+## Survey, LIVE and drama
+
+Each is a separate switch in Tweaks, off by default. They are independent: turning one on does not
+change the others.
+
+**Survey cards.** Two paths exist on the same panel. The direct insert builds a `singletonList` and
+uses the literal `"survey_card"` as its source; the panel callback sees the same source. The patch
+drops the batch at the callback when the source contains `survey`, and makes the direct method
+return early when `FeedFilterSettings.isSurveyEnabled()` is true.
+
+**LIVE.** The item filter asks the app's own `AwemeSaaSExtKt.isLive(Aweme)`, resolved once by
+reflection. It runs in the feed's full filter and in the live-list guard, so a LIVE item added
+directly is refused too. The LIVE entry card is inserted with a source beginning `live_card`; the
+panel callback drops that batch when the LIVE switch is on. Profile, search and repost lists keep
+their LIVE items because those surfaces only run the ad filter.
+
+**Drama.** A video is drama when its `PaidContentInfo` carries a `miniDramaInfo` string, a
+`miniDramaCardInfo`, a `paidContentMiniDramaInfo`, an `episodeNumber`, or the limited-free
+short-drama flag. The filter runs in the feed's full filter and in the list guard, so a drama item
+added directly is refused too. A card whose insert source contains `drama` is dropped at the panel
+callback. Profile, search and repost lists keep drama items because they only run the ad filter.
 
 ## Why the storage lists are wrapped
 
@@ -66,8 +89,11 @@ Useful lines:
 ```
 feedfilter: storage list wrapped field=09gj.LIZ size=0
 feedfilter: storage refused ad@mastercard
+feedfilter: storage refused live@somecreator
+feedfilter: storage refused drama@somecreator
 feedfilter: generic-set ... ads=1 dropped=[ad@shopee_id]
 feedfilter: store ... likes[2000..MAX]=1 dropped=[likes=343@user]
+feedfilter: insert source=survey_card items=1 kept=0 dropped=survey
 ```
 
 `09gf` / `09gj` are obfuscated and change per build; the line shape does not.
