@@ -1,7 +1,8 @@
 package app.onlynazril.extension.tiktok.feedfilter;
 
+import android.os.Build;
+
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -12,22 +13,22 @@ import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 
 /**
  * Drops the items a page should not show, in place, on the list the app is about to use.
- *
+ * <p>
  * Four call sites. The feed's own path , the fetch's return and the pager item model's storage ,
  * runs the full filter. The generic `FeedItemList` setter and clone, which are shared with the
  * profile, search and repost lists, run the **ad filter only**: a like-count range there would hide
  * the profile owner's own posts, but an ad is not wanted on any surface.
- *
+ * <p>
  * The list is walked with an `Iterator` and items are removed through it. Rebuilding the list would
  * leave the pager holding the old one, and `removeIf` needs Android 7 while the app reaches lower.
- *
+ * <p>
  * Every link is optional: the page, its item list and an item's counters can each be absent. An
  * absent value never removes anything , see {@link Counts}.
- *
+ * <p>
  * A batch of one is never filtered unless that item is an ad. That is the shape of a deep link or
  * the current video being inserted into the pager; removing its only item leaves the surface with
  * nothing to open.
- *
+ * <p>
  * One census line per call (capped in the log, never in the screen) says what was handed over and
  * what each filter did with it. It is the only way to tell "the filter never saw this item" from
  * "it saw it and did not match", which look identical on screen.
@@ -69,24 +70,46 @@ public final class FeedFilter {
         filter(page, "generic-clone", true);
     }
 
-    /** Whether the item is an ad under the current switch; used by the storage's list guard. */
+    /** Whether the item is an ad under the current switch; used by the ad-only list paths. */
     public static boolean isAdItem(Object item) {
         return item != null
                 && FeedFilterSettings.isAdsEnabled()
                 && new AdsFilter().shouldRemove(item);
     }
 
-    private static int refusedAds;
+    public static boolean isSurveyEnabled() {
+        return FeedFilterSettings.isSurveyEnabled();
+    }
 
-    /** A storage list refused a direct add, which is a path no insert callback sees. */
-    public static void logSkippedAd(Object item) {
-        if (refusedAds++ >= MAX_ACTIONS) return;
-        Debug.print("feedfilter: storage refused " + reason(new AdsFilter(), item));
+    /** Ads and, when their switches are on, LIVE and drama items. Used by the feed list guard. */
+    public static boolean shouldRefuse(Object item) {
+        if (item == null) return false;
+        if (FeedFilterSettings.isAdsEnabled() && new AdsFilter().shouldRemove(item)) return true;
+        if (FeedFilterSettings.isLiveEnabled() && new LiveFilter().shouldRemove(item)) return true;
+        return FeedFilterSettings.isDramaEnabled() && new DramaFilter().shouldRemove(item);
+    }
+
+    private static int refusedItems;
+
+    /** A feed list refused a direct add, which is a path no insert callback sees. */
+    public static void logRefusedItem(Object item) {
+        if (refusedItems++ >= MAX_ACTIONS) return;
+        String kind = FeedFilterSettings.isAdsEnabled() && new AdsFilter().shouldRemove(item)
+                ? "ad"
+                : FeedFilterSettings.isLiveEnabled() && new LiveFilter().shouldRemove(item)
+                ? "live"
+                : "drama";
+        Debug.print("feedfilter: storage refused " + kind + "@" + handle(item));
+    }
+
+    private static String handle(Object item) {
+        Object author = Reflect.property(item, "getAuthor", "author");
+        return author == null ? "?" : String.valueOf(Reflect.string(author, "getUniqueId", "uniqueId"));
     }
 
     /**
      * Replaces the storage's live list with an {@link AdFreeList} built from it.
-     *
+     * <p>
      * The storage is a plain `ArrayList` that the ad SDK can add to directly. Wrapping the field
      * makes every path , insert callback, setter, page restore and a bare `add` , pass the same
      * refusal. The storage's own `getList` returns a copy, so the field is found by its declared
@@ -121,26 +144,55 @@ public final class FeedFilter {
     }
 
     /**
-     * Filters the list the feed panel is about to insert. Ads only: this path also carries live and
-     * survey cards, and a count range here is not the feed's list. The returned list is a copy, so
-     * the caller's immutable singleton is never mutated.
+     * Filters the list the feed panel is about to insert. The source tells the card filters what
+     * the batch is; the item filters then remove ads and, when enabled, LIVE items. The returned
+     * list is a copy, so the caller's immutable singleton is never mutated.
      */
-    public static List<?> filterInsertList(List<?> items) {
+    public static List<?> filterInsertList(String source, List<?> items) {
         if (items == null || items.isEmpty()) return items;
+
+        boolean survey = FeedFilterSettings.isSurveyEnabled()
+                && source != null && source.contains("survey");
+        boolean liveCard = FeedFilterSettings.isLiveEnabled()
+                && source != null && source.contains("live_card");
+        boolean dramaCard = FeedFilterSettings.isDramaEnabled()
+                && source != null && source.toLowerCase().contains("drama");
+        if (survey || liveCard || dramaCard) {
+            String dropped = survey ? "survey" : liveCard ? "live_card" : "drama";
+            String line = "insert source=" + source + " items=" + items.size()
+                    + " kept=0 dropped=" + dropped;
+            FeedFilterStats.record(line, items.size());
+            Debug.print("feedfilter: " + line);
+            return new ArrayList<>(0);
+        }
+
         IFilter ads = FeedFilterSettings.isAdsEnabled() ? new AdsFilter() : null;
-        if (ads == null) return items;
+        IFilter live = FeedFilterSettings.isLiveEnabled() ? new LiveFilter() : null;
+        IFilter drama = FeedFilterSettings.isDramaEnabled() ? new DramaFilter() : null;
+        if (ads == null && live == null && drama == null) return items;
+
+        // A single item is the deep-link or current video being inserted. Keep it unless it is an
+        // ad; the card filters above already dropped a named card batch.
+        if (items.size() == 1) {
+            Object only = items.get(0);
+            if (only == null || ads == null || !ads.shouldRemove(only)) return items;
+        }
 
         List<Object> kept = null;
         List<String> reasons = null;
         for (int i = 0; i < items.size(); i++) {
             Object item = items.get(i);
-            if (item != null && ads.shouldRemove(item)) {
+            IFilter hit = item != null && ads != null && ads.shouldRemove(item) ? ads
+                    : item != null && live != null && live.shouldRemove(item) ? live
+                    : item != null && drama != null && drama.shouldRemove(item) ? drama
+                    : null;
+            if (hit != null) {
                 if (kept == null) {
                     kept = new ArrayList<>(items.size());
                     kept.addAll(items.subList(0, i));
                     reasons = new ArrayList<>(MAX_REASONS);
                 }
-                if (reasons.size() < MAX_REASONS) reasons.add(reason(ads, item));
+                if (reasons.size() < MAX_REASONS) reasons.add(reason(hit, item));
             } else if (kept != null) {
                 kept.add(item);
             }
@@ -148,9 +200,10 @@ public final class FeedFilter {
         if (kept == null) return items;
 
         int removed = items.size() - kept.size();
-        String line = "insert items=" + items.size()
+        String line = "insert source=" + source
+                + " items=" + items.size()
                 + " kept=" + kept.size()
-                + " ads=" + removed
+                + " removed=" + removed
                 + " dropped=" + reasons;
         FeedFilterStats.record(line, removed);
         Debug.print("feedfilter: " + line);
@@ -259,6 +312,14 @@ public final class FeedFilter {
             names.add("ads");
         }
         if (!adsOnly) {
+            if (FeedFilterSettings.isLiveEnabled()) {
+                filters.add(new LiveFilter());
+                names.add("live");
+            }
+            if (FeedFilterSettings.isDramaEnabled()) {
+                filters.add(new DramaFilter());
+                names.add("drama");
+            }
             long[] views = setRange(FeedFilterSettings.minMaxViews());
             if (views != null) {
                 filters.add(new ViewCountFilter(views));

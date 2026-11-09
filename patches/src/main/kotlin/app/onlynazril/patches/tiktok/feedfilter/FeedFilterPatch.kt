@@ -14,26 +14,28 @@ import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 /**
- * Drops ads and out-of-range videos from the feed page.
+ * Drops ads, survey cards, LIVE items, drama videos and out-of-range videos from the feed page.
  *
- * Five hooks, scoped by what the list is allowed to remove:
+ * Six hooks, scoped by what the list is allowed to remove:
  *
- *  1. the fetch's return, after the app has merged its preloaded ads into the page , full filter;
- *  2. `FeedItemList#setItems` , the generic page model, shared with the profile, search and repost
- *     lists , **ads only**, so a like/view range can never hide the profile owner's own posts;
- *  3. `FeedItemList#clone` , the same ad-only filter for the copy;
- *  4. the feed panel's insert callback, reached by the detail feed's `DataLayerAbility` ad inserts ,
- *     ad-only, because this is also where live/survey cards enter;
- *  5. the pager item model's storage, where the list the feed renders is taking items in , full
+ *  1. the fetch's return: full filter, after the app has merged its preloaded ads into the page;
+ *  2. `FeedItemList#setItems`: the generic page model, shared with the profile, search and repost
+ *     lists, so **ads only**; a count, LIVE or drama filter would hide the profile owner's own posts;
+ *  3. `FeedItemList#clone`: the same ad-only filter for the copy;
+ *  4. the feed panel's insert callback: ads, survey cards, LIVE cards and drama cards, selected by
+ *     the batch's source string;
+ *  5. the direct survey-card insert on the same panel: skipped when the survey switch is on;
+ *  6. the pager item model's storage, where the list the feed renders is taking items in: full
  *     filter.
  *
- * The extension reads its own switches, so a build with everything off pays five calls per page.
+ * The extension reads its own switches, so a build with everything off pays six calls per page.
  */
 @Suppress("unused")
 val tiktokFeedFilterPatch = bytecodePatch(
     name = "Feed filter",
-    description = "Removes ads and promotional-music posts, and videos outside a view- or " +
-        "like-count range, from the feed. Each part has a switch in Tweaks; ads are on by default.",
+    description = "Removes ads, promotional-music posts, survey cards, LIVE items, drama videos, " +
+        "and videos outside a view- or like-count range from the feed. Each part has a switch in " +
+        "Tweaks; ads are on by default, survey, LIVE and drama are off.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_TIKTOK)
@@ -71,9 +73,20 @@ val tiktokFeedFilterPatch = bytecodePatch(
             ?: throw PatchException("Feed filter: the feed panel's insert callback was not found.")
         insert.addInstructions(
             0,
-            "invoke-static {p3}, $FEED_FILTER_CLASS->filterInsertList(" +
-                "Ljava/util/List;)Ljava/util/List;\n" +
+            "invoke-static {p2, p3}, $FEED_FILTER_CLASS->filterInsertList(" +
+                "Ljava/lang/String;Ljava/util/List;)Ljava/util/List;\n" +
                 "move-result-object p3",
+        )
+
+        // The direct survey-card insert does not pass through the callback above. Skip the whole
+        // method when the switch is on; the card is not an item the feed should carry.
+        FeedPanelSurveyFingerprint.methodOrNull?.addInstructions(
+            0,
+            "invoke-static {}, $FEED_FILTER_CLASS->isSurveyEnabled()Z\n" +
+                "move-result v0\n" +
+                "if-eqz v0, :onlynazril_survey_keep\n" +
+                "return-void\n" +
+                ":onlynazril_survey_keep",
         )
 
         // The pager's own item model , the list the feed renders from, behind the fetched page.
@@ -144,7 +157,7 @@ val tiktokFeedFilterPatch = bytecodePatch(
         // The list's own storage, behind the contract the model reads through.
         //
         // Filtering the *read* was tried and is wrong: the pager counts the list it is handed, so a
-        // shorter list shifts its positions and it runs to "No more results" while items remain. The
+        // shorter list shifts its positions, and it runs to "No more results" while items remain. The
         // filter belongs where items enter the storage instead, as if the page had never carried
         // them , nothing is ever removed under a position the pager already has.
         //
@@ -220,7 +233,7 @@ val tiktokFeedFilterPatch = bytecodePatch(
         // The adapter's own item model, one step behind the panel: `X.09e6` (adapter) holds
         // `X.09gj`, whose `ArrayList` is what the pager binds from. Ads can be added there directly,
         // after the storage, so its constructor is wrapped the same way.
-        val panel = insert.definingClass.let { classDefByOrNull(it) }
+        val panel = classDefByOrNull(insert.definingClass)
         val adapter = panel?.fields
             ?.mapNotNull { classDefByOrNull(it.type) }
             ?.singleOrNull { candidate ->

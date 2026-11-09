@@ -35,6 +35,7 @@ import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
+import app.onlynazril.extension.tiktok.settings.PostDateFormat;
 import app.onlynazril.extension.tiktok.settings.PauseImageSearchSettings;
 import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
@@ -43,7 +44,7 @@ import app.onlynazril.extension.tiktok.settings.SettingsBackup;
 
 /**
  * Tweaks screen: a root category list and one full page per category.
- *
+ * <p>
  * Each page is one unit: its top bar, arrow and content slide together, while only the rows
  * scroll. {@link #goBack()} returns to the root before the activity handles back.
  */
@@ -57,8 +58,6 @@ public final class TweaksScreen extends FrameLayout {
     private static final String[] RATE_LABELS = {"Default", "60 fps", "90 fps", "120 fps"};
 
     private static final String[] REGION_MODES = {"Off", "Code", "Name"};
-
-    private static final String[] DATE_LABELS = {"Auto", "MM-dd-yy", "dd MMM yyyy"};
 
     /** How far the outgoing page trails the incoming one. */
     private static final float PARALLAX_FACTOR = 0.25f;
@@ -295,6 +294,7 @@ public final class TweaksScreen extends FrameLayout {
         title.setTextColor(Tokens.TEXT_PRIMARY);
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
+        title.setIncludeFontPadding(false);
         bar.addView(title, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         return bar;
@@ -382,9 +382,10 @@ public final class TweaksScreen extends FrameLayout {
                         + "and adds the year on older posts.",
                 ChoiceAction.create(context, "Date format",
                         "Auto adds the year for posts from another year.",
-                        DATE_LABELS,
-                        HandleSettings.dateFormat(context),
-                        index -> HandleSettings.setDateFormat(context, index)));
+                        PostDateFormat.labels(),
+                        HandleSettings.dateFormat(context).ordinal(),
+                        index -> HandleSettings.setDateFormat(
+                                context, PostDateFormat.fromStored(index))));
         ToggleView postTimeToggle = toggle(context, postTimeOn, checked -> {
             HandleSettings.setPostTimeEnabled(context, checked);
             compactRow.setRowEnabled(checked);
@@ -419,6 +420,27 @@ public final class TweaksScreen extends FrameLayout {
                 "Drop ads and promotional-music posts from the feed.",
                 toggle(context, FeedFilterSettings.isAdsEnabled(context),
                         checked -> FeedFilterSettings.setAdsEnabled(context, checked))));
+        page.addView(divider(context));
+        page.addView(new RowView(
+                context,
+                "Filter survey cards",
+                "Hide TikTok's survey cards from the feed.",
+                toggle(context, FeedFilterSettings.isSurveyEnabled(context),
+                        checked -> FeedFilterSettings.setSurveyEnabled(context, checked))));
+        page.addView(divider(context));
+        page.addView(new RowView(
+                context,
+                "Filter LIVE",
+                "Hide LIVE videos and the LIVE entry from the feed.",
+                toggle(context, FeedFilterSettings.isLiveEnabled(context),
+                        checked -> FeedFilterSettings.setLiveEnabled(context, checked))));
+        page.addView(divider(context));
+        page.addView(new RowView(
+                context,
+                "Filter drama",
+                "Hide mini-drama and series videos from the feed.",
+                toggle(context, FeedFilterSettings.isDramaEnabled(context),
+                        checked -> FeedFilterSettings.setDramaEnabled(context, checked))));
         page.addView(divider(context));
         page.addView(new RowView(
                 context,
@@ -658,7 +680,7 @@ public final class TweaksScreen extends FrameLayout {
 
     /**
      * The filter's own tally, tappable to copy.
-     *
+     * <p>
      * This is the one piece of state a device report needs, and reading it off a screenshot is not
      * the same as pasting it: the block is also written to the log on every tap, so the log carries
      * the state as it was when it was read.
@@ -867,7 +889,6 @@ public final class TweaksScreen extends FrameLayout {
      * picked file's answer comes back through the hooked
      * activity result, not through a callback here.
      */
-    @SuppressWarnings("deprecation")
     private static void pickFontFile(Context context) {
         Activity activity = Activities.of(context);
         if (activity == null || activity.isFinishing()) return;
@@ -881,7 +902,6 @@ public final class TweaksScreen extends FrameLayout {
         activity.startActivityForResult(pick, CustomFontBridge.REQUEST_PICK_FONT);
     }
 
-    @SuppressWarnings("deprecation")
     private static void exportSettings(Context context) {
         Activity activity = Activities.of(context);
         if (activity == null || activity.isFinishing()) return;
@@ -892,7 +912,6 @@ public final class TweaksScreen extends FrameLayout {
         activity.startActivityForResult(create, SettingsBackup.REQUEST_EXPORT);
     }
 
-    @SuppressWarnings("deprecation")
     private static void importSettings(Context context) {
         Activity activity = Activities.of(context);
         if (activity == null || activity.isFinishing()) return;

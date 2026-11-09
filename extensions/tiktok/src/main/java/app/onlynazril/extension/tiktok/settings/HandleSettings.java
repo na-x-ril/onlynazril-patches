@@ -7,12 +7,12 @@ import app.onlynazril.extension.tiktok.Surfaces;
 
 /**
  * Every switch, and the gates built from them.
- *
+ * <p>
  * Three elements have a switch of their own — the @handle stamp, the region and the post time — and
  * each surface has one too. A writer asks only for its own elements, through `handleOn`, `regionOn`
  * or `timeOn`: no writer reads another element's switch, so a switch cannot change behaviour it does
  * not name. A surface switch stops everything on that surface.
- *
+ * <p>
  * Persisted in private prefs. While the context is missing the defaults are the ones the screen
  * shows: the @handle stamp and the region on, the post time off, and only the feed surface on.
  */
@@ -25,10 +25,6 @@ public final class HandleSettings {
     private static final String KEY_COMPACT = "post_time_compact";
     private static final String KEY_DATE = "date_format";
     private static final String KEY_SURFACE = "surface_";
-
-    public static final int DATE_AUTO = 0;
-    public static final int DATE_MM_DD_YY = 1;
-    public static final int DATE_DD_MMM_YYYY = 2;
 
     private HandleSettings() {}
 
@@ -92,15 +88,19 @@ public final class HandleSettings {
     }
 
     /** How a post older than a week is dated. */
-    public static int dateFormat(Context ctx) {
-        if (ctx == null) return DATE_AUTO;
-        int value = prefs(ctx).getInt(KEY_DATE, DATE_AUTO);
-        return value >= DATE_AUTO && value <= DATE_DD_MMM_YYYY ? value : DATE_AUTO;
+    public static PostDateFormat dateFormat(Context ctx) {
+        if (ctx == null) return PostDateFormat.AUTO;
+
+        int value = prefs(ctx).getInt(KEY_DATE, PostDateFormat.AUTO.ordinal());
+        return PostDateFormat.fromStored(value);
     }
 
-    public static void setDateFormat(Context ctx, int mode) {
-        int value = mode >= DATE_AUTO && mode <= DATE_DD_MMM_YYYY ? mode : DATE_AUTO;
-        prefs(ctx).edit().putInt(KEY_DATE, value).apply();
+    public static void setDateFormat(Context ctx, PostDateFormat mode) {
+        if (ctx == null) return;
+
+        prefs(ctx).edit()
+                .putInt(KEY_DATE, mode.ordinal())
+                .apply();
     }
 
     /** Independent of the handle switches: the post time and the region share the time view. */

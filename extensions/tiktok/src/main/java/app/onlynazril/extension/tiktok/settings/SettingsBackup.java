@@ -94,13 +94,16 @@ public final class SettingsBackup {
         root.put("region_name", HandleSettings.isRegionName(context));
         root.put("post_time_enabled", HandleSettings.isPostTimeEnabled(context));
         root.put("post_time_compact", HandleSettings.isCompactEnabled(context));
-        root.put("date_format", HandleSettings.dateFormat(context));
+        root.put("date_format", HandleSettings.dateFormat(context).ordinal());
         root.put("surface_feed", HandleSettings.isSurfaceEnabled(context, Surfaces.FEED));
         root.put("surface_comments", HandleSettings.isSurfaceEnabled(context, Surfaces.COMMENTS));
 
         long[] views = FeedFilterSettings.minMaxViews();
         long[] likes = FeedFilterSettings.minMaxLikes();
         root.put("feed_filter_ads", FeedFilterSettings.isAdsEnabled(context));
+        root.put("feed_filter_survey", FeedFilterSettings.isSurveyEnabled(context));
+        root.put("feed_filter_live", FeedFilterSettings.isLiveEnabled(context));
+        root.put("feed_filter_drama", FeedFilterSettings.isDramaEnabled(context));
         root.put("feed_filter_views_min", views[0]);
         root.put("feed_filter_views_max", views[1]);
         root.put("feed_filter_likes_min", likes[0]);
@@ -146,7 +149,8 @@ public final class SettingsBackup {
                 HandleSettings.setCompactEnabled(context, root.optBoolean("post_time_compact"));
             }
             if (root.has("date_format")) {
-                HandleSettings.setDateFormat(context, root.optInt("date_format"));
+                HandleSettings.setDateFormat(
+                        context, PostDateFormat.fromStored(root.optInt("date_format")));
             }
             if (root.has("surface_feed")) {
                 HandleSettings.setSurfaceEnabled(
@@ -159,6 +163,15 @@ public final class SettingsBackup {
 
             if (root.has("feed_filter_ads")) {
                 FeedFilterSettings.setAdsEnabled(context, root.optBoolean("feed_filter_ads"));
+            }
+            if (root.has("feed_filter_survey")) {
+                FeedFilterSettings.setSurveyEnabled(context, root.optBoolean("feed_filter_survey"));
+            }
+            if (root.has("feed_filter_live")) {
+                FeedFilterSettings.setLiveEnabled(context, root.optBoolean("feed_filter_live"));
+            }
+            if (root.has("feed_filter_drama")) {
+                FeedFilterSettings.setDramaEnabled(context, root.optBoolean("feed_filter_drama"));
             }
             applyRange(context, root, "feed_filter_views", true);
             applyRange(context, root, "feed_filter_likes", false);

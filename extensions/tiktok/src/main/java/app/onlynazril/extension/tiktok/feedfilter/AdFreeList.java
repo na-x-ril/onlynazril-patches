@@ -1,11 +1,13 @@
 package app.onlynazril.extension.tiktok.feedfilter;
 
+import androidx.annotation.NonNull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 
 /**
  * The feed storage's item list, with ads refused at insertion.
- *
+ * <p>
  * The pager storage is a plain {@code ArrayList} that the ad SDK can also add to directly, without
  * going through the setter or any of the insert callbacks the filter hooks. Wrapping the field
  * itself is the only point every path shares: a direct {@code add}, an insert callback and a page
@@ -17,14 +19,14 @@ public final class AdFreeList extends ArrayList<Object> {
         super(source == null ? 0 : source.size());
         if (source == null) return;
         for (Object item : source) {
-            if (!FeedFilter.isAdItem(item)) super.add(item);
+            if (!FeedFilter.shouldRefuse(item)) super.add(item);
         }
     }
 
     @Override
     public boolean add(Object item) {
-        if (FeedFilter.isAdItem(item)) {
-            FeedFilter.logSkippedAd(item);
+        if (FeedFilter.shouldRefuse(item)) {
+            FeedFilter.logRefusedItem(item);
             return false;
         }
         return super.add(item);
@@ -32,8 +34,8 @@ public final class AdFreeList extends ArrayList<Object> {
 
     @Override
     public void add(int index, Object item) {
-        if (FeedFilter.isAdItem(item)) {
-            FeedFilter.logSkippedAd(item);
+        if (FeedFilter.shouldRefuse(item)) {
+            FeedFilter.logRefusedItem(item);
             return;
         }
         super.add(index, item);
@@ -53,8 +55,8 @@ public final class AdFreeList extends ArrayList<Object> {
         int at = index;
         boolean changed = false;
         for (Object item : items) {
-            if (FeedFilter.isAdItem(item)) {
-                FeedFilter.logSkippedAd(item);
+            if (FeedFilter.shouldRefuse(item)) {
+                FeedFilter.logRefusedItem(item);
                 continue;
             }
             super.add(at++, item);
@@ -65,8 +67,8 @@ public final class AdFreeList extends ArrayList<Object> {
 
     @Override
     public Object set(int index, Object item) {
-        if (FeedFilter.isAdItem(item)) {
-            FeedFilter.logSkippedAd(item);
+        if (FeedFilter.shouldRefuse(item)) {
+            FeedFilter.logRefusedItem(item);
             return get(index);
         }
         return super.set(index, item);

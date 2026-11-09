@@ -8,6 +8,8 @@ import android.icu.text.RelativeDateTimeFormatter.RelativeUnit;
 import android.icu.text.RelativeDateTimeFormatter.Style;
 import android.icu.util.ULocale;
 
+import app.onlynazril.extension.tiktok.settings.PostDateFormat;
+
 import java.util.Locale;
 
 /**
@@ -23,7 +25,7 @@ final class IcuAgeText {
 
     private IcuAgeText() {}
 
-    static String relative(long delta, long millis, Locale locale, boolean compact, int dateFormat) {
+    static String relative(long delta, long millis, Locale locale, boolean compact, PostDateFormat dateFormat) {
         RelativeDateTimeFormatter formatter = RelativeDateTimeFormatter.getInstance(
                 ULocale.forLocale(locale),
                 null,

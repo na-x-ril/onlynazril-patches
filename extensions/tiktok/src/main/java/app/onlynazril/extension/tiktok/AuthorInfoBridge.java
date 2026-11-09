@@ -17,6 +17,7 @@ import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.Reflect;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
+import app.onlynazril.extension.tiktok.settings.PostDateFormat;
 
 /**
  * The feed header's post-time view.
@@ -148,7 +149,7 @@ public final class AuthorInfoBridge {
             // cannot look like. What may remain is the region, which is a separate switch.
             String current = currentText(timeView);
             boolean compact = HandleSettings.isCompactEnabled(timeView.getContext());
-            int dateFormat = HandleSettings.dateFormat(timeView.getContext());
+            PostDateFormat dateFormat = HandleSettings.dateFormat(timeView.getContext());
             String base = showTime
                     ? StampText.timeText(timeView, current, createTime, true, compact, dateFormat)
                     : "";

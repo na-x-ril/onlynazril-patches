@@ -3,7 +3,7 @@ package app.onlynazril.extension.tiktok;
 import android.os.Build;
 import android.widget.TextView;
 
-import app.onlynazril.extension.tiktok.settings.HandleSettings;
+import app.onlynazril.extension.tiktok.settings.PostDateFormat;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -90,7 +90,7 @@ public final class StampText {
      */
     public static String timeText(
             TextView timeView, String current, long createTime, boolean allowOurs, boolean compact,
-            int dateFormat) {
+            PostDateFormat dateFormat) {
         String fallback = baseText(timeView, current);
         if (!allowOurs) return fallback;
         Locale locale = AppLocale.of(timeView.getContext());
@@ -125,7 +125,7 @@ public final class StampText {
      * Compact age in the app's language. English and Indonesian follow TikTok's own shapes; every
      * other locale uses the platform CLDR formatter, whose wording may differ from TikTok's.
      */
-    private static String relative(long createTime, Locale locale, boolean compact, int dateFormat) {
+    private static String relative(long createTime, Locale locale, boolean compact, PostDateFormat dateFormat) {
         if (createTime <= 0) return "";
         long millis = createTime < SECONDS_LIMIT ? createTime * 1000L : createTime;
         long delta = System.currentTimeMillis() - millis;
@@ -158,13 +158,10 @@ public final class StampText {
      * A date without the year while it is this year, and a full localized date otherwise, so an
      * older post cannot read as one from this year. An explicit format overrides both.
      */
-    static String date(long millis, Locale locale, String sameYearPattern, int dateFormat) {
+    static String date(long millis, Locale locale, String sameYearPattern, PostDateFormat dateFormat) {
         Date value = new Date(millis);
-        if (dateFormat == HandleSettings.DATE_MM_DD_YY) {
-            return new SimpleDateFormat("MM-dd-yy", locale).format(value);
-        }
-        if (dateFormat == HandleSettings.DATE_DD_MMM_YYYY) {
-            return new SimpleDateFormat("dd MMM yyyy", locale).format(value);
+        if (dateFormat.pattern != null) {
+            return new SimpleDateFormat(dateFormat.pattern, locale).format(value);
         }
         if (sameYearPattern == null) {
             return DateFormat.getDateInstance(DateFormat.SHORT, locale).format(value);
