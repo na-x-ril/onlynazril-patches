@@ -4,7 +4,7 @@ The `Feed filter` patch removes ads, promotional-music posts, survey cards, LIVE
 videos, and videos outside a view/like range from the feed. It is a bytecode patch plus the
 `extensions/tiktok/feedfilter` code.
 
-Version scope: 47.7.1 and 47.7.2.
+Version scope: 47.7.1, 47.7.2 and 47.7.3.
 
 ## What is filtered where
 

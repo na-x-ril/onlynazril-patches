@@ -26,7 +26,7 @@ import app.onlynazril.extension.tiktok.internal.Debug;
  * The system Home key never reaches an app, so the shortcut is on the app's own Home tab. The bar
  * is found by resource id ({@code bottom_tab_container}, with {@code bottom_tab_layout} as the
  * fallback), and the first clickable child in it is the Home tab: the bar order is Home, Friends,
- * create, Inbox, Profile on every build checked. The id names are readable in 47.7.1 and 47.7.2,
+ * create, Inbox, Profile on every build checked. The id names are readable in 47.7.1 through 47.7.3,
  * which is why this is a runtime lookup rather than a bytecode anchor.
  * <p>
  * One listener per resumed activity, installed from the layout pass so it lands on a bar that has

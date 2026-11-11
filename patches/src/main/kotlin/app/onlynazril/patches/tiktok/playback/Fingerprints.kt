@@ -8,7 +8,7 @@ import com.android.tools.smali.dexlib2.Opcode
  * The feed's playback controller: the one object the feed player reports progress through.
  *
  * Real-named and carried by both supported builds (`com.ss.android.ugc.aweme.feed.controller.
- * PlayerController` on 47.7.1 and 47.7.2). It is the class that owns the current item's id
+ * PlayerController` on 47.7.1 through 47.7.3). It is the class that owns the current item's id
  * (`mCurrentAid`), the last position (`lastPosition`) and the player manager
  * (`getPlayerManager()`), so every resume-playback hook belongs here rather than on the
  * per-cell views whose names are obfuscated and change every build.
@@ -57,7 +57,7 @@ internal val FeedPlayProgressFingerprint = Fingerprint(
  * player uses to seek back (`DetailFragmentPanel#onRenderFirstFrame`). Hooking `onPlayPrepared` is
  * not an option, it has an empty body on both builds.
  *
- * The event type (`X.0BKd` on 47.7.1, `X.0BKZ` on 47.7.2) is obfuscated and renamed between
+ * The event type (`X.0BKd` on 47.7.1, `X.0BKZ` on 47.7.2, `X.0BKb` on 47.7.3) is obfuscated and renamed between
  * builds, so the shape is matched instead: the two-parameter overload of a real-named method whose
  * first parameter is the real-named source id. The one-parameter overload is a different callback
  * and takes the event alone.
@@ -232,7 +232,8 @@ internal val FeedFirstFrameFromResumeFingerprint = Fingerprint(
  * The event pause overload: `onPausePlay(sourceId, event)`.
  *
  * The event type is obfuscated and renamed between builds (`X.0AIw` on 47.7.1, `X.0AIt` on
- * 47.7.2), so only the real-named method, the source-id first parameter and the two-parameter
+ * 47.7.2, `X.0AIx` on 47.7.3), so only the real-named method, the source-id first parameter and
+ * the two-parameter
  * shape are matched. Its body runs before the legacy one-string callback is forwarded, which is
  * where the player's position is still the pause playhead.
  */

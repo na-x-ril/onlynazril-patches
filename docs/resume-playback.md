@@ -4,7 +4,7 @@ The `Resume playback` patch keeps the play head of the last twelve videos in mem
 to it when a video is opened again. It is a bytecode patch plus the
 `extensions/tiktok/playback` code.
 
-Version scope: 47.7.1 and 47.7.2.
+Version scope: 47.7.1, 47.7.2 and 47.7.3.
 
 ## Hooks
 

@@ -69,7 +69,7 @@ internal val FeedItemListCloneFingerprint = Fingerprint(
 
 /**
  * The feed panel's insert callback: `(int, String, List)`. The name moves between builds
- * (`yX2` on 47.7.1, `xX2` on 47.7.2), so only the real-named panel class and the shape are
+ * (`yX2` on 47.7.1, `xX2` on 47.7.2, `zX2` on 47.7.3), so only the real-named panel class and the shape are
  * matched. The list is what `DataLayerAbility` hands over for an insert, including ads.
  */
 internal val FeedPanelInsertFingerprint = Fingerprint(

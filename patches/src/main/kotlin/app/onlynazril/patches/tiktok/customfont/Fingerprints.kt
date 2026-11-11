@@ -76,8 +76,9 @@ internal const val ASSET_LOADER_PATH = "Ljava/lang/String;"
  * find it; the `Typeface.createFromAsset` reference is what does.
  *
  * On 47.7.1 it is `LX/00kC;->C4(AssetManager, String)`, on 47.7.2
- * `LX/00kA;->C4(...)`; both are the one method in the bundle with this
- * shape that creates a face from an asset.
+ * `LX/00kA;->C4(...)`, on 47.7.3 `LX/00kD;->x4(...)`; every one is the
+ * one method in the bundle with this shape that creates a face from an
+ * asset.
  */
 internal val AssetFontLoaderFingerprint = Fingerprint(
     returnType = FACTORY_RETURN,

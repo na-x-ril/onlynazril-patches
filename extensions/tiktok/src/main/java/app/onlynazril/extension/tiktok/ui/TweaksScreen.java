@@ -655,7 +655,7 @@ public final class TweaksScreen extends FrameLayout {
     private void addAbout(LinearLayout page) {
         page.addView(description(
                 context,
-                "Tweaks for TikTok 47.7.1 and 47.7.2. "
+                "Tweaks for TikTok 47.7.1 to 47.7.3. "
                         + "The display name is read, never rewritten."));
         page.addView(diagnostics(context));
         page.addView(actions(context));

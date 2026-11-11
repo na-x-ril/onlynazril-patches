@@ -20,7 +20,7 @@ private const val SEARCH_VISUAL_TAG_TRIGGER =
 /**
  * The pause item manager's constructor: it asks [IPhotoSearchService] for the image-search item
  * and adds it to its list. It is the one constructor in the bundle making that call
- * (`X.1QhK` on 47.7.2, `X.1NRr` on 47.7.1), which is what keeps the anchor stable while the
+ * (`X.1QhK` on 47.7.2, `X.1NRr` on 47.7.1, `X.1PB2` on 47.7.3), which is what keeps the anchor stable while the
  * class and method names rename.
  */
 internal val PauseItemManagerFingerprint = Fingerprint(
@@ -38,7 +38,7 @@ internal val PauseItemManagerFingerprint = Fingerprint(
 /**
  * The visual search tag trigger, the second image-search surface. Its `(VideoItemParams) -> boolean`
  * method decides whether the tag is added to the feed's interact area; the method name itself moves
- * (`lq` on 47.7.2, `tq` on 47.7.1), so the real-named class and signature are the anchor.
+ * (`lq` on 47.7.2, `tq` on 47.7.1, `qq` on 47.7.3), so the real-named class and signature are the anchor.
  */
 internal val VisualSearchTagFingerprint = Fingerprint(
     definingClass = SEARCH_VISUAL_TAG_TRIGGER,
