@@ -25,15 +25,15 @@ off. More apps are planned.
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.6.0-dev.4](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.6.0-dev.4)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;12 patches total
+> **[v1.6.0-dev.5](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.6.0-dev.5)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;13 patches total
 <details open>
-<summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;12 patches</summary>
+<summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;13 patches</summary>
 <br>
 
 **🎯 Supported versions:**
 
-| 47.7.1 | 47.7.2 |
-| :---: | :---: |
+| 47.7.1 | 47.7.2 | 47.7.3 |
+| :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description |
 |----------|----------------|
@@ -45,6 +45,7 @@ off. More apps are planned.
 | [Feed filter](#feed-filter) | Removes ads, promotional-music posts, survey cards, LIVE items, drama videos, and videos outside a view- or like-count range from the feed. Each part has a switch in Tweaks; ads are on by default, survey, LIVE and drama are off. |
 | [Handle, time & region](#handle-time-region) | Shows the @handle, the region and the post time on feed videos and comments, including a video shared into a chat. Each surface and each part has a switch in Tweaks. |
 | [Hide CAPTCHA popups](#hide-captcha-popups) | Skips the risk-control puzzle TikTok shows while browsing, and lets the app carry on. Account verification (login, SMS or two-factor) is never hidden. On by default; the switch is in Tweaks. |
+| [Keep screen on](#keep-screen-on) | Keeps the display awake while TikTok is open, so a video does not dim the screen. Off returns the system screen timeout. On by default; the switch is in Tweaks. |
 | [Pause image search](#pause-image-search) | Adds a switch to disable the image-search entries TikTok shows while a video is paused, including the pause-panel row and the visual search pill. On by default; turn it off to show them again. |
 | [Profile background](#profile-background) | Answers the AB gate that carries the profile background, so a static image or a video can be set on accounts the rollout has not reached. The switch is in Tweaks; the feature is off by default. |
 | [Resume playback](#resume-playback) | Continues a video from where you stopped. The twelve most recently opened videos are kept until the app closes; the first and last seconds, set in Tweaks, are skipped. |

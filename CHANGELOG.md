@@ -1,3 +1,18 @@
+## [1.6.0-dev.5](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0-dev.4...v1.6.0-dev.5) (2026-11-12)
+
+### ✨ New Features
+
+* **TikTok - Handle, time & region:** Date comments, week ages and a clock ([19c80ef](https://github.com/na-x-ril/onlynazril-patches/commit/19c80efdd3bf010848a8bce0a95d106a15bf4ad0))
+* **TikTok - Handle, time & region:** Prove reply handles by uid ([8a91e11](https://github.com/na-x-ril/onlynazril-patches/commit/8a91e113368c071ebf68c559abf17977a7558d06))
+* **TikTok - Keep screen on:** Keep the display awake in the app ([066bf4c](https://github.com/na-x-ril/onlynazril-patches/commit/066bf4ce74ae55896e330359aa796c02e065fd31))
+* **TikTok - Tweaks:** Add a validated custom date pattern ([07f3c5f](https://github.com/na-x-ril/onlynazril-patches/commit/07f3c5f6d3788c89de4d1570bcd3998dcf2b2836))
+* **TikTok - Tweaks:** Reset every switch to its default ([64ebb77](https://github.com/na-x-ril/onlynazril-patches/commit/64ebb77f3fdcd7c876196f19bc89e0e5c4f8b425))
+* **TikTok - Tweaks:** Search every setting through the real rows ([b5322c7](https://github.com/na-x-ril/onlynazril-patches/commit/b5322c76a8802fe3beb33b438e2fabe81256417a))
+* **TikTok:** Target 47.7.3 ([84be440](https://github.com/na-x-ril/onlynazril-patches/commit/84be440a207237a6580fda9041dad18130567079))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.6.0-dev.4](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0-dev.3...v1.6.0-dev.4) (2026-11-09)
 
 ### 🐛 Bug Fixes
