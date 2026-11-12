@@ -150,24 +150,12 @@ public final class NumberDialog {
     }
 
     private static EditText field(Context context, long value) {
-        EditText field = new EditText(context);
-        field.setHint("seconds");
-        field.setText(value == 0 ? "" : Long.toString(value));
-        field.setTextSize(Tokens.ACTION_SP);
-        field.setTextColor(Tokens.TEXT_PRIMARY);
-        field.setTypeface(Fonts.face(false));
-        field.setHintTextColor(Tokens.TEXT_DISABLED);
-        field.setGravity(Gravity.CENTER);
-        field.setSingleLine(true);
-        field.setInputType(InputType.TYPE_CLASS_NUMBER);
-        field.setImeOptions(EditorInfo.IME_ACTION_DONE);
-        field.setPadding(
-                Tokens.dp(context, Tokens.SPACE_2), 0,
-                Tokens.dp(context, Tokens.SPACE_2), 0);
-        field.setBackground(ActionView.outline(context, Tokens.PANEL));
-        field.setLayoutParams(new LinearLayout.LayoutParams(
-                Tokens.dp(context, 120), Tokens.dp(context, 44)));
-        return field;
+        return TextField.create(context)
+                .hint("seconds")
+                .text(value == 0 ? "" : Long.toString(value))
+                .inputType(InputType.TYPE_CLASS_NUMBER)
+                .widthDp(120)
+                .build();
     }
 
     private static Drawable panelBackground(Context context) {

@@ -10,9 +10,19 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewParent;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -66,6 +76,12 @@ public final class TweaksScreen extends FrameLayout {
 
     private static final String[] REGION_MODES = {"Off", "Code", "Name"};
 
+    /** A search never needs more rows than the screen holds; the cap keeps a bad query cheap. */
+    private static final int MAX_SEARCH_ROWS = 80;
+
+    /** One render per pause in typing, not one per keystroke. */
+    private static final long SEARCH_DEBOUNCE_MS = 200L;
+
     /** How far the outgoing page trails the incoming one. */
     private static final float PARALLAX_FACTOR = 0.25f;
 
@@ -94,9 +110,12 @@ public final class TweaksScreen extends FrameLayout {
 
     private final Context context;
     private final FrameLayout host;
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Category current;
     private View currentView;
     private boolean transitioning;
+    private boolean searching;
+    private Runnable pendingSearch;
 
     public TweaksScreen(Context context) {
         super(context);
@@ -112,16 +131,24 @@ public final class TweaksScreen extends FrameLayout {
         showRoot(false);
     }
 
+    @Override
+    protected void onDetachedFromWindow() {
+        cancelPendingSearch();
+        super.onDetachedFromWindow();
+    }
+
     /** Returns to the category list; false when the list is already showing. */
     public boolean goBack() {
-        if (current == null) return false;
+        if (current == null && !searching) return false;
         showRoot(true);
         return true;
     }
 
     private void showRoot(boolean animateBack) {
         current = null;
-        Page page = page(topBar("Tweaks", true));
+        searching = false;
+        cancelPendingSearch();
+        Page page = page(topBar("Tweaks", true, true));
         page.content.addView(pageIntro("Choose a group. Every change is saved as you make it."));
 
         View first = categoryRow(Category.FEED, feedSummary());
@@ -144,32 +171,249 @@ public final class TweaksScreen extends FrameLayout {
     }
 
     private void showCategory(Category category) {
-        current = category;
-        Page page = page(topBar(category.title, false));
-        page.content.addView(pageIntro(category.summary));
-        switch (category) {
-            case FEED:
-                addFeed(page.content);
-                break;
-            case CONTENT:
-                addContent(page.content);
-                break;
-            case PRIVACY:
-                addPrivacy(page.content);
-                break;
-            case DOWNLOAD:
-                addDownload(page.content);
-                break;
-            case MISC:
-                addMisc(page.content);
-                break;
-            case ABOUT:
-                addAbout(page.content);
-                break;
-        }
-        show(page.root, true);
+        showCategory(category, null);
     }
 
+    private void showCategory(Category category, String highlight) {
+        current = category;
+        searching = false;
+        cancelPendingSearch();
+        Page page = page(topBar(category.title, false, false));
+        page.content.addView(pageIntro(category.summary));
+        addCategoryContent(page.content, category);
+        show(page.root, true);
+        if (highlight != null) page.root.post(() -> reveal(page, highlight));
+    }
+
+    /** Scrolls the named row into view and runs one shimmer across it. */
+    private void reveal(Page page, String title) {
+        try {
+            RowView row = findRow(page.content, title);
+            if (row == null) return;
+            int top = 0;
+            View walk = row;
+            while (walk != null && walk != page.content) {
+                top += walk.getTop();
+                walk = walk.getParent() instanceof View ? (View) walk.getParent() : null;
+            }
+            page.scroll.smoothScrollTo(0, Math.max(0, top - Tokens.dp(context, Tokens.SPACE_12)));
+            Shimmer.play(row);
+        } catch (Throwable t) {
+            Debug.print("search: could not reveal '" + title + "': " + t);
+        }
+    }
+
+    private static RowView findRow(ViewGroup group, String title) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof RowView && title.equals(((RowView) child).title())) {
+                return (RowView) child;
+            }
+            if (child instanceof ViewGroup) {
+                RowView found = findRow((ViewGroup) child, title);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private void addCategoryContent(LinearLayout content, Category category) {
+        switch (category) {
+            case FEED:
+                addFeed(content);
+                break;
+            case CONTENT:
+                addContent(content);
+                break;
+            case PRIVACY:
+                addPrivacy(content);
+                break;
+            case DOWNLOAD:
+                addDownload(content);
+                break;
+            case MISC:
+                addMisc(content);
+                break;
+            case ABOUT:
+                addAbout(content);
+                break;
+        }
+    }
+
+    /** Search results built from the real rows, filtered as the field changes. */
+    private void showSearch() {
+        try {
+            openSearch();
+        } catch (Throwable t) {
+            // A search screen that cannot be built must not take the app down with it.
+            searching = false;
+            Debug.print("search: could not open: " + t);
+            showRoot(true);
+        }
+    }
+
+    private void openSearch() {
+        if (searching) return;
+        searching = true;
+        Page page = page(topBar("Search", false, false));
+        page.content.addView(pageIntro(
+                "Find a row by its name or what it does. Hold a row to open its group."));
+
+        EditText field = searchField();
+        LinearLayout.LayoutParams fieldParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, Tokens.dp(context, 44));
+        fieldParams.setMargins(
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_2),
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_1));
+        page.content.addView(field, fieldParams);
+
+        LinearLayout results = new LinearLayout(context);
+        results.setOrientation(LinearLayout.VERTICAL);
+        page.content.addView(results);
+
+        List<RowHit> hits = buildHits();
+        field.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                cancelPendingSearch();
+                final String query = s == null ? "" : s.toString();
+                pendingSearch = () -> renderHits(results, hits, query);
+                searchHandler.postDelayed(pendingSearch, SEARCH_DEBOUNCE_MS);
+            }
+        });
+        renderHits(results, hits, "");
+        show(page.root, true);
+
+        field.post(() -> {
+            field.requestFocus();
+            InputMethodManager keyboard =
+                    (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (keyboard != null) keyboard.showSoftInput(field, InputMethodManager.SHOW_IMPLICIT);
+        });
+    }
+
+    private void cancelPendingSearch() {
+        if (pendingSearch == null) return;
+        searchHandler.removeCallbacks(pendingSearch);
+        pendingSearch = null;
+    }
+
+    private EditText searchField() {
+        return TextField.create(context)
+                .hint("Search settings")
+                .imeOptions(EditorInfo.IME_ACTION_SEARCH)
+                .horizontalPaddingDp(Tokens.SPACE_4)
+                .alignStart()
+                .build();
+    }
+
+    /**
+     * Lays every group out once, in a detached container, and keeps the real rows. The same views
+     * the pages build are moved into the result list, so a setting is changed right there instead
+     * of in a copy of itself.
+     */
+    private List<RowHit> buildHits() {
+        List<RowHit> hits = new ArrayList<>();
+        for (Category category : Category.values()) {
+            LinearLayout scratch = new LinearLayout(context);
+            scratch.setOrientation(LinearLayout.VERTICAL);
+            addCategoryContent(scratch, category);
+            collectHits(scratch, category, hits);
+        }
+        return hits;
+    }
+
+    private static void collectHits(ViewGroup group, Category category, List<RowHit> out) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof RowView) {
+                RowView row = (RowView) child;
+                String title = row.title();
+                if (!title.isEmpty()) out.add(new RowHit(category, title, row.summary(), row));
+            } else if (child instanceof ViewGroup) {
+                collectHits((ViewGroup) child, category, out);
+            }
+        }
+    }
+
+    private void renderHits(LinearLayout results, List<RowHit> hits, String query) {
+        try {
+            renderHitsUnsafe(results, hits, query);
+        } catch (Throwable t) {
+            Debug.print("search: could not render results: " + t);
+        }
+    }
+
+    private void renderHitsUnsafe(LinearLayout results, List<RowHit> hits, String query) {
+        results.removeAllViews();
+        String needle = query.trim().toLowerCase(Locale.ROOT);
+        if (needle.isEmpty()) {
+            results.addView(searchNote("Type a name, or a word from a description."));
+            return;
+        }
+        int shown = 0;
+        for (RowHit hit : hits) {
+            if (shown >= MAX_SEARCH_ROWS) break;
+            if (!hit.matches(needle)) continue;
+            hit.row.setOnLongClickListener(view -> {
+                showCategory(hit.category, hit.title);
+                return true;
+            });
+            // A row still lives in the scratch container it was built in, or in a nested group
+            // there; a view can only have one parent, so it is detached before it is reused.
+            ViewParent parent = hit.row.getParent();
+            if (parent instanceof ViewGroup) ((ViewGroup) parent).removeView(hit.row);
+            results.addView(hit.row);
+            results.addView(divider(context));
+            shown++;
+        }
+        if (shown == 0) {
+            results.addView(searchNote("No setting matches \"" + query.trim() + "\"."));
+        }
+    }
+
+    private View searchNote(String text) {
+        TextView view = new TextView(context);
+        view.setText(text);
+        view.setTextSize(Tokens.SUBTITLE_SP);
+        view.setTextColor(Tokens.TEXT_SECONDARY);
+        view.setTypeface(Fonts.face(false));
+        view.setPadding(
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_3),
+                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, Tokens.SPACE_3));
+        return view;
+    }
+
+    /** A real row, and the group it was built for. */
+    private static final class RowHit {
+        final Category category;
+        final String title;
+        final String summary;
+        final RowView row;
+
+        RowHit(Category category, String title, String summary, RowView row) {
+            this.category = category;
+            this.title = title;
+            this.summary = summary;
+            this.row = row;
+        }
+
+        boolean matches(String needle) {
+            String lowerTitle = title.toLowerCase(Locale.ROOT);
+            String lowerSummary = summary == null ? "" : summary.toLowerCase(Locale.ROOT);
+            return lowerTitle.contains(needle) || lowerSummary.contains(needle);
+        }
+    }
     /** Slides the old page out and the new one in with a 1/4 parallax; the whole page moves. */
     private void show(View page, boolean forward) {
         if (transitioning) return;
@@ -246,22 +490,24 @@ public final class TweaksScreen extends FrameLayout {
         scroll.addView(content, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT,
                 ScrollView.LayoutParams.WRAP_CONTENT));
-        return new Page(root, content);
+        return new Page(root, scroll, content);
     }
 
-    /** A page's root (bar + scroll) and the content inside that scroll. */
+    /** A page's root (bar + scroll), the scroll itself, and the content inside it. */
     private static final class Page {
         final LinearLayout root;
+        final ScrollView scroll;
         final LinearLayout content;
 
-        Page(LinearLayout root, LinearLayout content) {
+        Page(LinearLayout root, ScrollView scroll, LinearLayout content) {
             this.root = root;
+            this.scroll = scroll;
             this.content = content;
         }
     }
 
     /** Shared top bar. The arrow goes back, or closes the screen on the root page. */
-    private View topBar(String titleText, boolean root) {
+    private View topBar(String titleText, boolean root, boolean search) {
         LinearLayout bar = new LinearLayout(context);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
@@ -269,7 +515,7 @@ public final class TweaksScreen extends FrameLayout {
         bar.setPadding(
                 Tokens.dp(context, Tokens.SPACE_4),
                 0,
-                Tokens.dp(context, Tokens.SPACE_4),
+                Tokens.dp(context, search ? Tokens.SPACE_2 : Tokens.SPACE_4),
                 0);
 
         FrameLayout back = new FrameLayout(context);
@@ -304,6 +550,23 @@ public final class TweaksScreen extends FrameLayout {
         title.setIncludeFontPadding(false);
         bar.addView(title, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        if (search) {
+            FrameLayout button = new FrameLayout(context);
+            button.setClickable(true);
+            button.setFocusable(true);
+            button.setContentDescription("Search settings");
+            button.setOnClickListener(view -> showSearch());
+            SearchIconView icon = new SearchIconView(context);
+            FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(
+                    Tokens.dp(context, Tokens.SPACE_6),
+                    Tokens.dp(context, Tokens.SPACE_6));
+            iconParams.gravity = Gravity.CENTER;
+            button.addView(icon, iconParams);
+            bar.addView(button, new LinearLayout.LayoutParams(
+                    Tokens.dp(context, Tokens.SPACE_12),
+                    Tokens.dp(context, Tokens.SPACE_12)));
+        }
         return bar;
     }
 

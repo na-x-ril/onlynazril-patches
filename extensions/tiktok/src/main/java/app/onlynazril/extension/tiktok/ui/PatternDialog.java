@@ -225,24 +225,10 @@ public final class PatternDialog {
     }
 
     private static EditText field(Context context, String value) {
-        EditText field = new EditText(context);
-        field.setHint("d MMM yyyy");
-        field.setText(value);
-        field.setTextSize(Tokens.ACTION_SP);
-        field.setTextColor(Tokens.TEXT_PRIMARY);
-        field.setHintTextColor(Tokens.TEXT_DISABLED);
-        field.setTypeface(Fonts.face(false));
-        field.setGravity(Gravity.CENTER);
-        field.setSingleLine(true);
-        field.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        field.setImeOptions(EditorInfo.IME_ACTION_DONE);
-        field.setPadding(
-                Tokens.dp(context, Tokens.SPACE_2), 0,
-                Tokens.dp(context, Tokens.SPACE_2), 0);
-        field.setBackground(ActionView.outline(context, Tokens.PANEL));
-        field.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, Tokens.dp(context, 44)));
-        return field;
+        return TextField.create(context)
+                .hint("d MMM yyyy")
+                .text(value)
+                .build();
     }
 
     private static TextView secondary(Context context) {

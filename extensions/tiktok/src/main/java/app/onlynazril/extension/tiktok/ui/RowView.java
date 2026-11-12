@@ -56,6 +56,16 @@ public final class RowView extends LinearLayout {
         }
     }
 
+    /** The row's own title, for the search index. */
+    public String title() {
+        return titleView.getText().toString();
+    }
+
+    /** The row's summary, or null when it has none. */
+    public String summary() {
+        return summaryView == null ? null : summaryView.getText().toString();
+    }
+
     /**
      * Greys the row out and makes its control inert, without touching the control's own value:
      * a switch that is off with the master stays visibly on so it comes back the same way.

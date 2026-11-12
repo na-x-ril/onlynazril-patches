@@ -163,24 +163,13 @@ public final class RangeDialog {
     }
 
     private static EditText field(Context context, String hint, String value) {
-        EditText field = new EditText(context);
-        field.setHint(hint);
-        field.setText(value);
-        field.setTextSize(Tokens.ACTION_SP);
-        field.setTextColor(Tokens.TEXT_PRIMARY);
-        field.setTypeface(Fonts.face(false));
-        field.setHintTextColor(Tokens.TEXT_DISABLED);
-        field.setGravity(Gravity.CENTER);
-        field.setSingleLine(true);
-        field.setInputType(InputType.TYPE_CLASS_NUMBER);
-        field.setImeOptions(EditorInfo.IME_ACTION_DONE);
-        field.setPadding(
-                Tokens.dp(context, Tokens.SPACE_2), 0,
-                Tokens.dp(context, Tokens.SPACE_2), 0);
-        field.setBackground(ActionView.outline(context, Tokens.PANEL));
-        field.setLayoutParams(new LinearLayout.LayoutParams(
-                Tokens.dp(context, 96), Tokens.dp(context, 44)));
-        return field;
+        return TextField.create(context)
+                .hint(hint)
+                .text(value)
+                .inputType(InputType.TYPE_CLASS_NUMBER)
+                .imeOptions(EditorInfo.IME_ACTION_DONE)
+                .widthDp(96)
+                .build();
     }
 
     private static TextView dash(Context context) {
