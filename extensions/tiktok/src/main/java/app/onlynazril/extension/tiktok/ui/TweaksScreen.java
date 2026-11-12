@@ -21,7 +21,10 @@ import android.widget.TextView;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
+import app.onlynazril.extension.tiktok.AppLocale;
+import app.onlynazril.extension.tiktok.CountryName;
 import app.onlynazril.extension.tiktok.CustomFontBridge;
 import app.onlynazril.extension.tiktok.Surfaces;
 import app.onlynazril.extension.tiktok.feedfilter.FeedFilterStats;
@@ -356,6 +359,12 @@ public final class TweaksScreen extends FrameLayout {
         }
 
         page.addView(divider(context));
+        String country = CountryName.of(context, "ID");
+        String[] regionExamples = {
+                "28m ago",
+                "28m ago \u00b7 ID",
+                "28m ago \u00b7 " + country,
+        };
         page.addView(new RowView(
                 context,
                 "Display country",
@@ -364,6 +373,7 @@ public final class TweaksScreen extends FrameLayout {
                 ChoiceAction.create(context, "Display country",
                         "Name follows the app language.",
                         REGION_MODES,
+                        regionExamples,
                         HandleSettings.regionMode(context),
                         index -> HandleSettings.setRegionMode(context, index))));
         page.addView(divider(context));
@@ -376,35 +386,75 @@ public final class TweaksScreen extends FrameLayout {
                         + "language's own spacing.",
                 toggle(context, HandleSettings.isCompactEnabled(context),
                         checked -> HandleSettings.setCompactEnabled(context, checked)));
+        RowView patternRow = new RowView(
+                context,
+                "Custom pattern",
+                "A SimpleDateFormat pattern, checked against a real date before it is saved.",
+                new ActionView(context, "Edit", () -> PatternDialog.show(
+                        context,
+                        "Custom pattern",
+                        "Letters: d day, M month, y year, H hour, m minute. Quote text with '...'.",
+                        HandleSettings.customDatePattern(context),
+                        pattern -> {
+                            HandleSettings.setCustomDatePattern(context, pattern);
+                            HandleSettings.setDateFormat(context, PostDateFormat.CUSTOM);
+                        })));
+        // The pattern only exists while Custom is the chosen format, so the row and its divider
+        // travel together and stay out of the page otherwise.
+        LinearLayout patternGroup = new LinearLayout(context);
+        patternGroup.setOrientation(LinearLayout.VERTICAL);
+        patternGroup.addView(divider(context));
+        patternGroup.addView(patternRow);
+
         RowView dateRow = new RowView(
                 context,
                 "Date format",
-                "How a post older than a week is written. Auto keeps the compact current-year form "
-                        + "and adds the year on older posts.",
+                "How a post or comment older than a week is written. Auto follows the app "
+                        + "language and adds the year once the post is from another year; Custom "
+                        + "asks for a pattern right below.",
                 ChoiceAction.create(context, "Date format",
-                        "Auto adds the year for posts from another year.",
+                        "Auto adds the year for posts and comments from another year.",
                         PostDateFormat.labels(),
+                        () -> dateExamples(context),
                         HandleSettings.dateFormat(context).ordinal(),
-                        index -> HandleSettings.setDateFormat(
-                                context, PostDateFormat.fromStored(index))));
+                        index -> {
+                            HandleSettings.setDateFormat(context, PostDateFormat.at(index));
+                            syncPatternGroup(context, patternGroup);
+                        }));
+        RowView clockRow = new RowView(
+                context,
+                "Hour in dates",
+                "Show the hour and minute next to the date, on a post and on a comment, once it "
+                        + "is four weeks old. Recent items keep their relative age.",
+                toggle(context, HandleSettings.isClockEnabled(context),
+                        checked -> HandleSettings.setClockEnabled(context, checked)));
         ToggleView postTimeToggle = toggle(context, postTimeOn, checked -> {
             HandleSettings.setPostTimeEnabled(context, checked);
             compactRow.setRowEnabled(checked);
             dateRow.setRowEnabled(checked);
+            patternRow.setRowEnabled(checked);
+            clockRow.setRowEnabled(checked);
         });
         page.addView(new RowView(
                 context,
                 "Post time",
-                "Show when the video was posted, even when TikTok hides it. Off removes the time, "
-                        + "including TikTok's own. Other languages use CLDR wording, so the text may "
-                        + "differ slightly from TikTok's own.",
+                "Show when the video was posted, even when TikTok hides it. Comments are dated the "
+                        + "same way. Off leaves comments as TikTok wrote them and removes the time in "
+                        + "the feed, including TikTok's own. Other languages use CLDR wording, so the "
+                        + "text may differ slightly from TikTok's own.",
                 postTimeToggle));
         page.addView(divider(context));
         page.addView(compactRow);
         page.addView(divider(context));
         page.addView(dateRow);
+        page.addView(patternGroup);
+        page.addView(divider(context));
+        page.addView(clockRow);
+        syncPatternGroup(context, patternGroup);
         compactRow.setRowEnabled(postTimeOn);
         dateRow.setRowEnabled(postTimeOn);
+        patternRow.setRowEnabled(postTimeOn);
+        clockRow.setRowEnabled(postTimeOn);
 
         masterToggle.setOnCheckedChangeListener(checked -> {
             HandleSettings.setEnabled(context, checked);
@@ -659,6 +709,32 @@ public final class TweaksScreen extends FrameLayout {
                         + "The display name is read, never rewritten."));
         page.addView(diagnostics(context));
         page.addView(actions(context));
+    }
+
+    /** The pattern row only means something while Custom is the chosen format. */
+    private static void syncPatternGroup(Context context, View group) {
+        boolean custom = HandleSettings.dateFormat(context) == PostDateFormat.CUSTOM;
+        group.setVisibility(custom ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * The sample under each date format. Custom shows what the saved pattern writes, or says it is
+     * unset, so the choice never claims a shape the app would not produce.
+     */
+    private static String[] dateExamples(Context context) {
+        Locale locale = AppLocale.of(context);
+        String custom = HandleSettings.customDatePattern(context);
+        String usable = PostDateFormat.isValidPattern(custom, locale) ? custom.trim() : null;
+        String[] examples = PostDateFormat.examples(
+                locale,
+                System.currentTimeMillis() - 400L * 24L * 60L * 60L * 1000L,
+                HandleSettings.isClockEnabled(context),
+                usable);
+        int customIndex = PostDateFormat.CUSTOM.ordinal();
+        if (usable == null && customIndex < examples.length) {
+            examples[customIndex] = "no pattern set";
+        }
+        return examples;
     }
 
     private String feedSummary() {

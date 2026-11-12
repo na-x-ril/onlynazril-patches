@@ -39,12 +39,25 @@ public final class ChoiceDialog {
             String[] labels,
             int selected,
             OnChoiceListener save) {
+        show(context, title, hintText, labels, null, selected, save);
+    }
+
+    /** `details`, when present, is one example line per label; it is never saved. */
+    public static void show(
+            Context context,
+            String title,
+            String hintText,
+            String[] labels,
+            String[] details,
+            int selected,
+            OnChoiceListener save) {
         Activity activity = Activities.of(context);
         if (activity == null || activity.isFinishing()) return;
 
         Dialog dialog = new Dialog(activity);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(panel(activity, dialog, title, hintText, labels, selected, save));
+        dialog.setContentView(
+                panel(activity, dialog, title, hintText, labels, details, selected, save));
 
         Window window = dialog.getWindow();
         if (window != null) {
@@ -67,6 +80,7 @@ public final class ChoiceDialog {
             String title,
             String hintText,
             String[] labels,
+            String[] details,
             int selected,
             OnChoiceListener save) {
         LinearLayout column = new LinearLayout(activity);
@@ -111,7 +125,7 @@ public final class ChoiceDialog {
                     Tokens.dp(activity, Tokens.SPACE_2),
                     Tokens.dp(activity, Tokens.SPACE_4),
                     Tokens.dp(activity, Tokens.SPACE_2));
-            option.setBackground(ActionView.outline(activity, Tokens.PANEL));
+            option.setBackground(optionBackground(activity, i == selected));
             option.setClickable(true);
             option.setFocusable(true);
             option.setContentDescription(labels[i]);
@@ -128,7 +142,7 @@ public final class ChoiceDialog {
                 mark.setVisibility(View.INVISIBLE);
             }
             LinearLayout.LayoutParams markParams = new LinearLayout.LayoutParams(
-                    Tokens.dp(activity, Tokens.SPACE_4), Tokens.dp(activity, Tokens.SPACE_4));
+                    Tokens.dp(activity, CheckView.SIZE_DP), Tokens.dp(activity, CheckView.SIZE_DP));
             markParams.rightMargin = Tokens.dp(activity, Tokens.SPACE_2);
             option.addView(mark, markParams);
 
@@ -137,8 +151,28 @@ public final class ChoiceDialog {
             label.setTextSize(Tokens.ACTION_SP);
             label.setTextColor(i == selected ? Tokens.ACCENT : Tokens.TEXT_PRIMARY);
             label.setTypeface(Fonts.face(false));
-            option.addView(label, new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            String detail = details != null && i < details.length ? details[i] : null;
+            if (detail == null || detail.isEmpty()) {
+                option.addView(label, new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            } else {
+                LinearLayout textColumn = new LinearLayout(activity);
+                textColumn.setOrientation(LinearLayout.VERTICAL);
+                textColumn.addView(label, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+                TextView example = new TextView(activity);
+                example.setText(detail);
+                example.setTextSize(Tokens.SUBTITLE_SP);
+                example.setTextColor(Tokens.TEXT_SECONDARY);
+                example.setTypeface(Fonts.face(false));
+                textColumn.addView(example, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+                option.addView(textColumn, new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            }
 
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -166,6 +200,27 @@ public final class ChoiceDialog {
         column.addView(cancel, cancelParams);
 
         return column;
+    }
+
+    /**
+     * The selected row is filled and outlined in white, so the current choice reads at a glance
+     * and not only from the mark. Both colors are translucent, which keeps them out of the AMOLED
+     * pass's opaque dark constants.
+     */
+    private static Drawable optionBackground(Context context, boolean selected) {
+        int radius = Tokens.dp(context, 1000);
+        GradientDrawable shape = new GradientDrawable();
+        shape.setShape(GradientDrawable.RECTANGLE);
+        shape.setCornerRadius(radius);
+        shape.setColor(selected ? Tokens.CHOICE_SELECTED : Tokens.SURFACE);
+        shape.setStroke(
+                Tokens.dp(context, 1),
+                selected ? Tokens.CHOICE_SELECTED_BORDER : Tokens.HAIRLINE);
+        GradientDrawable mask = new GradientDrawable();
+        mask.setShape(GradientDrawable.RECTANGLE);
+        mask.setCornerRadius(radius);
+        mask.setColor(Color.WHITE);
+        return new RippleDrawable(ColorStateList.valueOf(Tokens.SURFACE_PRESSED), shape, mask);
     }
 
     private static Drawable panelBackground(Context context) {

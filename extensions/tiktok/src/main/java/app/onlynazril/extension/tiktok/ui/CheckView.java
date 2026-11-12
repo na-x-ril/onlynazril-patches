@@ -8,8 +8,9 @@ import android.view.View;
 
 /** The selected-option mark, drawn with round ends like the row chevron and the back arrow. */
 public final class CheckView extends View {
-    private static final float SIZE_DP = 16f;
-    private static final float STROKE_DP = 2f;
+    /** Kept public so the dialog can size the mark's slot to the mark. */
+    public static final float SIZE_DP = 26f;
+    private static final float STROKE_DP = 2.4f;
 
     private static final float VIEWPORT = 24f;
     private static final float START_X = 4.5f;

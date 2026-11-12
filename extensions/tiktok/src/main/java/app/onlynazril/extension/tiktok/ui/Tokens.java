@@ -6,8 +6,8 @@ import android.util.TypedValue;
 /**
  * One source of truth for the screen's look. Monochrome AMOLED: a pure black canvas, structure
  * only from hairlines and spacing, a single light accent, no cards or gradients.
- *
- * Nothing here is borrowed from the app's theme, so the screen never inherits a colour, a shape
+ * <p>
+ * Nothing here is borrowed from the app's theme, so the screen never inherits a color, a shape
  * or a type scale from TikTok.
  */
 public final class Tokens {
@@ -18,6 +18,13 @@ public final class Tokens {
 
     /** The prompt's own panel, one step lighter than the rows it sits above. */
     public static final int PANEL = BACKGROUND;
+
+    /**
+     * The selected choice's fill and outline. Translucent on purpose: the AMOLED pass rewrites
+     * opaque dark constants, and a selected row must stay visible under it.
+     */
+    public static final int CHOICE_SELECTED = 0x1FFFFFFF;
+    public static final int CHOICE_SELECTED_BORDER = 0x66FFFFFF;
 
     public static final int BG_WHITE = 0xFFFFFFFF;
     public static final int TEXT_ON_LIGHT = 0xFF121212;
