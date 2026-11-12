@@ -125,6 +125,7 @@ public final class SettingsBackup {
         root.put("download_best_quality", DownloadSettings.isBestQualityEnabled(context));
 
         root.put("profile_bg_enabled", ProfileBgSettings.isEnabled(context));
+        root.put("keep_screen_enabled", KeepScreenSettings.isEnabled(context));
         root.put("refresh_rate_fps", RefreshRateSettings.fps(context));
         root.put("pause_image_search_disabled", PauseImageSearchSettings.isDisabled(context));
         return root.toString(2);
@@ -229,6 +230,9 @@ public final class SettingsBackup {
 
             if (root.has("profile_bg_enabled")) {
                 ProfileBgSettings.setEnabled(context, root.optBoolean("profile_bg_enabled"));
+            }
+            if (root.has("keep_screen_enabled")) {
+                KeepScreenSettings.setEnabled(context, root.optBoolean("keep_screen_enabled"));
             }
             if (root.has("refresh_rate_fps")) {
                 RefreshRateSettings.setFps(context, root.optInt("refresh_rate_fps"));

@@ -26,6 +26,7 @@ import java.util.Locale;
 import app.onlynazril.extension.tiktok.AppLocale;
 import app.onlynazril.extension.tiktok.CountryName;
 import app.onlynazril.extension.tiktok.CustomFontBridge;
+import app.onlynazril.extension.tiktok.KeepScreenBridge;
 import app.onlynazril.extension.tiktok.Surfaces;
 import app.onlynazril.extension.tiktok.feedfilter.FeedFilterStats;
 import app.onlynazril.extension.tiktok.internal.Activities;
@@ -39,6 +40,7 @@ import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
+import app.onlynazril.extension.tiktok.settings.KeepScreenSettings;
 import app.onlynazril.extension.tiktok.settings.PostDateFormat;
 import app.onlynazril.extension.tiktok.settings.PauseImageSearchSettings;
 import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
@@ -675,6 +677,16 @@ public final class TweaksScreen extends FrameLayout {
     }
 
     private void addMisc(LinearLayout page) {
+        page.addView(section(context, "Display"));
+        page.addView(new RowView(
+                context,
+                "Keep screen on",
+                "Keep the display awake while TikTok is open. Off returns the system screen timeout.",
+                toggle(context, KeepScreenSettings.isEnabled(context), checked -> {
+                    KeepScreenSettings.setEnabled(context, checked);
+                    KeepScreenBridge.apply(Activities.of(context));
+                })));
+
         page.addView(section(context, "Refresh rate"));
         int rateIndex = rateIndex(RefreshRateSettings.fps(context));
         page.addView(new RowView(
