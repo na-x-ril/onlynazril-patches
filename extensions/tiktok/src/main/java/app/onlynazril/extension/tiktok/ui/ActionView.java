@@ -25,7 +25,7 @@ public final class ActionView extends TextView {
         super(context);
         setText(label);
         setTextSize(Tokens.ACTION_SP);
-        setTextColor(textColor);
+        setTextColor(stateList(textColor));
         setTypeface(Fonts.face(false));
         setGravity(Gravity.CENTER);
         setPadding(
@@ -61,5 +61,15 @@ public final class ActionView extends TextView {
         mask.setColor(0xFFFFFFFF);
 
         return new RippleDrawable(ColorStateList.valueOf(Tokens.SURFACE_PRESSED), shape, mask);
+    }
+
+    /**
+     * An enabled/disabled pair, so a row that greys out greys its button label with it; a plain
+     * colour would keep the label at full strength because a TextView does not dim itself.
+     */
+    private static ColorStateList stateList(int enabledColor) {
+        return new ColorStateList(
+                new int[][] {{android.R.attr.state_enabled}, new int[0]},
+                new int[] {enabledColor, Tokens.TEXT_DISABLED});
     }
 }

@@ -47,6 +47,7 @@ import app.onlynazril.extension.tiktok.settings.ProfileBgSettings;
 import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
 import app.onlynazril.extension.tiktok.settings.ResumePlaybackSettings;
 import app.onlynazril.extension.tiktok.settings.SettingsBackup;
+import app.onlynazril.extension.tiktok.settings.SettingsReset;
 
 /**
  * Tweaks screen: a root category list and one full page per category.
@@ -712,6 +713,22 @@ public final class TweaksScreen extends FrameLayout {
                 "Import settings",
                 "Load settings from a JSON file.",
                 new ActionView(context, "Import", () -> importSettings(context))));
+        page.addView(divider(context));
+        page.addView(new RowView(
+                context,
+                "Reset to defaults",
+                "Every switch in this bundle goes back to its default. This cannot be undone.",
+                new ActionView(context, "Reset", () -> Prompt.show(
+                        context,
+                        "Reset settings?",
+                        "Every switch goes back to its default. Imported filters, the chosen font "
+                                + "and the saved surfaces are cleared too.",
+                        "Reset",
+                        () -> {
+                            SettingsReset.reset(context);
+                            showRoot(false);
+                            RestartPrompt.askNow(context);
+                        }))));
     }
 
     private void addAbout(LinearLayout page) {
