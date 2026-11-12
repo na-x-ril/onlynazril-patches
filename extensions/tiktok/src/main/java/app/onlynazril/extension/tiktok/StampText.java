@@ -1,9 +1,8 @@
 package app.onlynazril.extension.tiktok;
 
 import android.os.Build;
+import android.text.format.DateUtils;
 import android.widget.TextView;
-
-import app.onlynazril.extension.tiktok.settings.PostDateFormat;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -14,15 +13,15 @@ import java.util.regex.Pattern;
 
 /**
  * The text the elements write, and the one place that decides its shape.
- *
+ * <p>
  * Three switches are only readable on screen if the line they produce is predictable: the handle
- * stays on the name, the time keeps TikTok's position and colour, and the region follows the time.
+ * stays on the name, the time keeps TikTok's position and color, and the region follows the time.
  * A writer composing its own string is how the same region ended up inside a name on one surface
  * and on the time view on another, so every writer comes here instead.
- *
+ * <p>
  * The text a view already carries is never trusted on its own. A recycled view still holds the
  * previous video's text when it is handed over, and that text is shaped exactly like this item's, so
- * it is rebuilt from this item's own values whenever it can be recognised as ours, and an age-shaped
+ * it is rebuilt from this item's own values whenever it can be recognized as ours, and an age-shaped
  * text that disagrees with this item is replaced.
  */
 public final class StampText {
@@ -56,7 +55,7 @@ public final class StampText {
 
     /**
      * The feed header's time line: a dot in front of the time, then the region when it is on.
-     *
+     * <p>
      * With no time on the view — TikTok hides it and the post time is off — the region is written on
      * its own, so the region switch never depends on the post-time switch: a country code has a
      * place here whether or not a time does.
@@ -87,14 +86,17 @@ public final class StampText {
     /**
      * The time text this extension writes. The epoch is the source: TikTok's own text is used only
      * when the item carries no create time, so the same video reads the same on every surface.
+     * <p>
+     * `withClock` appends the locale's short time to a date, which is what a comment older than a
+     * week shows; the feed keeps the date alone.
      */
     public static String timeText(
             TextView timeView, String current, long createTime, boolean allowOurs, boolean compact,
-            PostDateFormat dateFormat) {
+            String pattern, boolean withClock) {
         String fallback = baseText(timeView, current);
         if (!allowOurs) return fallback;
         Locale locale = AppLocale.of(timeView.getContext());
-        String expected = relative(createTime, locale, compact, dateFormat);
+        String expected = relative(createTime, locale, compact, pattern, withClock);
         return expected.isEmpty() ? fallback : expected;
     }
 
@@ -123,22 +125,22 @@ public final class StampText {
 
     /**
      * Compact age in the app's language. English and Indonesian follow TikTok's own shapes; every
-     * other locale uses the platform CLDR formatter, whose wording may differ from TikTok's.
+     * other locale uses CLDR on API 24+, and the platform's own aging text on API 23, where
+     * `android.icu` does not exist yet. Their wording may differ from TikTok's.
      */
-    private static String relative(long createTime, Locale locale, boolean compact, PostDateFormat dateFormat) {
+    private static String relative(
+            long createTime, Locale locale, boolean compact, String pattern, boolean withClock) {
         if (createTime <= 0) return "";
         long millis = createTime < SECONDS_LIMIT ? createTime * 1000L : createTime;
         long delta = System.currentTimeMillis() - millis;
         if (isIndonesian(locale)) {
-            if (delta < MINUTE) {
-                long seconds = delta / 1000L;
-                return seconds <= 0 ? "baru saja" : unit(seconds, "dtk", "lalu", compact);
-            }
+            if (delta < MINUTE) return "baru saja";
             if (delta < HOUR) return unit(delta / MINUTE, "mnt", "lalu", compact);
             if (delta < DAY) return unit(delta / HOUR, "j", "lalu", compact);
             long days = delta / DAY;
             if (days <= 7) return unit(days, "h", "lalu", compact);
-            return date(millis, locale, "%1$td-%1$tm", dateFormat);
+            if (days < 28) return unit(days / 7, "mgg", "lalu", compact);
+            return date(millis, locale, pattern, withClock);
         }
         if (isEnglish(locale)) {
             if (delta < MINUTE) return "now";
@@ -146,33 +148,63 @@ public final class StampText {
             if (delta < DAY) return unit(delta / HOUR, "h", "ago", compact);
             long days = delta / DAY;
             if (days <= 7) return unit(days, "d", "ago", compact);
-            return date(millis, locale, "%1$tm-%1$td", dateFormat);
+            if (days < 28) return unit(days / 7, "w", "ago", compact);
+            return date(millis, locale, pattern, withClock);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            return IcuAgeText.relative(delta, millis, locale, compact, dateFormat);
+            return IcuAgeText.relative(delta, millis, locale, compact, pattern, withClock);
         }
-        return "";
+        if (delta >= 28 * DAY) return date(millis, locale, pattern, withClock);
+        return platformAge(delta, compact);
     }
 
     /**
-     * A date without the year while it is this year, and a full localized date otherwise, so an
-     * older post cannot read as one from this year. An explicit format overrides both.
+     * The aging text Android itself localizes, for API 23 in a language without a hand-tuned
+     * formatter. Seconds are the resolution under a minute, so the text is not a flat "0 minutes".
      */
-    static String date(long millis, Locale locale, String sameYearPattern, PostDateFormat dateFormat) {
+    private static String platformAge(long delta, boolean compact) {
+        long now = System.currentTimeMillis();
+        long then = now - delta;
+        long resolution = delta < MINUTE ? DateUtils.SECOND_IN_MILLIS : DateUtils.MINUTE_IN_MILLIS;
+        CharSequence text = DateUtils.getRelativeTimeSpanString(
+                then, now, resolution, DateUtils.FORMAT_ABBREV_RELATIVE);
+        String age = text == null ? "" : text.toString();
+        return compact ? withoutUnitSpace(age) : age;
+    }
+
+    /** Drops the space between a number and a short unit: `2 h` becomes `2h`. */
+    private static String withoutUnitSpace(String text) {
+        return text.replaceAll("(?<=\\d)[\\s\\u00A0\\u202F]+(?=\\S{1,2}(?:\\s|$))", "");
+    }
+
+    /**
+     * A date through the locale's own skeleton: month and day while it is this year, the year too
+     * otherwise. An explicit format overrides both, and `withClock` appends the short time.
+     */
+    public static String date(
+            long millis, Locale locale, String pattern, boolean withClock) {
         Date value = new Date(millis);
-        if (dateFormat.pattern != null) {
-            return new SimpleDateFormat(dateFormat.pattern, locale).format(value);
+        String day;
+        try {
+            day = pattern != null
+                    ? new SimpleDateFormat(pattern, locale).format(value)
+                    : automaticDate(millis, locale, value);
+        } catch (IllegalArgumentException ex) {
+            // A stored custom pattern that no longer parses must not take a render down with it.
+            day = automaticDate(millis, locale, value);
         }
-        if (sameYearPattern == null) {
-            return DateFormat.getDateInstance(DateFormat.SHORT, locale).format(value);
-        }
+        if (!withClock) return day;
+        return day + ", " + DateFormat.getTimeInstance(DateFormat.SHORT, locale).format(value);
+    }
+
+    /** The locale's own month-and-day skeleton, with the year once the instant is another year. */
+    private static String automaticDate(long millis, Locale locale, Date value) {
         Calendar now = Calendar.getInstance();
         Calendar then = Calendar.getInstance();
         then.setTimeInMillis(millis);
-        if (now.get(Calendar.YEAR) == then.get(Calendar.YEAR)) {
-            return String.format(Locale.ROOT, sameYearPattern, millis);
-        }
-        return DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(value);
+        String skeleton = now.get(Calendar.YEAR) == then.get(Calendar.YEAR) ? "MMMd" : "yMMMd";
+        String pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton);
+        return new SimpleDateFormat(pattern, locale).format(value);
     }
 
     private static String unit(long value, String unit, String suffix, boolean compact) {

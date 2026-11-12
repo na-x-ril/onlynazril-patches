@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Exports every switch to one JSON object and loads it back.
- *
+ * <p>
  * The format is flat and versioned. Import only touches keys the file carries, so an older or
  * partial file leaves the rest of the settings alone.
  */
@@ -94,7 +94,9 @@ public final class SettingsBackup {
         root.put("region_name", HandleSettings.isRegionName(context));
         root.put("post_time_enabled", HandleSettings.isPostTimeEnabled(context));
         root.put("post_time_compact", HandleSettings.isCompactEnabled(context));
-        root.put("date_format", HandleSettings.dateFormat(context).ordinal());
+        root.put("clock", HandleSettings.isClockEnabled(context));
+        root.put("date_format", HandleSettings.dateFormat(context).stored);
+        root.put("date_pattern", HandleSettings.customDatePattern(context));
         root.put("surface_feed", HandleSettings.isSurfaceEnabled(context, Surfaces.FEED));
         root.put("surface_comments", HandleSettings.isSurfaceEnabled(context, Surfaces.COMMENTS));
 
@@ -148,9 +150,18 @@ public final class SettingsBackup {
             if (root.has("post_time_compact")) {
                 HandleSettings.setCompactEnabled(context, root.optBoolean("post_time_compact"));
             }
+            if (root.has("clock")) {
+                HandleSettings.setClockEnabled(context, root.optBoolean("clock"));
+            } else if (root.has("comment_clock")) {
+                // Backups written while the switch was comment-only.
+                HandleSettings.setClockEnabled(context, root.optBoolean("comment_clock"));
+            }
             if (root.has("date_format")) {
                 HandleSettings.setDateFormat(
                         context, PostDateFormat.fromStored(root.optInt("date_format")));
+            }
+            if (root.has("date_pattern")) {
+                HandleSettings.setCustomDatePattern(context, root.optString("date_pattern"));
             }
             if (root.has("surface_feed")) {
                 HandleSettings.setSurfaceEnabled(

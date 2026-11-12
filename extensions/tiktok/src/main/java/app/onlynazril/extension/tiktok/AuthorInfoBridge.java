@@ -17,24 +17,23 @@ import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.Reflect;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
-import app.onlynazril.extension.tiktok.settings.PostDateFormat;
 
 /**
  * The feed header's post-time view.
- *
+ * <p>
  * Two things shape this class. The view is only reachable by id (`tv_post_time`; the header's other
  * ids are obfuscated), so the root view is taken at view creation and the time view resolved once
  * from it. And the values must come from *the item this header is showing*, read off the component
- * itself: reading a "last seen" value at write time gives the neighbouring video's region and age,
+ * itself: reading a "last seen" value at write time gives the neighboring video's region and age,
  * which is what a shared, deferred value produces once the list starts prefetching.
- *
+ * <p>
  * This class writes one view and owns nothing beyond it: the region comes from `RegionSource`, the
  * text from `StampText`. The post time and the region are therefore two switches over one line
  * rather than two writers over one view — a view can only be written once per bind, so both switches
  * have to be read before that write, not after it.
- *
- * Writing here rather than appending to the author name is also what gives the region its colour:
- * the time view already carries TikTok's dimmer colour, while a suffix in the name would take the
+ * <p>
+ * Writing here rather than appending to the author name is also what gives the region its color:
+ * the time view already carries TikTok's dimmer color, while a suffix in the name would take the
  * name's, and a String return from the name getter cannot carry a per-part span.
  */
 public final class AuthorInfoBridge {
@@ -129,7 +128,7 @@ public final class AuthorInfoBridge {
 
     private static void apply(View view, Object aweme) {
         try {
-            if (!(view instanceof TextView)) {
+            if (!(view instanceof TextView timeView)) {
                 reportGate("the time view is not a TextView");
                 return;
             }
@@ -138,7 +137,6 @@ public final class AuthorInfoBridge {
                 return;
             }
 
-            TextView timeView = (TextView) view;
             boolean showTime = HandleSettings.timeOn(Surfaces.FEED);
             boolean showRegion = HandleSettings.regionOn(Surfaces.FEED);
             long createTime = createTimeOf(aweme);
@@ -149,9 +147,15 @@ public final class AuthorInfoBridge {
             // cannot look like. What may remain is the region, which is a separate switch.
             String current = currentText(timeView);
             boolean compact = HandleSettings.isCompactEnabled(timeView.getContext());
-            PostDateFormat dateFormat = HandleSettings.dateFormat(timeView.getContext());
             String base = showTime
-                    ? StampText.timeText(timeView, current, createTime, true, compact, dateFormat)
+                    ? StampText.timeText(
+                            timeView,
+                            current,
+                            createTime,
+                            true,
+                            compact,
+                            HandleSettings.datePattern(timeView.getContext()),
+                            HandleSettings.isClockEnabled(timeView.getContext()))
                     : "";
             String region = showRegion ? RegionSource.forAweme(aweme) : null;
             if (region != null && HandleSettings.isRegionName(timeView.getContext())) {
@@ -262,7 +266,7 @@ public final class AuthorInfoBridge {
 
     /**
      * Puts the rendered line back when something else writes over the time view.
-     *
+     * <p>
      * The post time is not written by the component this patch hooks: the header is also updated
      * from the view model's state, and that path sets the time text itself. Which of the two writes
      * lands last is a question of timing, so the answer is not one more hook but a view that always
@@ -287,8 +291,7 @@ public final class AuthorInfoBridge {
         public void afterTextChanged(Editable editable) {
             if (writing) return;
             Object tag = view.getTag(StampText.TARGET_TAG);
-            if (!(tag instanceof String)) return;
-            String target = (String) tag;
+            if (!(tag instanceof String target)) return;
             String current = editable == null ? "" : editable.toString();
             if (target.equals(current)) return;
             writing = true;

@@ -46,7 +46,7 @@ the code that implements each hook is the source of truth for its shape.
 | `VideoAuthorInfoRelationAssem` item renderer `(Aweme) -> V` | the item being rendered (the source of time and region) | three methods have the `(Aweme) -> V` shape; the one used is the only one that calls another `(Aweme) -> V` method on itself, while the others call a no-argument or an int-returning method | patch fails (the anchor has to be unique) |
 | id `tv_post_time` (resource) | finding the time TextView | the resource name is readable; the header's other ids are obfuscated | nothing is written, and it is logged |
 | `Aweme#getCreateTime()` | the source of the post time | real-named getter | the post time is not filled in when TikTok hides it |
-| `BaseCommentCell` (comment list), the method that reads `Comment#getCreateTime` and then writes text | the comment's time view, where the region is written; the comment is fetched again through the getter that filled the `getCreateTime` receiver register | the method name is obfuscated (`S8` on 47.7.1, `T8` on 47.7.3) and it writes the time twice, in two branches, so the pairs of calls are the anchor. 47.7.1 reuses the comment register for an unrelated check before the write, so the register is not treated as live across the pair | patch fails (`Comment: … writes no text after a create time`) |
+| `BaseCommentCell` (comment list), the method that reads `Comment#getCreateTime` and then writes text | the comment's time view, where the post time and the region are written; the comment is fetched again through the getter that filled the `getCreateTime` receiver register | the method name is obfuscated (`S8` on 47.7.1, `T8` on 47.7.3) and it writes the time twice, in two branches, so the pairs of calls are the anchor. 47.7.1 reuses the comment register for an unrelated check before the write, so the register is not treated as live across the pair | patch fails (`Comment: … writes no text after a create time`) |
 | `VideoItemParams#getAweme` / `.mAweme` | getting the item at bind | read by the extension through reflection, so it is checked by `VerifyAnchors` | region falls back |
 | `Aweme#getAuthor` / `.author` | getting the item's author | same | region falls back |
 | `Aweme#getRegion` / `.region` | the video's country code | same | shown without a country code |
@@ -115,19 +115,26 @@ Both live in the header's **time TextView** (which is already dimmer than the na
   header separates the name from the time with a margin rather than a dot. The time's own value
   stays TikTok's while it agrees with that item's `createTime`; `· CC` is only appended when the row
   does not already carry a country code;
-- when the time toggle is ON, the text on screen is compared with `getCreateTime()` (seconds
-  converted to milliseconds). While it agrees it is used as it stands — including TikTok's own
-  wording. What disagrees is replaced by a value computed here, because the text can belong to the
-  previous video: when the render runs, a recycled view still carries the old video's age, and it is
-  shaped exactly like the right one. Only verified shapes can be judged — `now`,
-  `Nm ago` / `Nh ago` / `Nd ago` ("ago" on every unit), and `MM-dd` past a week; anything else,
-  another locale included, is left alone. When TikTok hides the time entirely, it is filled from
-  `getCreateTime()` in the same shapes. TikTok's own wording **cannot be copied**: it exists neither
-  as a string resource nor as a literal in the dex (checked with `aapt2 dump resources` and a string
-  scan) — it arrives from their i18n packs;
-- the date format is one of `Auto`, `MM-dd-yy`, `MMM dd yyyy` and `dd MMM yyyy`. `Auto` keeps the
-  current-year shape above and switches to a medium date for another year; the explicit patterns
-  use the app language's month name;
+- when the time toggle is ON, the time is computed from `getCreateTime()` (seconds converted to
+  milliseconds) rather than read off the view, so a recycled view cannot carry the previous video's
+  age: `now` / `Nm ago` / `Nh ago` / `Nd ago` / `Nw ago` in English, `baru saja` / `N mnt lalu` /
+  `N j lalu` / `N h lalu` / `N mgg lalu` in Indonesian, CLDR for every other language on API 24+,
+  and the platform's own aging text on API 23. Under a minute reads `now` / `baru saja` rather than
+  a seconds count, and the relative ladder ends at 28 days, where the date takes over. When TikTok
+  hides the time entirely it is filled the same way. TikTok's own wording **cannot be copied**: it
+  exists neither as a string resource nor as a literal in the dex (checked with `aapt2 dump
+  resources` and a string scan), it arrives from their i18n packs;
+- the date format is one of `Auto`, `yyyy-MM-dd`, `dd/MM/yyyy` and `Custom`. The saved ids are not
+  the list order, and every id the list no longer carries reads back as `Auto`. `Auto` asks the
+  locale for its own month-and-day skeleton and adds the year once the post is from another year.
+  `Custom` uses the pattern typed in the row below it: accepted only when it formats a real date
+  (not empty, at most 40 characters, a day or time field outside quotes, no illegal pattern
+  letter), and a missing or invalid pattern falls back to `Auto` so a render never throws. The
+  pattern row is only shown while `Custom` is the chosen format. Comments use the same path from
+  `Comment.getCreateTime`, so a comment carries the chosen format too;
+- `Hour in dates` appends the locale's short time (`9 Nov 2025, 14.32`) to the date on a post's
+  header and on a comment, once the relative ladder has handed over to the date. On by default,
+  under the post-time switch;
 - the base that was used is stored in the view's tag (an int key), so re-writing is idempotent and a
   recycled view is updated again when the item changes;
 - the region and time values are read from **the item the item renderer was given** (`(Aweme) -> V`),
@@ -173,21 +180,29 @@ A third step — "the region of the last feed item bound" — has been removed. 
 a guess: its value belongs to the video behind the comment panel, and on a device the result was
 **every comment showing the same region**. Writing no region is better than writing a wrong one.
 
-## Region in comments (the time view)
+## Time and region in comments (the time view)
 
-A comment has a time view under its text, and that is where the region goes — the same arrangement
-the feed uses for the post time: the view is already dimmed, it sits away from the name, and it does
-not press against the verified badge or "Creator" label beside the name.
+A comment has a time view under its text, and that is where the time and the region go, the same
+arrangement the feed uses for the post time: the view is already dimmed, it sits away from the name,
+and it does not press against the verified badge or "Creator" label beside the name.
 
 1. For the comment surface, `HandleDelegate` returns `@handle` alone — no region in the name.
 2. The hook on the comment list's cell bind (`BaseCommentCell`, the method that reads
-   `Comment#getCreateTime` and then writes text; its name is obfuscated, `S8` on 47.7.1) hands over
-   the **comment** and the **time view** to `CommentDateBridge`. The comment is fetched again through
-   the getter that produced the `getCreateTime` receiver, at the write site, instead of being kept in
-   that register: 47.7.1 reuses the register for an unrelated check before the write, so treating it
-   as live across the pair was an assumption that only held on older builds.
-3. The bridge computes the region from that comment (`Comment#getUser` → `User#getRegion`, then the
-   per-handle map) and appends it to the time text: `28m ago · ID`.
+   `Comment#getCreateTime` and then writes text; its name is obfuscated, `S8` on 47.7.1, `T8` on
+   47.7.3) hands over the **comment** and the **time view** to `CommentDateBridge`. The comment is
+   fetched again through the getter that produced the `getCreateTime` receiver, at the write site,
+   instead of being kept in that register: 47.7.1 reuses the register for an unrelated check before
+   the write, so treating it as live across the pair was an assumption that only held on older
+   builds.
+3. With the post-time switch on, the bridge dates the comment from `Comment.getCreateTime` through
+   the same `StampText` path as the feed: compact age, weeks, then the chosen date format. With
+   `Hour in dates` on, the date also carries the locale's short time. With the post-time switch
+   off, TikTok's own text is left in place: the two switches are asked separately.
+4. When the region is on, the bridge computes it from that comment (`Comment#getUser` →
+   `User#getRegion`, then the per-handle map) and appends it to the time text: `28m ago · ID`.
+5. The view is drawn one step (`1sp`) larger than TikTok laid it out, so the time, the clock and
+   the region stay readable at comment-row size. The original size is kept on the view and restored
+   when the bridge writes nothing, and a recycled cell is never enlarged twice.
 
 Two earlier attempts failed in ways worth recording, because both were reasonable on paper:
 
@@ -321,7 +336,7 @@ one session cannot flood the log:
 | `surface miss: ...` | a name render matched no surface, with the top 8 frames (max 8) |
 | `name render on <surface>: '<text>' via <frames>` | a name was stamped; 16 frames with method names, without the extension's own frames. A render goes through helpers, so the cell that drew it only appears a few frames down (max 8) |
 | `name region: @x model=... -> ID (from account\|bound\|nothing)` | the region for a surface other than the feed, the model's raw value (`'ID'`, `null (declared, unset)`, or `absent (no getter or field)`), and **where** the answer came from (max 12) |
-| `comment time region: ...` | the outcome of writing the region into a comment's time view: written, no comment, that commenter has no region, or the time text is empty (max 12) |
+| `comment time: ...` | the outcome of writing a comment's time view: the written text, or no comment, no region, switches off (max 12) |
 | `header item: author=... createTime=... base='...' -> '...'` | one feed header render: the item's values against what was drawn (max 12) |
 | `feedfilter: items=N removed=R ads=A likes[M..MAX]=L … dropped=[…]` | one list: how many items it held, how many each filter removed (each count filter with the bound it enforced), how many had no readable statistics, how many ad slots the page carried, and the reason for the first few drops. Written for every call that dropped something (max 100) and the first few that did not (6) |
 | `state: Build bN … Log: <path>` | the About block, written when it is tapped for copying |
@@ -340,4 +355,4 @@ one session cannot flood the log:
 
 Reading order for "the region in comments is not what I expected": `name region` first (is the value
 right, and where did it come from), then `name render` (which class drew it), then
-`comment time region` (did the hook fire at all).
+`comment time` (did the hook fire at all).

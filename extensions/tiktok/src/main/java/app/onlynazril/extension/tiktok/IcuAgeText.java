@@ -8,13 +8,11 @@ import android.icu.text.RelativeDateTimeFormatter.RelativeUnit;
 import android.icu.text.RelativeDateTimeFormatter.Style;
 import android.icu.util.ULocale;
 
-import app.onlynazril.extension.tiktok.settings.PostDateFormat;
-
 import java.util.Locale;
 
 /**
  * CLDR age text for locales without a hand-tuned formatter.
- *
+ * <p>
  * Loaded only on API 24+, where {@code android.icu} exists. Wording follows CLDR, so it can differ
  * from TikTok's own i18n packs.
  */
@@ -25,18 +23,16 @@ final class IcuAgeText {
 
     private IcuAgeText() {}
 
-    static String relative(long delta, long millis, Locale locale, boolean compact, PostDateFormat dateFormat) {
+    static String relative(
+            long delta, long millis, Locale locale, boolean compact, String pattern,
+            boolean withClock) {
         RelativeDateTimeFormatter formatter = RelativeDateTimeFormatter.getInstance(
                 ULocale.forLocale(locale),
                 null,
                 Style.NARROW,
                 DisplayContext.CAPITALIZATION_NONE);
-        if (delta < 1000L) {
-            return removeSpace(formatter.format(Direction.PLAIN, AbsoluteUnit.NOW), compact);
-        }
         if (delta < MINUTE) {
-            return removeSpace(
-                    formatter.format(delta / 1000L, Direction.LAST, RelativeUnit.SECONDS), compact);
+            return removeSpace(formatter.format(Direction.PLAIN, AbsoluteUnit.NOW), compact);
         }
         if (delta < HOUR) {
             return removeSpace(
@@ -51,12 +47,16 @@ final class IcuAgeText {
             return removeSpace(
                     formatter.format(days, Direction.LAST, RelativeUnit.DAYS), compact);
         }
-        return StampText.date(millis, locale, null, dateFormat);
+        if (days < 28) {
+            return removeSpace(
+                    formatter.format(days / 7, Direction.LAST, RelativeUnit.WEEKS), compact);
+        }
+        return StampText.date(millis, locale, pattern, withClock);
     }
 
-    /** Drops the CLDR space between a number and its unit: `2 h` becomes `2h`. */
+    /** Drops the CLDR space between a number and a short unit: `3 d` becomes `3d`. */
     private static String removeSpace(String text, boolean compact) {
         if (!compact) return text;
-        return text.replaceAll("(?<=\\d)[\\s\\u00A0\\u202F]+", "");
+        return text.replaceAll("(?<=\\d)[\\s\\u00A0\\u202F]+(?=\\S{1,2}(?:\\s|$))", "");
     }
 }
