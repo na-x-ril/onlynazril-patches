@@ -204,6 +204,26 @@ and it does not press against the verified badge or "Creator" label beside the n
    the region stay readable at comment-row size. The original size is kept on the view and restored
    when the bridge writes nothing, and a recycled cell is never enlarged twice.
 
+## Reply handles
+
+A reply line (`@name > @name`) draws two names. The first is the commenter, a full user with a uid.
+The second is a stand-in the app builds for the person being replied to: it has no uid, and its
+`uniqueId` reads back as the nickname, so the render alone proves nothing.
+
+The comment does. `replyToUserId` names the account, and `replyToReplyCommentId` (the
+`replyToReplyId` field) names the parent comment. `CommentDateBridge` records both at the cell bind
+and `HandleDelegate` resolves the stand-in by that uid. There is no `nickname -> uid` join any more.
+
+The parent comment is the second source. Every bound comment records its `cid` against its author's
+uid, nickname and handle, so a reply whose parent is in the list is checked three ways:
+
+1. the parent's uid must equal `replyToUserId`;
+2. the parent's nickname must equal the name on the reply line;
+3. a handle the parent carries must agree with the one learned for the uid.
+
+Any disagreement suppresses the stamp. A parent that was never bound adds no evidence, and the uid
+mapping alone still answers. The rule stays the same: no proven handle, no stamp.
+
 Two earlier attempts failed in ways worth recording, because both were reasonable on paper:
 
 - Hooking the `now.interaction` cell — that cell exists in this APK, but the comment list does not

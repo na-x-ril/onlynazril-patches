@@ -55,13 +55,24 @@ public final class CommentDateBridge {
     /** Called right after the comment cell sets its time, with the comment it is showing. */
     public static void attach(Object comment, TextView timeView) {
         try {
-            // Collected before the switches are asked: what a comment knows about the person it
-            // replies to is what lets a reply name resolve to a handle later, and it has to be
-            // gathered whether or not a time or region is drawn here.
+            // Collected before the switches are asked: what a comment knows about its author and the
+            // person it replies to is what lets a reply name resolve to a handle later, and it has
+            // to be gathered whether or not a time or region is drawn here.
             if (comment != null) {
-                UserIndex.learnReply(
+                Object author = Reflect.property(comment, "getUser", "user");
+                Object nickname = Reflect.readField(author, "nickname");
+                UserIndex.rememberComment(
+                        Reflect.string(comment, "getCid", "cid"),
+                        Reflect.string(author, "getUid", "uid"),
+                        nickname instanceof String ? (String) nickname : null,
+                        RegionSource.handleOf(author));
+                UserIndex.rememberReply(
                         Reflect.string(comment, "getReplyToNickName", "replyToNickName"),
-                        Reflect.string(comment, "getReplyToUserId", "replyToUserId"));
+                        Reflect.string(comment, "getReplyToUserId", "replyToUserId"),
+                        Reflect.string(
+                                comment,
+                                "getReplyToReplyCommentId",
+                                "replyToReplyId"));
             }
             if (!HandleSettings.surfaceEnabled(Surfaces.COMMENTS)) {
                 strip(timeView);
