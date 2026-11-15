@@ -25,7 +25,7 @@ off. More apps are planned.
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.6.0-dev.5](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.6.0-dev.5)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;13 patches total
+> **[v1.6.0](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.6.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;13 patches total
 <details open>
 <summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;13 patches</summary>
 <br>
