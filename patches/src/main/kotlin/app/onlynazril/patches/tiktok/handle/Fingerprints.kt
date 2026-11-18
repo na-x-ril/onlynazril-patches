@@ -23,20 +23,21 @@ object UserGetNicknameFingerprint : Fingerprint(
 )
 
 /**
- * Binder bridge: FeedBaseViewModel.paramSync2StateAccept(LX/06iX, VideoItemParams)
+ * Binder bridge: FeedBaseViewModel.paramSync2StateAccept(state, VideoItemParams)
  * Verified in 47.0.3 dexdump: VideoAuthorInfoVM inherits from FeedBaseViewModel,
  * the real bind entry is the base class with 2 params (p1=state, p2=VideoItemParams).
  * Hooking the base covers all feed assems including VideoAuthorInfoVM.
+ *
+ * The state type renames with every build (`X.08Ee` on 47.7.1, `X.04rr` on 47.9.1), so it is
+ * matched as any reference type; the real-named parameter and the return shape are what pin the
+ * overload. The name is unique in the class on 47.7.1 through 47.9.1.
  */
 object VideoAuthorInfoVMBinderFingerprint : Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/feed/assem/base/FeedBaseViewModel;",
     name = "paramSync2StateAccept",
-    custom = { method, _ ->
-        method.parameterTypes.size == 2 &&
-            method.parameterTypes[1].toString().contains("VideoItemParams") &&
-            method.implementation != null &&
-            (method.implementation?.registerCount ?: 99) < 16
-    },
+    returnType = "L",
+    parameters = listOf("L", "Lcom/ss/android/ugc/aweme/feed/model/VideoItemParams;"),
+    custom = { method, _ -> method.implementation != null },
 )
 
 /** Aweme region capture for CC — DexKit verified: Aweme.getRegion() real-named, 2 regs, safe */

@@ -16,6 +16,15 @@ import com.android.tools.smali.dexlib2.Opcode
 internal const val FEED_PLAYER_CONTROLLER =
     "Lcom/ss/android/ugc/aweme/feed/controller/PlayerController;"
 
+/** The real-named source id every feed player callback carries first. */
+private const val SOURCE_ID = "Ljava/lang/String;"
+
+/**
+ * Any reference type. The event/error/state types in these callbacks are obfuscated and rename
+ * between builds, so the parameter position is matched and the type is not written down.
+ */
+private const val ANY_OBJECT = "L"
+
 /**
  * The playback tick: `onPlayProgressChange(sourceId, positionMs, durationMs)`.
  *
@@ -33,7 +42,7 @@ internal val FeedPlayProgressFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPlayProgressChange",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;", "J", "J"),
+    parameters = listOf(SOURCE_ID, "J", "J"),
     filters = listOf(
         fieldAccess(
             definingClass = "this",
@@ -66,10 +75,7 @@ internal val FeedFirstFrameFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onRenderFirstFrame",
     returnType = "V",
-    custom = { method, _ ->
-        method.parameterTypes.size == 2 &&
-            method.parameterTypes[0] == "Ljava/lang/String;"
-    },
+    parameters = listOf(SOURCE_ID, ANY_OBJECT),
 )
 
 /**
@@ -87,7 +93,7 @@ internal val FeedPauseFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPausePlay",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;"),
+    parameters = listOf(SOURCE_ID),
 )
 
 /**
@@ -98,16 +104,14 @@ internal val FeedPrepareFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPreparePlay",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;"),
+    parameters = listOf(SOURCE_ID),
 )
 
 internal val FeedPrepareEventFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPreparePlay",
     returnType = "V",
-    custom = { method, _ ->
-        method.parameterTypes.size == 2 && method.parameterTypes[0] == "Ljava/lang/String;"
-    },
+    parameters = listOf(SOURCE_ID, ANY_OBJECT),
 )
 
 /** The user drags or taps the seek bar: `(sourceId, offset, progress)`. */
@@ -115,7 +119,7 @@ internal val FeedSeekStartFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onSeekStart",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;", "I", "F"),
+    parameters = listOf(SOURCE_ID, "I", "F"),
 )
 
 /** The user seek has ended: `(sourceId, success)`. */
@@ -123,7 +127,7 @@ internal val FeedSeekEndFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onSeekEnd",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;", "Z"),
+    parameters = listOf(SOURCE_ID, "Z"),
 )
 
 /** The seek's rendered frame; a second completion point when the player skips `onSeekEnd`. */
@@ -131,7 +135,7 @@ internal val FeedRenderSeekCompleteFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onRenderSeekComplete",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;", "Z"),
+    parameters = listOf(SOURCE_ID, "Z"),
 )
 
 /** The video reached its end: `(sourceId)` and the compatibility `(sourceId, reason)` overload. */
@@ -139,14 +143,14 @@ internal val FeedPlayCompletedFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPlayCompleted",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;"),
+    parameters = listOf(SOURCE_ID),
 )
 
 internal val FeedPlayCompletedCountFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPlayCompleted",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;", "I"),
+    parameters = listOf(SOURCE_ID, "I"),
 )
 
 /** The video looped: the position is about to reset without a user seek. */
@@ -154,7 +158,7 @@ internal val FeedLoopPlayFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onLoopPlay",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;", "I"),
+    parameters = listOf(SOURCE_ID, "I"),
 )
 
 /** The player is released, and the stop callback before it: the last chance to save. */
@@ -162,14 +166,14 @@ internal val FeedPlayReleaseFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPlayRelease",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;"),
+    parameters = listOf(SOURCE_ID),
 )
 
 internal val FeedStopPlayFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onStopPlay",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;"),
+    parameters = listOf(SOURCE_ID),
 )
 
 /**
@@ -180,34 +184,28 @@ internal val FeedPlayFailedFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPlayFailed",
     returnType = "V",
-    custom = { method, _ ->
-        method.parameterTypes.size == 3 && method.parameterTypes[0] == "Ljava/lang/String;"
-    },
+    parameters = listOf(SOURCE_ID, ANY_OBJECT, ANY_OBJECT),
 )
 
 internal val FeedPlayFailedShortFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPlayFailed",
     returnType = "V",
-    custom = { method, _ ->
-        method.parameterTypes.size == 2 && method.parameterTypes[0] == "Ljava/lang/String;"
-    },
+    parameters = listOf(SOURCE_ID, ANY_OBJECT),
 )
 
 internal val FeedRetryFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onRetryOnError",
     returnType = "V",
-    custom = { method, _ ->
-        method.parameterTypes.size == 2 && method.parameterTypes[0] == "Ljava/lang/String;"
-    },
+    parameters = listOf(SOURCE_ID, ANY_OBJECT),
 )
 
 internal val FeedRetryShortFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onRetryOnError",
     returnType = "V",
-    custom = { method, _ -> method.parameterTypes.size == 1 },
+    parameters = listOf(ANY_OBJECT),
 )
 
 /** A resolution switch can re-prepare the player and report a zero position for a moment. */
@@ -215,9 +213,7 @@ internal val FeedResolutionSwitchFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onResolutionSwitchComplete",
     returnType = "V",
-    custom = { method, _ ->
-        method.parameterTypes.size == 4 && method.parameterTypes[0] == "Ljava/lang/String;"
-    },
+    parameters = listOf(SOURCE_ID, ANY_OBJECT, "Z", SOURCE_ID),
 )
 
 /** A first frame after the app resumes from the background, not the item's first open. */
@@ -225,7 +221,7 @@ internal val FeedFirstFrameFromResumeFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onRenderFirstFrameFromResume",
     returnType = "V",
-    parameters = listOf("Ljava/lang/String;"),
+    parameters = listOf(SOURCE_ID),
 )
 
 /**
@@ -241,8 +237,5 @@ internal val FeedPauseEventFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
     name = "onPausePlay",
     returnType = "V",
-    custom = { method, _ ->
-        method.parameterTypes.size == 2 &&
-            method.parameterTypes[0] == "Ljava/lang/String;"
-    },
+    parameters = listOf(SOURCE_ID, ANY_OBJECT),
 )

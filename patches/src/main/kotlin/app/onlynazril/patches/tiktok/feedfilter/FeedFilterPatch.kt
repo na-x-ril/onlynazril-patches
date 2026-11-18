@@ -11,7 +11,14 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
-import com.android.tools.smali.dexlib2.iface.reference.MethodReference
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
+
+/** The field types that hold the list itself, not the contract the model reads it through. */
+private val COLLECTION_TYPES = setOf(
+    "Ljava/util/List;",
+    "Ljava/util/Collection;",
+    "Ljava/util/ArrayList;",
+)
 
 /**
  * Drops ads, survey cards, LIVE items, drama videos and out-of-range videos from the feed page.
@@ -163,19 +170,24 @@ val tiktokFeedFilterPatch = bytecodePatch(
         // filter belongs where items enter the storage instead, as if the page had never carried
         // them , nothing is ever removed under a position the pager already has.
         //
-        // The contract is named by the model itself: its `getItems` calls exactly one method, and
-        // that method's owner is the contract , no obfuscated name has to be written down.
+        // The contract is the type of the field the model reads its list from. Through 47.7.x
+        // the accessor calls `getList()` on it; on 47.8.3 the same field is cast to its
+        // implementation and its `ArrayList` is copied. In both shapes the field's declared type
+        // is the contract, and the collection it holds is never that type, so the collection
+        // reads are dropped.
         val contract = model.methods
             .singleOrNull { it.name == "getItems" && it.returnType == "Ljava/util/List;" }
             ?.implementationOrPatchException("Feed filter")
             ?.instructions
             ?.mapNotNull { instruction ->
-                ((instruction as? ReferenceInstruction)?.reference as? MethodReference)?.definingClass
+                ((instruction as? ReferenceInstruction)?.reference as? FieldReference)
+                    ?.type
+                    ?.takeUnless { it in COLLECTION_TYPES }
             }
             ?.distinct()
             ?.singleOrNull()
             ?: throw PatchException(
-                "Feed filter: ${model.type} reads its list through more than one owner.",
+                "Feed filter: ${model.type} reads its list through more than one contract.",
             )
 
         val stores = mutableListOf<ClassDef>()
@@ -187,6 +199,20 @@ val tiktokFeedFilterPatch = bytecodePatch(
                         method.implementation != null
                 }
             if (holds) stores += classDef
+        }
+        if (stores.isEmpty()) {
+            // 47.8.3 dropped `setData`: the storage's own list is filled by its other void
+            // (List) methods, so the list field and one such method identify it instead.
+            classDefForEach { classDef ->
+                val holds = classDef.interfaces.contains(contract) &&
+                    classDef.fields.any { it.type in COLLECTION_TYPES } &&
+                    classDef.methods.any { method ->
+                        method.returnType == "V" &&
+                            method.parameterTypes.contains("Ljava/util/List;") &&
+                            method.implementation != null
+                    }
+                if (holds) stores += classDef
+            }
         }
         if (stores.isEmpty()) {
             throw PatchException("Feed filter: no storage behind $contract takes a list.")

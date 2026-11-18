@@ -3,8 +3,6 @@ package app.onlynazril.patches.tiktok.feedfilter
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.fieldAccess
 import com.android.tools.smali.dexlib2.Opcode
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
-import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 internal const val FEED_FILTER_CLASS =
     "Lapp/onlynazril/extension/tiktok/feedfilter/FeedFilter;"
@@ -88,12 +86,7 @@ internal val FeedPanelSurveyFingerprint = Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/feed/panel/BaseListFragmentPanel;",
     returnType = "V",
     parameters = listOf("I", "Lcom/ss/android/ugc/aweme/feed/model/Aweme;"),
-    custom = { method, _ ->
-        method.implementation?.instructions?.any { instruction ->
-            val reference = (instruction as? ReferenceInstruction)?.reference
-            reference is StringReference && reference.string == "survey_card"
-        } == true
-    },
+    strings = listOf("survey_card"),
 )
 
 /**
