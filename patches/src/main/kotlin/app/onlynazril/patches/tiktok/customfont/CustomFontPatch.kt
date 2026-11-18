@@ -33,9 +33,10 @@ private const val BRIDGE = "Lapp/onlynazril/extension/tiktok/CustomFontBridge;"
  *  - the Compose loader (an instance `(Context, request)` method) for
  *    `AndroidComposeView`'s own FontFamily resolver, which is what the
  *    Settings and privacy screen draws through;
- *  - the app's asset loader (a static `(AssetManager, path)` method that
- *    calls `Typeface.createFromAsset`) for Lynx, whose own TypefaceCache
- *    reads the bundled files through it;
+ *  - the app's asset loader (a static `(AssetManager, path)` method
+ *    through 47.7.x, `(path)` from 47.8.3, that calls
+ *    `Typeface.createFromAsset`) for Lynx, whose own TypefaceCache reads
+ *    the bundled files through it;
  *  - the WebView font interceptor (a `WebResourceResponse` for a
  *    `WebView`) for hybrid (H5) pages - Activity Center, Manage posts -
  *    which Chromium draws and the app only feeds font bytes.
@@ -92,9 +93,11 @@ val tiktokCustomFontPatch = bytecodePatch(
                     .forEach { webFontMethods += FontResolver(classDef, it) }
             }
         }
-        val assetLoaders = AssetFontLoaderFingerprint.matchAllOrNull()
-            ?.map { FontResolver(it.originalClassDef, it.originalMethod) }
-            ?: emptyList()
+        val assetLoaderMatches =
+            AssetFontLoaderFingerprint.matchAllOrNull().orEmpty() +
+                AssetFontLoaderPathFingerprint.matchAllOrNull().orEmpty()
+        val assetLoaders = assetLoaderMatches
+            .map { FontResolver(it.originalClassDef, it.originalMethod) }
 
         val nativeFactory = nativeFactories.singleOrNull()
             ?: throw PatchException(
@@ -110,8 +113,8 @@ val tiktokCustomFontPatch = bytecodePatch(
             )
         val assetLoader = assetLoaders.singleOrNull()
             ?: throw PatchException(
-                "Custom font: expected one asset loader (AssetManager, path) creating a face " +
-                    "from an asset, found ${assetLoaders.size}: " +
+                "Custom font: expected one asset loader (AssetManager, path) or (path) " +
+                    "creating a face from an asset, found ${assetLoaders.size}: " +
                     "${assetLoaders.joinToString { it.holder.type }}.",
             )
         val webFontClasses = webFontMethods.map { it.holder.type }.distinct()
@@ -132,10 +135,13 @@ val tiktokCustomFontPatch = bytecodePatch(
             .answerWithCustomFont()
 
         // The asset loader is asked for every asset font, so the bridge
-        // answers only the bundled faces by path.
+        // answers only the bundled faces by path. The path is the second
+        // parameter while the AssetManager is one, and the first when it
+        // is not.
+        val assetPath = if (assetLoader.method.parameterTypes.size == 1) "p0" else "p1"
         mutableClassDefBy(assetLoader.holder.type)
             .findMutableMethodOf(assetLoader.method)
-            .answerAssetWithCustomFont()
+            .answerAssetWithCustomFont(assetPath)
 
         // The WebView interceptor answers a page's font request with the
         // imported file's bytes; every other request falls through.
@@ -259,18 +265,18 @@ private fun MutableMethod.answerWithCustomFont() {
 }
 
 /**
- * Answers the bridge after the asset path, which is the second parameter
- * of the loader: the bridge keeps the app's own resolution for every path
- * that is not one of TikTok's bundled faces.
+ * Answers the bridge after the asset path in [path]: the bridge keeps the
+ * app's own resolution for every path that is not one of TikTok's bundled
+ * faces.
  */
-private fun MutableMethod.answerAssetWithCustomFont() {
+private fun MutableMethod.answerAssetWithCustomFont(path: String) {
     val patch = "Custom font"
     requireLocals(patch, 1)
     val call = callThroughLocals(
         patch,
         "invoke-static",
         "$BRIDGE->typefaceFor($ASSET_LOADER_PATH)$FACTORY_RETURN",
-        objectIn("p1"),
+        objectIn(path),
     )
     addInstructionsWithLabels(
         0,

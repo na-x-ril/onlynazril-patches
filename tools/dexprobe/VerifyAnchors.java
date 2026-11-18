@@ -21,7 +21,9 @@ import org.luckypray.dexkit.result.MethodData;
 import org.luckypray.dexkit.result.MethodDataList;
 import org.luckypray.dexkit.result.UsingFieldData;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class VerifyAnchors {
     static {
@@ -131,6 +133,8 @@ public class VerifyAnchors {
             requireFeedFetch(bridge);
             // …and the setter, the only other way a page's list is replaced.
             requireItemsSetter(bridge);
+            // …and the pager's own storage, where the filter stops items entering the list.
+            requirePagerStorage(bridge);
             requireMethod(bridge, FEED_ITEM_LIST, "clone", FEED_ITEM_LIST, 0);
             // What the filter reads off an item, by name at runtime.
             requireMethod(bridge, AWEME, "isAd", "boolean", 0);
@@ -356,22 +360,33 @@ public class VerifyAnchors {
     }
 
     /**
-     * The app's asset loader, matched as the patch discovers it: the one
-     * (AssetManager, String) -> Typeface method, whose body creates the face from
-     * the asset. The class and method rename every build (`X.0VKh#t4` on 47.0.3,
-     * `X.00kn#s4` on 47.1.4), and Lynx's own TypefaceCache reads the bundled
-     * faces through it, so this is the point that carries the font to Lynx pages.
+     * The app's asset loader, matched as the patch discovers it: the one static
+     * method whose body creates the face from an asset. The AssetManager was
+     * the first parameter through 47.7.x and moved into a field on 47.8.3, so
+     * both shapes are checked and exactly one of them must match. The class and
+     * method rename every build (`X.00kD#x4` on 47.7.3, `X.04Hk#LJII` on
+     * 47.8.3), and Lynx's own TypefaceCache reads the bundled faces through it,
+     * so this is the point that carries the font to Lynx pages.
      */
     private static void requireAssetFontLoader(DexKitBridge bridge) {
-        MethodDataList methods = bridge.findMethod(FindMethod.create()
-                .matcher(MethodMatcher.create()
-                        .paramTypes("android.content.res.AssetManager", "java.lang.String")));
+        String[][] shapes = {
+                {"android.content.res.AssetManager", "java.lang.String"},
+                {"java.lang.String"},
+        };
         int matches = 0;
         String found = null;
-        for (MethodData m : methods) {
-            if (!"android.graphics.Typeface".equals(m.getReturnTypeName())) continue;
-            matches++;
-            found = m.getDeclaredClassName() + "#" + m.getName();
+        for (String[] shape : shapes) {
+            MethodDataList methods = bridge.findMethod(FindMethod.create()
+                    .matcher(MethodMatcher.create()
+                            .paramTypes(shape)
+                            .addInvoke(MethodMatcher.create()
+                                    .declaredClass("android.graphics.Typeface")
+                                    .name("createFromAsset"))));
+            for (MethodData m : methods) {
+                if (!"android.graphics.Typeface".equals(m.getReturnTypeName())) continue;
+                matches++;
+                found = m.getDeclaredClassName() + "#" + m.getName();
+            }
         }
         if (matches == 1) {
             pass("custom font asset loader " + found);
@@ -782,6 +797,80 @@ public class VerifyAnchors {
             }
         }
         fail(FEED_ITEM_LIST + "#setItems (no void (List) method writing `items`)");
+    }
+
+    /**
+     * The pager item model and the storage behind it, matched as the feed filter patch does: the
+     * one class carrying `getItems` / `getListCount` / `insertItemList` / `setItems` whose
+     * `getItems` reads the list through a non-collection field, then an implementer of that
+     * contract that takes a list. Through 47.7.x the read goes through `getList()`; on 47.8.3 the
+     * accessor copies the field's `ArrayList` instead, so the field itself is the anchor.
+     */
+    private static void requirePagerStorage(DexKitBridge bridge) {
+        Set<String> collectionTypes = Set.of(
+                "java.util.List", "java.util.Collection", "java.util.ArrayList");
+        MethodDataList getItems = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .name("getItems")
+                        .paramCount(0)
+                        .returnType("java.util.List")));
+        int models = 0;
+        String model = null;
+        String contract = null;
+        for (MethodData m : getItems) {
+            ClassData c = m.getDeclaredClass();
+            boolean hasCount = false;
+            boolean hasInsert = false;
+            boolean hasSet = false;
+            for (MethodData other : c.getMethods()) {
+                switch (other.getName()) {
+                    case "getListCount" -> hasCount = true;
+                    case "insertItemList" -> hasInsert = true;
+                    case "setItems" -> hasSet = true;
+                    default -> { }
+                }
+            }
+            if (!hasCount || !hasInsert || !hasSet) continue;
+            Set<String> owners = new LinkedHashSet<>();
+            for (UsingFieldData used : m.getUsingFields()) {
+                String type = used.getField().getTypeName();
+                if (!collectionTypes.contains(type)) owners.add(type);
+            }
+            if (owners.size() != 1) continue;
+            models++;
+            model = c.getName();
+            contract = owners.iterator().next();
+        }
+        if (models != 1) {
+            fail("pager storage: expected one pager item model, matched " + models);
+            return;
+        }
+
+        ClassDataList impls = bridge.findClass(FindClass.create()
+                .matcher(ClassMatcher.create().addInterface(contract)));
+        int stores = 0;
+        for (ClassData c : impls) {
+            boolean hasListField = false;
+            boolean takesList = false;
+            boolean hasSetData = false;
+            for (FieldData f : c.getFields()) {
+                if (collectionTypes.contains(f.getTypeName())) hasListField = true;
+            }
+            for (MethodData m : c.getMethods()) {
+                if (!m.getParamTypeNames().contains("java.util.List")) continue;
+                if (!"void".equals(m.getReturnTypeName())) continue;
+                if (m.getParamTypeNames().size() == 1 && "setData".equals(m.getName())) {
+                    hasSetData = true;
+                }
+                takesList = true;
+            }
+            if (hasSetData || (hasListField && takesList)) stores++;
+        }
+        if (stores > 0) {
+            pass("pager storage " + model + " -> " + contract + " (" + stores + " store(s))");
+        } else {
+            fail("pager storage: no implementer of " + contract + " takes a list");
+        }
     }
 
     private static void requireClass(DexKitBridge bridge, String className) {
