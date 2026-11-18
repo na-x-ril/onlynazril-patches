@@ -1,3 +1,13 @@
+## [1.7.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0...v1.7.0-dev.1) (2026-11-18)
+
+### ✨ New Features
+
+* **TikTok:** Target 47.8.3 ([b58948d](https://github.com/na-x-ril/onlynazril-patches/commit/b58948db76ff4f9fe9a0b34d856100189d0c52bc))
+* **TikTok:** Target 47.9.1 and simplify anchors ([da81ebc](https://github.com/na-x-ril/onlynazril-patches/commit/da81ebc49fd75e34f576d5d5ec9e8fa771b9588f))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.6.0](https://github.com/na-x-ril/onlynazril-patches/compare/v1.5.0...v1.6.0) (2026-11-15)
 
 ### 🐛 Bug Fixes
