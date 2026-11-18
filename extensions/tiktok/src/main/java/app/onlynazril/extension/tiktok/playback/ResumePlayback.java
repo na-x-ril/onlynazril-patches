@@ -65,7 +65,6 @@ public final class ResumePlayback {
     private static final class Entry {
         long positionMs;
         long durationMs;
-        long updatedAtMs;
         long lastKnownPositionMs;
         long seekStartedAtMs;
         long seekTargetMs;
@@ -189,7 +188,6 @@ public final class ResumePlayback {
         entry.userSeekStartedAtMs = 0L;
         entry.suspect = false;
         entry.started = true;
-        entry.updatedAtMs = SystemClock.elapsedRealtime();
         userSeeks++;
         saves++;
         last = "user seek " + aid + " pos=" + position + " dur=" + entry.durationMs;
@@ -229,13 +227,7 @@ public final class ResumePlayback {
 
         Entry entry = ENTRIES.get(aid);
         if (entry == null || entry.seeking) return;
-        if (entry.userSeeking) {
-            if (SystemClock.elapsedRealtime() - entry.userSeekStartedAtMs < USER_SEEK_TIMEOUT_MS) {
-                return;
-            }
-            entry.userSeeking = false;
-            entry.userSeekStartedAtMs = 0L;
-        }
+        if (blockedByUserSeek(entry, SystemClock.elapsedRealtime())) return;
 
         long position = isCurrent(controller, aid)
                 ? currentPosition(controller)
@@ -271,7 +263,6 @@ public final class ResumePlayback {
         entry.userSeeking = false;
         entry.userSeekStartedAtMs = 0L;
         entry.started = false;
-        entry.updatedAtMs = SystemClock.elapsedRealtime();
         saves++;
         last = "final " + aid + " pos=" + position + " dur=" + entry.durationMs;
         evict();
@@ -332,11 +323,7 @@ public final class ResumePlayback {
                 return;
             }
         }
-        if (entry != null && entry.userSeeking) {
-            if (now - entry.userSeekStartedAtMs < USER_SEEK_TIMEOUT_MS) return;
-            entry.userSeeking = false;
-            entry.userSeekStartedAtMs = 0L;
-        }
+        if (entry != null && blockedByUserSeek(entry, now)) return;
         if (entry != null && entry.suspect) {
             // A failure or a resolution switch can report zero while the surface recovers. A zero
             // in that state is not the user seeking to the start.
@@ -369,7 +356,6 @@ public final class ResumePlayback {
             last = "save " + aid + " pos=" + positionMs + " dur=" + entry.durationMs;
         }
         entry.started = true;
-        entry.updatedAtMs = now;
         evict();
     }
 
@@ -393,13 +379,7 @@ public final class ResumePlayback {
                 return;
             }
         }
-        if (entry != null && entry.userSeeking) {
-            if (SystemClock.elapsedRealtime() - entry.userSeekStartedAtMs < USER_SEEK_TIMEOUT_MS) {
-                return;
-            }
-            entry.userSeeking = false;
-            entry.userSeekStartedAtMs = 0L;
-        }
+        if (entry != null && blockedByUserSeek(entry, SystemClock.elapsedRealtime())) return;
 
         if (position < 0) {
             if (entry == null || entry.positionMs <= 0) return;
@@ -443,7 +423,6 @@ public final class ResumePlayback {
         entry.userSeeking = false;
         entry.userSeekStartedAtMs = 0L;
         entry.started = false;
-        entry.updatedAtMs = SystemClock.elapsedRealtime();
         saves++;
         last = "pause " + aid + " pos=" + position + " dur=" + entry.durationMs;
         evict();
@@ -522,6 +501,18 @@ public final class ResumePlayback {
 
     private static boolean landed(Entry entry, long position) {
         return Math.abs(position - entry.seekTargetMs) <= SEEK_LAND_TOLERANCE_MS;
+    }
+
+    /**
+     * Whether an in-flight user seek still blocks saving. Without an end report it is cleared
+     * after the user-seek timeout, so one stuck seek cannot block the item for the whole run.
+     */
+    private static boolean blockedByUserSeek(Entry entry, long now) {
+        if (!entry.userSeeking) return false;
+        if (now - entry.userSeekStartedAtMs < USER_SEEK_TIMEOUT_MS) return true;
+        entry.userSeeking = false;
+        entry.userSeekStartedAtMs = 0L;
+        return false;
     }
 
     /**
