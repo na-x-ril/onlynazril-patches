@@ -73,18 +73,21 @@ val tiktokCustomFontPatch = bytecodePatch(
         // bundled faces in a method of their own; the asset loader and
         // the WebView interceptor take a path or a request instead.
         //
-        // The string index hands back the handful of classes that read a
-        // bundled path, so the shape checks run over eight classes rather
-        // than every class in the bundle. The asset loader reads no path
-        // itself (its callers pass one), so it is matched separately on
-        // the `Typeface.createFromAsset` call its body makes.
-        val nativeFactories = mutableListOf<FontResolver>()
+        // The factory is matched on its nine-parameter shape alone, which is
+        // unique in the bundle. The Compose loader and the WebView interceptor
+        // carry less distinctive shapes, so the string index hands back the
+        // handful of classes that read a bundled path and the shape checks run
+        // over those. The asset loader reads no path itself (its callers pass
+        // one), so it is matched separately on the `Typeface.createFromAsset`
+        // call its body makes.
+        val nativeFactory = (NativeFontFactoryFingerprint.matchOrNull()
+            ?: throw PatchException(
+                "Custom font: the one static nine-parameter Typeface factory was not found.",
+            )).let { FontResolver(it.originalClassDef, it.originalMethod) }
         val composeLoaders = mutableListOf<FontResolver>()
         val webFontMethods = mutableListOf<FontResolver>()
         for (classDef in classDefByStrings(FONT_PREFIX, StringComparisonType.STARTS_WITH)) {
             if (classDef.readsBundledFaces()) {
-                classDef.methods.firstOrNull { it.isNativeFontFactory() }
-                    ?.let { nativeFactories += FontResolver(classDef, it) }
                 classDef.methods.firstOrNull { it.isComposeFontLoader() }
                     ?.let { composeLoaders += FontResolver(classDef, it) }
             }
@@ -99,12 +102,6 @@ val tiktokCustomFontPatch = bytecodePatch(
         val assetLoaders = assetLoaderMatches
             .map { FontResolver(it.originalClassDef, it.originalMethod) }
 
-        val nativeFactory = nativeFactories.singleOrNull()
-            ?: throw PatchException(
-                "Custom font: expected one factory reading $FONT_KEYS " +
-                    "with the nine-parameter resolver, found ${nativeFactories.size}: " +
-                    "${nativeFactories.joinToString { it.holder.type }}.",
-            )
         val composeLoader = composeLoaders.singleOrNull()
             ?: throw PatchException(
                 "Custom font: expected one Compose loader reading $FONT_KEYS " +
@@ -187,13 +184,6 @@ private fun ClassDef.readsTikTokFontAssets(): Boolean = methods.any { method ->
                 && (instruction.reference as? StringReference)?.string?.startsWith(FONT_PREFIX) == true
     } == true
 }
-
-/** The native factory's shape: static, the nine-parameter resolver. */
-private fun Method.isNativeFontFactory(): Boolean =
-    returnType == FACTORY_RETURN
-            && parameterTypes == FACTORY_PARAMETERS
-            && implementation != null
-            && AccessFlags.STATIC.isSet(accessFlags)
 
 /**
  * The Compose loader's shape: an instance method taking the Context and

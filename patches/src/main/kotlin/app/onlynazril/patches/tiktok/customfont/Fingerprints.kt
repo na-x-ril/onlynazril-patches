@@ -45,6 +45,20 @@ internal val FACTORY_PARAMETERS = listOf(
 internal const val FACTORY_RETURN = "Landroid/graphics/Typeface;"
 
 /**
+ * The native factory: the one static nine-parameter method answering a `Typeface`.
+ *
+ * The class around it is obfuscated and renames with every build, but the shape is unique in the
+ * bundle on 47.7.1 through 47.9.1: every other `Typeface` factory takes fewer parameters, so the
+ * class's bundled-font strings are not needed to find it.
+ */
+internal val NativeFontFactoryFingerprint = Fingerprint(
+    returnType = FACTORY_RETURN,
+    isStatic = true,
+    parameters = FACTORY_PARAMETERS,
+    custom = { method, _ -> method.implementation != null },
+)
+
+/**
  * The Compose loader's first parameter: the Context. Its second is the
  * app's obfuscated font request, so only the Context can be matched by
  * name. On 47.0.3 the loader is `X.0lNf#LIZ(Context, X.0lNm)`, on
