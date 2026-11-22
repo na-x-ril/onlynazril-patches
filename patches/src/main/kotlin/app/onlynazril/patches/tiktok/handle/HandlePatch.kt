@@ -25,6 +25,7 @@ private const val AUTHOR_INFO_BRIDGE = "Lapp/onlynazril/extension/tiktok/AuthorI
 private const val COMMENT_DATE_BRIDGE = "Lapp/onlynazril/extension/tiktok/CommentDateBridge;"
 private const val COMMENT_MODEL = "Lcom/ss/android/ugc/aweme/comment/model/Comment;"
 private const val TEXT_VIEW = "Landroid/widget/TextView;"
+private const val MENTION_TEXT = "Lapp/onlynazril/extension/tiktok/MentionText;"
 
 /**
  * Runs `body` at the method's first instruction with the first [count] parameters in v0, v1, …
@@ -291,6 +292,19 @@ val tiktokHandlePatch = bytecodePatch(
         // default — which is exactly "the toggle is on but nothing happens".
         ApplicationOnCreateFingerprint.method.injectWithThis(
             "invoke-static {v0}, $APP_CONTEXT->set(Landroid/content/Context;)V",
+        )
+
+        // A mention is built from the stamped name and then prefixed with the app's own "@". The
+        // stamp already carries one, so drop it here and let the composer put back the single "@":
+        // without this the inserted mention reads "@@handle".
+        CommentMentionFingerprint.method.addInstructions(
+            0,
+            """
+                move-object/from16 v0, p2
+                invoke-static {v0}, $MENTION_TEXT->withoutLeadingAt(Ljava/lang/String;)Ljava/lang/String;
+                move-result-object v0
+                move-object/from16 p2, v0
+            """.trimIndent(),
         )
 
         // Primary: override User.getNickname() to return "@handle" / "@handle · CC"

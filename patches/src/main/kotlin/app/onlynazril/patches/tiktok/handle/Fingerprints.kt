@@ -5,6 +5,7 @@ import app.morphe.patcher.methodCall
 import app.morphe.util.getReference
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
+import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 /**
  * Feed-only zero-flicker handle patch fingerprints for TikTok 47.0.3.
@@ -110,6 +111,41 @@ object CommentListDateFingerprint : Fingerprint(
             references.any { it.definingClass == TEXT_VIEW && it.name == "setText" }
     },
 )
+
+/**
+ * The comment composer's mention insert: `(int, name, uid, secUid, tako) -> boolean`.
+ *
+ * The name it inserts is appended to a literal "@" by the method itself. `HandleDelegate` already
+ * stamps names with their own "@", so the duplicate is dropped here before the app adds its one.
+ * The signature is unique in the APK on 47.7.1 through 47.9.1; the class is obfuscated and is
+ * therefore not part of the match.
+ */
+object CommentMentionFingerprint : Fingerprint(
+    returnType = "Z",
+    parameters = listOf(
+        "I",
+        "Ljava/lang/String;",
+        "Ljava/lang/String;",
+        "Ljava/lang/String;",
+        "Z",
+    ),
+    custom = { method, _ ->
+        val instructions = method.implementation?.instructions ?: emptyList()
+        val prefixed = instructions.any { instruction ->
+            (instruction.opcode == Opcode.CONST_STRING ||
+                instruction.opcode == Opcode.CONST_STRING_JUMBO) &&
+                instruction.getReference<StringReference>()?.string == "@"
+        }
+        val buildsSpan = instructions.any { instruction ->
+            instruction.getReference<MethodReference>()?.let {
+                it.definingClass == MENTION_SPAN && it.name == "<init>"
+            } == true
+        }
+        prefixed && buildsSpan
+    },
+)
+
+private const val MENTION_SPAN = "Lcom/ss/android/ugc/aweme/comment/widgets/MentionSpan;"
 
 private const val USER_MODEL = "Lcom/ss/android/ugc/aweme/profile/model/User;"
 private const val COMMENT_MODEL = "Lcom/ss/android/ugc/aweme/comment/model/Comment;"
