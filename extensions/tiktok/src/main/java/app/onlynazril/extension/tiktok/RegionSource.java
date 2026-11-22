@@ -29,6 +29,7 @@ public final class RegionSource {
     private static final int MAX_REPORTS = 120;
 
     private static final Map<String, String> SEEN_AT_BIND = new ConcurrentHashMap<>();
+    private static final Map<String, String> AUTHOR_REGION_BY_UID = new ConcurrentHashMap<>();
 
     private static int reported;
 
@@ -88,7 +89,28 @@ public final class RegionSource {
         if (user == null) return null;
         String handle = handleOf(user);
         if (handle == null) return null;
-        return forUser(user, handle);
+        String region = forUser(user, handle);
+        if (region != null) return region;
+        // A comment payload often leaves the region field out. The video's author is bound with a
+        // complete user, so its region is the fallback for the creator's own comment or poll.
+        String uid = Reflect.string(user, "getUid", "uid");
+        region = forUid(uid);
+        if (region != null) report(handle, user, null, region, "author");
+        return region;
+    }
+
+    /** The region remembered for a video's author, matched by account id. */
+    public static String forUid(String uid) {
+        if (uid == null || uid.isEmpty()) return null;
+        return AUTHOR_REGION_BY_UID.get(uid);
+    }
+
+    /** Called at bind: the video author's own answer, including the item's region as the fallback. */
+    public static void rememberAuthor(String uid, String region) {
+        if (region == null) return;
+        if (uid == null || uid.isEmpty()) return;
+        if (AUTHOR_REGION_BY_UID.size() >= MAX_HANDLES) AUTHOR_REGION_BY_UID.clear();
+        AUTHOR_REGION_BY_UID.put(uid, region);
     }
 
     /** Called at bind: the one moment the item and its author are both in hand. */

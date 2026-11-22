@@ -13,6 +13,7 @@ import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.FieldMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
+import org.luckypray.dexkit.query.enums.UsingType;
 import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.ClassDataList;
 import org.luckypray.dexkit.result.FieldData;
@@ -45,6 +46,9 @@ public class VerifyAnchors {
             "com.ss.android.ugc.feed.platform.cell.interact.bottom.bar.FeedSearchBottomBarAssemTrigger";
     private static final String FEED_SEARCH_TRIGGER_V2 =
             "com.ss.android.ugc.feed.platform.cell.interact.bottom.bar.FeedSearchBottomBarAssemTriggerV2";
+    private static final String POLL_CELL =
+            "com.ss.android.ugc.aweme.commentv2.commentlist.powercell.PollCell";
+    private static final String POLL_INFO = "com.ss.android.ugc.aweme.comment.model.PollInfo";
     private static final String VIDEO_ITEM_PARAMS =
             "com.ss.android.ugc.aweme.feed.model.VideoItemParams";
     private static final String FEED_ITEM_LIST =
@@ -159,6 +163,8 @@ public class VerifyAnchors {
             // boolean (VideoItemParams) signature.
             requireFeedSearchTrigger(bridge, FEED_SEARCH_TRIGGER);
             requireFeedSearchTrigger(bridge, FEED_SEARCH_TRIGGER_V2);
+            // Comment poll date: the row's (PollInfo)V write of createTime through TextView.setText.
+            requirePollDate(bridge);
 
             // Host activity
             requireMethod(bridge, AD_PERSONALIZATION, "onCreate", "void", 1);
@@ -760,6 +766,30 @@ public class VerifyAnchors {
         } else {
             fail("feed search " + className
                     + ": expected one boolean (VideoItemParams) method, matched " + methods.size());
+        }
+    }
+
+    /**
+     * The comment poll row's date write, matched as the patch's fingerprint does: a
+     * `(PollInfo) -> void` method that reads the poll's create time and writes a TextView. Both the
+     * row and the model keep their names; the method itself moves (`H6` on 47.9.1, `Z6` on 47.7.1).
+     */
+    private static void requirePollDate(DexKitBridge bridge) {
+        MethodDataList methods = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .declaredClass(POLL_CELL)
+                        .returnType("void")
+                        .paramTypes(POLL_INFO)
+                        .addUsingField(FieldMatcher.create()
+                                .declaredClass(POLL_INFO)
+                                .name("createTime"), UsingType.Read)
+                        .addInvoke("Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V")));
+        if (methods.size() == 1) {
+            MethodData method = methods.get(0);
+            pass("poll date " + method.getDeclaredClassName() + "#" + method.getName()
+                    + " " + method.getParamTypeNames());
+        } else {
+            fail("poll date: expected one (PollInfo) date write, matched " + methods.size());
         }
     }
 

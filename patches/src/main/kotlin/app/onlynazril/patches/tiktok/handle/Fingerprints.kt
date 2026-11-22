@@ -4,6 +4,7 @@ import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.methodCall
 import app.morphe.util.getReference
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
@@ -113,6 +114,32 @@ object CommentListDateFingerprint : Fingerprint(
 )
 
 /**
+ * The poll row's own date write: `(PollInfo) -> void` reads the poll's `createTime` and hands the
+ * formatted string to a `TextView`. The row is real-named; the method name is obfuscated and moves
+ * (`H6` on 47.9.1, `Z6` on 47.7.1), so the two calls are the anchor.
+ */
+object PollDateFingerprint : Fingerprint(
+    definingClass = POLL_CELL,
+    returnType = "V",
+    parameters = listOf(POLL_INFO),
+    custom = { method, _ ->
+        val instructions = method.implementation?.instructions ?: emptyList()
+        val readsCreateTime = instructions.any { instruction ->
+            instruction.opcode == Opcode.IGET_OBJECT &&
+                instruction.getReference<FieldReference>()?.let {
+                    it.definingClass == POLL_INFO && it.name == "createTime"
+                } == true
+        }
+        val writesText = instructions.any { instruction ->
+            instruction.getReference<MethodReference>()?.let {
+                it.definingClass == TEXT_VIEW && it.name == "setText"
+            } == true
+        }
+        readsCreateTime && writesText
+    },
+)
+
+/**
  * The comment composer's mention insert: `(int, name, uid, secUid, tako) -> boolean`.
  *
  * The name it inserts is appended to a literal "@" by the method itself. `HandleDelegate` already
@@ -149,6 +176,9 @@ private const val MENTION_SPAN = "Lcom/ss/android/ugc/aweme/comment/widgets/Ment
 
 private const val USER_MODEL = "Lcom/ss/android/ugc/aweme/profile/model/User;"
 private const val COMMENT_MODEL = "Lcom/ss/android/ugc/aweme/comment/model/Comment;"
+private const val POLL_CELL =
+    "Lcom/ss/android/ugc/aweme/commentv2/commentlist/powercell/PollCell;"
+private const val POLL_INFO = "Lcom/ss/android/ugc/aweme/comment/model/PollInfo;"
 private const val TEXT_VIEW = "Landroid/widget/TextView;"
 
 private const val ITEM = "Lcom/ss/android/ugc/aweme/feed/model/Aweme;"

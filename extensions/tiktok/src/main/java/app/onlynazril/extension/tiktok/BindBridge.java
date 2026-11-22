@@ -68,6 +68,10 @@ public final class BindBridge {
             Object author = Reflect.property(aweme, "getAuthor", "author");
             if (author == null) return;
             RegionSource.remember(RegionSource.handleOf(author), RegionSource.accountRegion(author));
+            // The author is the one user a video carries in full, and a comment made by that
+            // author can later be recognised by uid even when its own payload omits the region.
+            RegionSource.rememberAuthor(
+                    Reflect.string(author, "getUid", "uid"), RegionSource.forAweme(aweme));
         } catch (Throwable ignored) {
         }
     }

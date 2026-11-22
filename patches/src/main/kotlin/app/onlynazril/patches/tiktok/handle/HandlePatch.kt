@@ -23,6 +23,7 @@ private const val BIND_BRIDGE = "Lapp/onlynazril/extension/tiktok/BindBridge;"
 private const val APP_CONTEXT = "Lapp/onlynazril/extension/tiktok/internal/AppContext;"
 private const val AUTHOR_INFO_BRIDGE = "Lapp/onlynazril/extension/tiktok/AuthorInfoBridge;"
 private const val COMMENT_DATE_BRIDGE = "Lapp/onlynazril/extension/tiktok/CommentDateBridge;"
+private const val POLL_DATE_BRIDGE = "Lapp/onlynazril/extension/tiktok/PollDateBridge;"
 private const val COMMENT_MODEL = "Lcom/ss/android/ugc/aweme/comment/model/Comment;"
 private const val TEXT_VIEW = "Landroid/widget/TextView;"
 private const val MENTION_TEXT = "Lapp/onlynazril/extension/tiktok/MentionText;"
@@ -136,7 +137,8 @@ private fun MutableMethod.injectBeforeReturns(body: String) {
 val tiktokHandlePatch = bytecodePatch(
     name = "Handle, time & region",
     description = "Shows the @handle, the region and the post time on feed videos and comments, " +
-        "including a video shared into a chat. Each surface and each part has a switch in Tweaks.",
+        "including comment polls and a video shared into a chat. Each surface and each part has a " +
+        "switch in Tweaks.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_TIKTOK)
@@ -285,6 +287,41 @@ val tiktokHandlePatch = bytecodePatch(
                     """.trimIndent(),
                 )
             }
+        }
+
+        // A poll is its own cell, so its date is written by a different method than a comment's.
+        // The same time and region rules apply: the poll's own create time is the source, and the
+        // creator's region follows it when it is known from the video that was bound.
+        PollDateFingerprint.method.apply {
+            val instructions = implementationOrPatchException("Poll date").instructions.toList()
+            val writeIndex = instructions.indexOfFirst { instruction ->
+                instruction.getReference<MethodReference>()?.let {
+                    it.definingClass == TEXT_VIEW && it.name == "setText"
+                } == true
+            }
+            if (writeIndex < 0) {
+                throw PatchException(
+                    "Poll date: ${definingClass}->${name} writes no poll time text.",
+                )
+            }
+            val write = instructions[writeIndex] as? Instruction35c
+                ?: throw PatchException(
+                    "Poll date: the time write in ${definingClass}->${name} does not name its " +
+                        "view in four bits, so the view cannot be handed over.",
+                )
+            val view = write.registerC
+            val poll = getFreeRegisterProvider(
+                writeIndex + 1,
+                1,
+                listOf(view),
+            ).getFreeRegister4Bit()
+            addInstructions(
+                writeIndex + 1,
+                """
+                    move-object/from16 v$poll, p1
+                    invoke-static {v$poll, v$view}, $POLL_DATE_BRIDGE->attach(Ljava/lang/Object;Landroid/widget/TextView;)V
+                """.trimIndent(),
+            )
         }
 
         // The application context is stashed at process start. Without it the extension cannot
