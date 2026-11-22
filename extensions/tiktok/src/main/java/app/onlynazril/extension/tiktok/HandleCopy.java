@@ -59,33 +59,28 @@ public final class HandleCopy {
      * passed straight to the normal view dispatch, so the cell's own long-press speed-up never sees
      * it. The check uses the name's current screen bounds, and the state is cleared on up or cancel.
      */
-    public static boolean blocksCellGesture(MotionEvent event) {
+    public static boolean blocksCellGesture(View root, MotionEvent event) {
         int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
             suppressCellGesture = false;
-            synchronized (NAMES) {
-                for (int i = NAMES.size() - 1; i >= 0; i--) {
-                    View name = NAMES.get(i).get();
-                    if (name == null) {
-                        NAMES.remove(i);
-                        continue;
-                    }
-                    if (!name.isShown()) continue;
-                    int[] location = new int[2];
-                    name.getLocationOnScreen(location);
-                    if (event.getRawX() >= location[0]
-                            && event.getRawX() < location[0] + name.getWidth()
-                            && event.getRawY() >= location[1]
-                            && event.getRawY() < location[1] + name.getHeight()) {
-                        suppressCellGesture = true;
-                        downX = event.getRawX();
-                        downY = event.getRawY();
-                        break;
-                    }
+            View name = findTagged(root);
+            if (name == null || !name.isShown()) name = visibleName();
+            if (name != null && name.isShown()) {
+                int[] location = new int[2];
+                name.getLocationOnScreen(location);
+                int pad = Math.round(
+                        24f * name.getResources().getDisplayMetrics().density);
+                if (event.getRawX() >= location[0] - pad
+                        && event.getRawX() < location[0] + name.getWidth() + pad
+                        && event.getRawY() >= location[1] - pad
+                        && event.getRawY() < location[1] + name.getHeight() + pad) {
+                    suppressCellGesture = true;
+                    downX = event.getRawX();
+                    downY = event.getRawY();
                 }
             }
         } else if (suppressCellGesture && action == MotionEvent.ACTION_MOVE) {
-            View name = visibleName();
+            View name = findTagged(root);
             float slop = name == null
                     ? 0f
                     : ViewConfiguration.get(name.getContext()).getScaledTouchSlop();
@@ -100,6 +95,18 @@ public final class HandleCopy {
             suppressCellGesture = false;
         }
         return blocked;
+    }
+
+    /** The name this cell root owns: the one that carries the hold listener. */
+    private static View findTagged(View view) {
+        if (view == null) return null;
+        if (view.getTag(LISTENER_TAG) != null) return view;
+        if (!(view instanceof ViewGroup group)) return null;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View found = findTagged(group.getChildAt(i));
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private static void remember(View name) {

@@ -355,7 +355,7 @@ val tiktokHandlePatch = bytecodePatch(
         touch.addInstructions(
             0,
             """
-                invoke-static {p1}, $HANDLE_COPY->blocksCellGesture(Landroid/view/MotionEvent;)Z
+                invoke-static {p0, p1}, $HANDLE_COPY->blocksCellGesture(Landroid/view/View;Landroid/view/MotionEvent;)Z
                 move-result v0
                 if-eqz v0, :onlynazril_name_touch
                 invoke-super {p0, p1}, $touchSuper->dispatchTouchEvent(Landroid/view/MotionEvent;)Z
