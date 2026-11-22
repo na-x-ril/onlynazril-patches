@@ -129,6 +129,7 @@ public final class SettingsBackup {
         root.put("refresh_rate_fps", RefreshRateSettings.fps(context));
         root.put("pause_image_search_disabled", PauseImageSearchSettings.isDisabled(context));
         root.put("feed_search_hidden", FeedSearchSettings.isHidden(context));
+        root.put("copy_handle_on_hold", HandleSettings.isCopyOnHoldEnabled(context));
         return root.toString(2);
     }
 
@@ -244,6 +245,10 @@ public final class SettingsBackup {
             }
             if (root.has("feed_search_hidden")) {
                 FeedSearchSettings.setHidden(context, root.optBoolean("feed_search_hidden"));
+            }
+            if (root.has("copy_handle_on_hold")) {
+                HandleSettings.setCopyOnHoldEnabled(
+                        context, root.optBoolean("copy_handle_on_hold"));
             }
 
             HandleSettings.flush(context);

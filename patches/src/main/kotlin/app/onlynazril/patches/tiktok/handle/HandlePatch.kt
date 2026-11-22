@@ -19,6 +19,7 @@ import app.onlynazril.patches.shared.Constants.COMPATIBILITY_TIKTOK
 import app.onlynazril.patches.tiktok.shared.ApplicationOnCreateFingerprint
 
 private const val HANDLE_DELEGATE = "Lapp/onlynazril/extension/tiktok/HandleDelegate;"
+private const val HANDLE_COPY = "Lapp/onlynazril/extension/tiktok/HandleCopy;"
 private const val BIND_BRIDGE = "Lapp/onlynazril/extension/tiktok/BindBridge;"
 private const val APP_CONTEXT = "Lapp/onlynazril/extension/tiktok/internal/AppContext;"
 private const val AUTHOR_INFO_BRIDGE = "Lapp/onlynazril/extension/tiktok/AuthorInfoBridge;"
@@ -341,6 +342,27 @@ val tiktokHandlePatch = bytecodePatch(
                 invoke-static {v0}, $MENTION_TEXT->withoutLeadingAt(Ljava/lang/String;)Ljava/lang/String;
                 move-result-object v0
                 move-object/from16 p2, v0
+            """.trimIndent(),
+        )
+
+        // The cell root's own touch dispatch is where long-press speed-up lives. A touch that
+        // started on the name goes straight to the normal dispatch instead, so holding the handle
+        // copies it without starting the 2x playback.
+        val touch = VideoViewCellRootTouchFingerprint.methodOrNull
+            ?: throw PatchException("Handle: the feed cell root's touch dispatch was not found.")
+        val touchSuper = classDefByOrNull(touch.definingClass)?.superclass
+            ?: throw PatchException("Handle: ${touch.definingClass} has no superclass to dispatch to.")
+        touch.addInstructions(
+            0,
+            """
+                invoke-static {p1}, $HANDLE_COPY->blocksCellGesture(Landroid/view/MotionEvent;)Z
+                move-result v0
+                if-eqz v0, :onlynazril_name_touch
+                invoke-super {p0, p1}, $touchSuper->dispatchTouchEvent(Landroid/view/MotionEvent;)Z
+                move-result v0
+                return v0
+                :onlynazril_name_touch
+                nop
             """.trimIndent(),
         )
 

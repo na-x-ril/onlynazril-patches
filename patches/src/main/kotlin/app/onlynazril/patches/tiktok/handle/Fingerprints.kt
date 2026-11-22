@@ -140,6 +140,17 @@ object PollDateFingerprint : Fingerprint(
 )
 
 /**
+ * The feed cell's root touch dispatch. It owns the long-press speed-up gesture, so a touch that
+ * started on the name has to be taken around it rather than merely consumed by the child.
+ */
+object VideoViewCellRootTouchFingerprint : Fingerprint(
+    definingClass = "Lcom/ss/android/ugc/aweme/feed/VideoViewCellRootView;",
+    name = "dispatchTouchEvent",
+    returnType = "Z",
+    parameters = listOf("Landroid/view/MotionEvent;"),
+)
+
+/**
  * The comment composer's mention insert: `(int, name, uid, secUid, tako) -> boolean`.
  *
  * The name it inserts is appended to a literal "@" by the method itself. `HandleDelegate` already

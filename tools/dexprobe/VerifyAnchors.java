@@ -49,6 +49,8 @@ public class VerifyAnchors {
     private static final String POLL_CELL =
             "com.ss.android.ugc.aweme.commentv2.commentlist.powercell.PollCell";
     private static final String POLL_INFO = "com.ss.android.ugc.aweme.comment.model.PollInfo";
+    private static final String VIDEO_CELL_ROOT =
+            "com.ss.android.ugc.aweme.feed.VideoViewCellRootView";
     private static final String VIDEO_ITEM_PARAMS =
             "com.ss.android.ugc.aweme.feed.model.VideoItemParams";
     private static final String FEED_ITEM_LIST =
@@ -167,6 +169,8 @@ public class VerifyAnchors {
             requireFeedSearchTrigger(bridge, FEED_SEARCH_TRIGGER_V2);
             // Comment poll date: the row's (PollInfo)V write of createTime through TextView.setText.
             requirePollDate(bridge);
+            // The feed cell root's touch dispatch, which owns the long-press speed-up gesture.
+            requireMethod(bridge, VIDEO_CELL_ROOT, "dispatchTouchEvent", "boolean", 1);
 
             // Host activity
             requireMethod(bridge, AD_PERSONALIZATION, "onCreate", "void", 1);

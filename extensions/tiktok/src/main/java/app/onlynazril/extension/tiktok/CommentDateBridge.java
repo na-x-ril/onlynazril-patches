@@ -73,6 +73,8 @@ public final class CommentDateBridge {
                                 comment,
                                 "getReplyToReplyCommentId",
                                 "replyToReplyId"));
+                HandleCopy.watchNear(
+                        timeView, nickname instanceof String ? (String) nickname : null);
             }
             if (!HandleSettings.surfaceEnabled(Surfaces.COMMENTS)) {
                 strip(timeView);

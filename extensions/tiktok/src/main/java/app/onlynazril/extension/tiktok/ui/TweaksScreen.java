@@ -614,6 +614,15 @@ public final class TweaksScreen extends FrameLayout {
                 "Only the @handle. The region and the post time have their own switches below.",
                 masterToggle));
 
+        page.addView(divider(context));
+        page.addView(new RowView(
+                context,
+                "Copy handle on hold",
+                "Hold the name on a feed video or comment to copy its @handle. "
+                        + "Off leaves the hold to TikTok.",
+                toggle(context, HandleSettings.isCopyOnHoldEnabled(context),
+                        checked -> HandleSettings.setCopyOnHoldEnabled(context, checked))));
+
         for (String[] surfaceRow : SURFACE_ROWS) {
             page.addView(divider(context));
             RowView row = new RowView(
