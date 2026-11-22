@@ -40,6 +40,9 @@ public final class HandleCopy {
     /** The name's own alpha, remembered when the hold starts. */
     private static final int ALPHA_TAG = 0x7f0f9994;
 
+    /** The full handle behind the name, so an ellipsized view still copies the whole one. */
+    private static final int HANDLE_TAG = 0x7f0f9993;
+
     /** How far the name dims while it is held. */
     private static final float HELD_ALPHA = 0.55f;
 
@@ -127,17 +130,18 @@ public final class HandleCopy {
     }
 
     /** A name inside this root, for a header whose root is already the row. */
-    public static void watch(View root, String expectedName) {        if (root == null || !enabled(root)) return;
-        if (attach(root, expectedName)) return;
-        retry(root, expectedName);
+    public static void watch(View root, String expectedName, String handle) {
+        if (root == null || !enabled(root)) return;
+        if (attach(root, expectedName, handle)) return;
+        retry(root, expectedName, handle);
     }
 
     /** A name near this view, for a comment where only the time view is in hand. */
-    public static void watchNear(View anchor, String expectedName) {
+    public static void watchNear(View anchor, String expectedName, String handle) {
         if (anchor == null || !enabled(anchor)) return;
         View root = itemRoot(anchor);
-        if (attach(root, expectedName)) return;
-        retry(root, expectedName);
+        if (attach(root, expectedName, handle)) return;
+        retry(root, expectedName, handle);
     }
 
     private static boolean enabled(View view) {
@@ -145,12 +149,12 @@ public final class HandleCopy {
         return context != null && HandleSettings.isCopyOnHoldEnabled(context);
     }
 
-    private static void retry(View root, String expectedName) {
+    private static void retry(View root, String expectedName, String handle) {
         final int[] frames = {0};
         final ViewTreeObserver[] observer = {root.getViewTreeObserver()};
         final ViewTreeObserver.OnPreDrawListener[] listener = new ViewTreeObserver.OnPreDrawListener[1];
         listener[0] = () -> {
-            if (attach(root, expectedName) || ++frames[0] >= MAX_FRAMES) {
+            if (attach(root, expectedName, handle) || ++frames[0] >= MAX_FRAMES) {
                 if (observer[0].isAlive()) observer[0].removeOnPreDrawListener(listener[0]);
                 return true;
             }
@@ -178,40 +182,57 @@ public final class HandleCopy {
         return false;
     }
 
-    private static boolean attach(View root, String expectedName) {
-        TextView name = findName(root, expectedName);
+    private static boolean attach(View root, String expectedName, String handle) {
+        if (handle == null || handle.trim().isEmpty()) return false;
+        TextView name = findName(root, expectedName, handle);
         if (name == null) return false;
+        name.setTag(HANDLE_TAG, stripAt(handle));
         if (name.getTag(LISTENER_TAG) != null) return true;
         name.setTag(LISTENER_TAG, Boolean.TRUE);
         name.setOnTouchListener(new Hold(name));
         remember(name);
         Debug.print("handle copy: listener on " + name.getClass().getSimpleName()
-                + " text='" + textOf(name) + "' clickable=" + name.isClickable());
+                + " text='" + textOf(name) + "' handle='" + handle + "'");
         return true;
     }
 
-    private static TextView findName(View view, String expectedName) {
-        TextView clicked = findName(view, expectedName, true);
-        return clicked != null ? clicked : findName(view, expectedName, false);
+    private static TextView findName(View view, String expectedName, String handle) {
+        TextView clicked = findName(view, expectedName, handle, true);
+        return clicked != null ? clicked : findName(view, expectedName, handle, false);
     }
 
-    private static TextView findName(View view, String expectedName, boolean clickableOnly) {
-        if (view instanceof TextView text && isName(textOf(text), expectedName)
+    private static TextView findName(
+            View view, String expectedName, String handle, boolean clickableOnly) {
+        if (view instanceof TextView text && isName(textOf(text), expectedName, handle)
                 && (!clickableOnly || view.isClickable())) {
             return (TextView) view;
         }
         if (!(view instanceof ViewGroup group)) return null;
         for (int i = 0; i < group.getChildCount(); i++) {
-            TextView found = findName(group.getChildAt(i), expectedName, clickableOnly);
+            TextView found = findName(group.getChildAt(i), expectedName, handle, clickableOnly);
             if (found != null) return found;
         }
         return null;
     }
 
-    private static boolean isName(String text, String expectedName) {
-        if (text.isEmpty()) return false;
-        if (text.startsWith("@")) return true;
-        return expectedName != null && text.trim().equals(expectedName.trim());
+    /**
+     * The author's name, not any mention in the row. With the handle in hand the first token has
+     * to be exactly `@handle` (a reply prefix such as `@handle > @target` still matches); the
+     * nickname is only the fallback when the payload has no handle.
+     */
+    private static boolean isName(String text, String expectedName, String handle) {
+        String trimmed = text.trim();
+        if (handle != null && !handle.trim().isEmpty()) {
+            String at = "@" + stripAt(handle);
+            if (!trimmed.startsWith(at)) return false;
+            if (trimmed.length() == at.length()) return true;
+            char next = trimmed.charAt(at.length());
+            return Character.isWhitespace(next) || next == '\u00b7' || next == '\u2026'
+                    || next == '>' || next == '\u203a';
+        }
+        if (expectedName == null) return false;
+        String expected = expectedName.trim();
+        return trimmed.equals(expected) || trimmed.startsWith(expected + " ");
     }
 
     /**
@@ -301,8 +322,11 @@ public final class HandleCopy {
         if (!(view instanceof TextView)) return false;
         Context context = view.getContext();
         if (context == null || !HandleSettings.isCopyOnHoldEnabled(context)) return false;
-        String handle = handleOf(textOf((TextView) view));
-        if (handle == null) return false;
+        Object stored = view.getTag(HANDLE_TAG);
+        String handle = stored instanceof String
+                ? (String) stored
+                : handleOf(textOf((TextView) view));
+        if (handle == null || handle.isEmpty()) return false;
         ClipboardManager clipboard =
                 (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard == null) return false;
@@ -344,18 +368,27 @@ public final class HandleCopy {
 
     /** The first token of a stamped name, without the leading `@` or any metadata after it. */
     private static String handleOf(String text) {
-        String trimmed = text.trim();
-        if (trimmed.startsWith("@")) trimmed = trimmed.substring(1);
+        String trimmed = stripAt(text);
         if (trimmed.isEmpty()) return null;
         int end = trimmed.length();
         for (int i = 0; i < trimmed.length(); i++) {
             char c = trimmed.charAt(i);
-            if (Character.isWhitespace(c) || c == '\u00b7') {
+            if (Character.isWhitespace(c) || c == '\u00b7' || c == '\u2026') {
                 end = i;
                 break;
             }
         }
-        return end == 0 ? null : trimmed.substring(0, end);
+        if (end > 3 && trimmed.startsWith("...", end - 3)) end -= 3;
+        return end <= 0 ? null : trimmed.substring(0, end);
+    }
+
+    private static String stripAt(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        if (trimmed.startsWith("@")) trimmed = trimmed.substring(1).trim();
+        if (trimmed.endsWith("\u2026")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+        }
+        return trimmed;
     }
 
     private static String textOf(TextView view) {

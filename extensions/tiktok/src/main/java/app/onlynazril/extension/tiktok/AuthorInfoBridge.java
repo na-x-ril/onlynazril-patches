@@ -121,7 +121,10 @@ public final class AuthorInfoBridge {
                 return;
             }
             Object author = Reflect.property(aweme, "getAuthor", "author");
-            HandleCopy.watchNear(time, Reflect.string(author, "getNickname", "nickname"));
+            HandleCopy.watchNear(
+                    time,
+                    Reflect.string(author, "getNickname", "nickname"),
+                    Reflect.string(author, "getUniqueId", "uniqueId"));
             apply(time, aweme);
         } catch (Throwable t) {
             Log.w(TAG, "post-time write failed", t);
