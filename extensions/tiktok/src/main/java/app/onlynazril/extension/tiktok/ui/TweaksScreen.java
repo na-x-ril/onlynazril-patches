@@ -49,6 +49,7 @@ import app.onlynazril.extension.tiktok.settings.CommentCopySettings;
 import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
+import app.onlynazril.extension.tiktok.settings.FeedSearchSettings;
 import app.onlynazril.extension.tiktok.settings.HandleSettings;
 import app.onlynazril.extension.tiktok.settings.KeepScreenSettings;
 import app.onlynazril.extension.tiktok.settings.PostDateFormat;
@@ -821,6 +822,15 @@ public final class TweaksScreen extends FrameLayout {
                 "Hide the image-search entries while a video is paused. Off restores TikTok's entries.",
                 toggle(context, PauseImageSearchSettings.isDisabled(context),
                         checked -> PauseImageSearchSettings.setDisabled(context, checked))));
+
+        page.addView(section(context, "Search"));
+        page.addView(new RowView(
+                context,
+                "Hide feed search suggestion",
+                "Hide the Search · <query> bar TikTok adds under a video in the feed. "
+                        + "Off restores it.",
+                toggle(context, FeedSearchSettings.isHidden(context),
+                        checked -> FeedSearchSettings.setHidden(context, checked))));
     }
 
     private void addContent(LinearLayout page) {

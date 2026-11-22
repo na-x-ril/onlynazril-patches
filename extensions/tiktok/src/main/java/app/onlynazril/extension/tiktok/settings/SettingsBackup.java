@@ -128,6 +128,7 @@ public final class SettingsBackup {
         root.put("keep_screen_enabled", KeepScreenSettings.isEnabled(context));
         root.put("refresh_rate_fps", RefreshRateSettings.fps(context));
         root.put("pause_image_search_disabled", PauseImageSearchSettings.isDisabled(context));
+        root.put("feed_search_hidden", FeedSearchSettings.isHidden(context));
         return root.toString(2);
     }
 
@@ -240,6 +241,9 @@ public final class SettingsBackup {
             if (root.has("pause_image_search_disabled")) {
                 PauseImageSearchSettings.setDisabled(
                         context, root.optBoolean("pause_image_search_disabled"));
+            }
+            if (root.has("feed_search_hidden")) {
+                FeedSearchSettings.setHidden(context, root.optBoolean("feed_search_hidden"));
             }
 
             HandleSettings.flush(context);

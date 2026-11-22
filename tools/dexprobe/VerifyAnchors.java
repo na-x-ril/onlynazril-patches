@@ -41,6 +41,10 @@ public class VerifyAnchors {
             "com.ss.android.ugc.aweme.vision.IPhotoSearchService";
     private static final String SEARCH_VISUAL_TAG_TRIGGER =
             "com.ss.android.ugc.aweme.search.entry.visualsearch.ui.SearchVisualTagComponentTrigger";
+    private static final String FEED_SEARCH_TRIGGER =
+            "com.ss.android.ugc.feed.platform.cell.interact.bottom.bar.FeedSearchBottomBarAssemTrigger";
+    private static final String FEED_SEARCH_TRIGGER_V2 =
+            "com.ss.android.ugc.feed.platform.cell.interact.bottom.bar.FeedSearchBottomBarAssemTriggerV2";
     private static final String VIDEO_ITEM_PARAMS =
             "com.ss.android.ugc.aweme.feed.model.VideoItemParams";
     private static final String FEED_ITEM_LIST =
@@ -151,6 +155,10 @@ public class VerifyAnchors {
             requirePauseImageSearch(bridge);
             // The second surface: the visual search tag trigger's boolean (VideoItemParams) gate.
             requireVisualSearchTag(bridge);
+            // Feed search suggestion: both bottom bar trigger versions, each gated by the same
+            // boolean (VideoItemParams) signature.
+            requireFeedSearchTrigger(bridge, FEED_SEARCH_TRIGGER);
+            requireFeedSearchTrigger(bridge, FEED_SEARCH_TRIGGER_V2);
 
             // Host activity
             requireMethod(bridge, AD_PERSONALIZATION, "onCreate", "void", 1);
@@ -732,6 +740,26 @@ public class VerifyAnchors {
         } else {
             fail("visual search tag: expected one boolean (VideoItemParams) method, matched "
                     + methods.size());
+        }
+    }
+
+    /**
+     * One version of the feed search bottom bar trigger. The class is real-named but the gate's
+     * name moves (`tq` on 47.7.1, `Iq` on 47.9.1), so the signature is the anchor.
+     */
+    private static void requireFeedSearchTrigger(DexKitBridge bridge, String className) {
+        MethodDataList methods = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .declaredClass(className)
+                        .returnType("boolean")
+                        .paramTypes(VIDEO_ITEM_PARAMS)));
+        if (methods.size() == 1) {
+            MethodData method = methods.get(0);
+            pass("feed search " + method.getDeclaredClassName() + "#" + method.getName()
+                    + " " + method.getParamTypeNames());
+        } else {
+            fail("feed search " + className
+                    + ": expected one boolean (VideoItemParams) method, matched " + methods.size());
         }
     }
 
