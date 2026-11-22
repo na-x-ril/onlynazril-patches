@@ -1,3 +1,26 @@
+## [1.7.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.1...v1.7.0-dev.2) (2026-11-22)
+
+### 🐛 Bug Fixes
+
+* **TikTok - Feed filter:** Cached videos bypass the range filter ([fdf2208](https://github.com/na-x-ril/onlynazril-patches/commit/fdf22089314e1253378c4719a12b5d526b3d72ff))
+* **TikTok - Handle:** Copy the full handle for ellipsized and comment names ([a984826](https://github.com/na-x-ril/onlynazril-patches/commit/a98482699bd1b911edefb747a5711f61b216dc9a))
+* **TikTok - Handle:** Hold sometimes starts the 2x speed ([6039ee4](https://github.com/na-x-ril/onlynazril-patches/commit/6039ee4cccc1785e0e33a269904832125690d0d0))
+* **TikTok:** Keep mentions single-@ in comments ([06cf1a3](https://github.com/na-x-ril/onlynazril-patches/commit/06cf1a37b83aec6c79b0880494be07344411815a))
+
+### ✨ New Features
+
+* **TikTok - Feed search:** Add `Hide feed search suggestion` patch ([924e5b3](https://github.com/na-x-ril/onlynazril-patches/commit/924e5b3030484d10a20e9109f26a1d235eed5db8))
+* **TikTok - Handle:** Copy the handle on hold ([d2fa6d4](https://github.com/na-x-ril/onlynazril-patches/commit/d2fa6d4881ed2faf4bc0ae307c5dfe1d527625f1))
+* **TikTok - Handle:** Show time and region on comment polls ([f87834c](https://github.com/na-x-ril/onlynazril-patches/commit/f87834ccce6295a018d55d74f95d32ac48c40433))
+* **TikTok - Handle:** Warn when a long date pattern crowds the name ([372519c](https://github.com/na-x-ril/onlynazril-patches/commit/372519cc82bf7566486eead1e8cdd03bc5b7f644))
+
+### 🚀 Updated App Support
+
+* **TikTok:** Add support for `47.9.2` and `47.9.3` ([25d2e8c](https://github.com/na-x-ril/onlynazril-patches/commit/25d2e8c156ad0ea8b3ffce025b20a4a52ed16347))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.7.0-dev.1](https://github.com/na-x-ril/onlynazril-patches/compare/v1.6.0...v1.7.0-dev.1) (2026-11-18)
 
 ### ✨ New Features
