@@ -18,6 +18,7 @@ private val COLLECTION_TYPES = setOf(
     "Ljava/util/List;",
     "Ljava/util/Collection;",
     "Ljava/util/ArrayList;",
+    "Ljava/util/LinkedList;",
 )
 
 /**
@@ -74,6 +75,24 @@ val tiktokFeedFilterPatch = bytecodePatch(
         val clone = FeedItemListCloneFingerprint.methodOrNull
             ?: throw PatchException("Feed filter: FeedItemList#clone was not found.")
         clone.filterOnReturns("filterGenericClone")
+
+        // The page restored on the next launch comes from the feed's own cache and is handed to
+        // `setItems`, which is ad-only because profile and search share it. Filter that cache in
+        // full at the restore, so a count-, LIVE- or drama-filtered item cannot come back with the
+        // cached page.
+        val cacheLoad = FeedCacheLoadFingerprint.methodOrNull
+            ?: throw PatchException("Feed filter: the panel's cache restore was not found.")
+        val cacheField = cacheLoad.implementationOrPatchException("Feed filter").instructions
+            .mapNotNull { instruction ->
+                (instruction as? ReferenceInstruction)?.reference as? FieldReference
+            }
+            .singleOrNull { it.type in COLLECTION_TYPES }
+            ?: throw PatchException("Feed filter: the cache restore reads no single cached list.")
+        cacheLoad.addInstructions(
+            0,
+            "sget-object v0, $cacheField\n" +
+                "invoke-static {v0}, $FEED_FILTER_CLASS->filterStore(Ljava/lang/Object;)V",
+        )
 
         // The feed panel's insert callback. The ad path in the detail feed does not touch
         // `FeedItemList` or the pager storage; it inserts the ad through `DataLayerAbility`, which
@@ -234,10 +253,10 @@ val tiktokFeedFilterPatch = bytecodePatch(
                 hooks++
             }
 
-            // The storage's own list, replaced at construction with one that refuses a direct ad.
-            // This is the path the ad SDK uses without calling any of the methods above. Only ads
-            // are refused: this storage is also rebuilt for the detail feed and a profile's video
-            // list, where dropping the opened item leaves a black screen or the previous list.
+            // The storage's own list, replaced at construction with one that applies the feed's
+            // filters. This is the path a cached/current item uses without calling any of the
+            // methods above: it is added straight to the ArrayList. The feed store is the one
+            // `RecommendFeedFragmentPanel` builds; detail and profile use their own stores.
             for (method in store.methods) {
                 if (method.name != "<init>" || method.implementation == null) continue
                 val mutableInit = mutableStore.findMutableMethodOf(method)
@@ -251,7 +270,7 @@ val tiktokFeedFilterPatch = bytecodePatch(
                 for (index in returns) {
                     mutableInit.addInstructions(
                         index,
-                        "invoke-static {p0}, $FEED_FILTER_CLASS->wrapStorage(Ljava/lang/Object;)V",
+                        "invoke-static {p0}, $FEED_FILTER_CLASS->wrapFeedStorage(Ljava/lang/Object;)V",
                     )
                 }
             }
@@ -298,6 +317,44 @@ val tiktokFeedFilterPatch = bytecodePatch(
                     mutableInit.addInstructions(
                         index,
                         "invoke-static {p0}, $FEED_FILTER_CLASS->wrapStorage(Ljava/lang/Object;)V",
+                    )
+                }
+            }
+        }
+
+        // The feed adapter's own list is also filled directly, without a setter or callback: that is
+        // how the last page comes back the moment the app opens. The wrapper above refuses ads only,
+        // because the same model serves the detail feed and profiles. This hook keeps that wrapper
+        // there and upgrades the feed adapter's instance to the full filters, identified by the
+        // adapter's own event type.
+        if (adapter != null && adapterModel != null) {
+            val mutableAdapter = mutableClassDefBy(adapter)
+            for (method in adapter.methods) {
+                if (method.name != "<init>" || method.implementation == null) continue
+                val mutableInit = mutableAdapter.findMutableMethodOf(method)
+                val locals = (mutableInit.implementation?.registerCount ?: 0) -
+                    method.parameterTypes.size
+                if (locals < 3) {
+                    throw PatchException(
+                        "Feed filter: ${adapter.type} constructor has no room for the adapter hook.",
+                    )
+                }
+                val returns = mutableInit.implementation
+                    ?.instructions
+                    ?.withIndex()
+                    ?.filter { it.value.opcode == Opcode.RETURN_VOID }
+                    ?.map { it.index }
+                    ?.sortedDescending()
+                    ?: emptyList()
+                for (index in returns) {
+                    mutableInit.addInstructions(
+                        index,
+                        """
+                            const-string v1, "${adapterModel.type}"
+                            const-string v2, "$contract"
+                            move-object/from16 v0, p0
+                            invoke-static {v0, v1, v2}, $FEED_FILTER_CLASS->wrapFeedAdapter(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V
+                        """.trimIndent(),
                     )
                 }
             }

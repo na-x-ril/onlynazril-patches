@@ -141,6 +141,8 @@ public class VerifyAnchors {
             requireFeedFetch(bridge);
             // …and the setter, the only other way a page's list is replaced.
             requireItemsSetter(bridge);
+            // …and the cached page restored on the next launch, before it reaches that setter.
+            requireFeedCacheLoad(bridge);
             // …and the pager's own storage, where the filter stops items entering the list.
             requirePagerStorage(bridge);
             requireMethod(bridge, FEED_ITEM_LIST, "clone", FEED_ITEM_LIST, 0);
@@ -790,6 +792,32 @@ public class VerifyAnchors {
                     + " " + method.getParamTypeNames());
         } else {
             fail("poll date: expected one (PollInfo) date write, matched " + methods.size());
+        }
+    }
+
+    /**
+     * The panel's cache restore: `loadCache` hands the last feed page to the generic setter, and the
+     * cache list it reads is what the patch filters in full before that copy.
+     */
+    private static void requireFeedCacheLoad(DexKitBridge bridge) {
+        MethodDataList candidates = bridge.findMethod(FindMethod.create()
+                .matcher(MethodMatcher.create()
+                        .name("loadCache")));
+        int matches = 0;
+        String found = null;
+        for (MethodData method : candidates) {
+            boolean callsSetter = method.getInvokes().stream().anyMatch(invoke ->
+                    FEED_ITEM_LIST.equals(invoke.getDeclaredClassName())
+                            && "setItems".equals(invoke.getName()));
+            if (!callsSetter) continue;
+            matches++;
+            found = method.getDeclaredClassName() + "#" + method.getName()
+                    + " " + method.getParamTypeNames();
+        }
+        if (matches == 1) {
+            pass("feed cache " + found);
+        } else {
+            fail("feed cache: expected one loadCache restore, matched " + matches);
         }
     }
 

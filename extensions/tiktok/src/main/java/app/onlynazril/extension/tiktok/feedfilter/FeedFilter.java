@@ -97,12 +97,46 @@ public final class FeedFilter {
         return isAdItem(item);
     }
 
+    /**
+     * The full feed set, for the feed adapter's own list. Cached in time: the adapter adds on every
+     * bind, and reading every switch per item would be paid on a path that runs constantly.
+     */
+    public static boolean shouldRefuseFeed(Object item) {
+        if (item == null) return false;
+        Active active = feedActive;
+        long now = System.currentTimeMillis();
+        if (active == null || now - feedActiveAt > 1000L) {
+            active = active(false);
+            feedActive = active;
+            feedActiveAt = now;
+        }
+        for (IFilter filter : active.filters) {
+            if (filter.shouldRemove(item)) return true;
+        }
+        return false;
+    }
+
+    private static volatile Active feedActive;
+    private static volatile long feedActiveAt;
+    private static volatile boolean pageLoaded;
+
+    /** Whether a feed page has been seen: a single item after this point is the opened one. */
+    public static boolean hasPageLoaded() {
+        return pageLoaded;
+    }
+
     private static int refusedItems;
 
     /** A feed list refused a direct add, which is a path no insert callback sees. */
     public static void logRefusedItem(Object item) {
         if (refusedItems++ >= MAX_ACTIONS) return;
         Debug.print("feedfilter: storage refused ad@" + handle(item));
+    }
+
+    /** A feed adapter list refused an item that the current switches filter out. */
+    public static void logRefusedFeedItem(Object item) {
+        if (refusedItems++ >= MAX_ACTIONS) return;
+        Debug.print("feedfilter: feed storage refused item@" + handle(item));
     }
 
     private static String handle(Object item) {
@@ -119,6 +153,68 @@ public final class FeedFilter {
      * `ArrayList` type instead.
      */
     public static void wrapStorage(Object store) {
+        wrap(store, false);
+    }
+
+    /** The feed adapter's own list: the same wrapper, with the feed's full filters. */
+    public static void wrapFeedStorage(Object store) {
+        wrap(store, true);
+    }
+
+    /**
+     * Wraps the feed adapter's item list when this adapter belongs to a feed tab. The page params
+     * carry the event type (`homepage_hot`, `homepage_follow`, …); a detail feed or a profile list
+     * has another one and is left alone, so the video the user opened is never refused.
+     *
+     * @param modelDescriptor the adapter's item-model type, passed by the patch
+     */
+    public static void wrapFeedAdapter(
+            Object adapter, String modelDescriptor, String storeDescriptor) {
+        if (adapter == null || modelDescriptor == null) return;
+        try {
+            Object params = null;
+            Object model = null;
+            Object store = null;
+            for (Class<?> type = adapter.getClass(); type != null && type != Object.class;
+                    type = type.getSuperclass()) {
+                for (Field field : type.getDeclaredFields()) {
+                    field.setAccessible(true);
+                    if (params == null
+                            && field.getType().getName().endsWith("BaseFeedPageParams")) {
+                        params = field.get(adapter);
+                    }
+                    if (model == null && modelDescriptor.equals(descriptorOf(field.getType()))) {
+                        model = field.get(adapter);
+                    }
+                    if (store == null && storeDescriptor != null
+                            && storeDescriptor.equals(descriptorOf(field.getType()))) {
+                        store = field.get(adapter);
+                    }
+                }
+            }
+            String event = Reflect.string(params, "getEventType", "eventType");
+            if (event == null || !event.startsWith("homepage")) {
+                Debug.print("feedfilter: adapter left alone event=" + event);
+                return;
+            }
+            if (model == null) {
+                Debug.print("feedfilter: feed adapter has no item model " + modelDescriptor);
+                return;
+            }
+            wrapFeedStorage(model);
+            if (store != null) wrapFeedStorage(store);
+            Debug.print("feedfilter: feed adapter list wrapped event=" + event
+                    + " store=" + (store != null));
+        } catch (Throwable t) {
+            Debug.print("feedfilter: feed adapter wrap failed " + t);
+        }
+    }
+
+    private static String descriptorOf(Class<?> type) {
+        return "L" + type.getName().replace('.', '/') + ";";
+    }
+
+    private static void wrap(Object store, boolean feed) {
         if (store == null) return;
         // `getList` on the storage returns a copy, so it cannot be used to find the live field.
         // The store classes keep the live item list in an ArrayList field; the instance can be a
@@ -130,12 +226,17 @@ public final class FeedFilter {
                 try {
                     field.setAccessible(true);
                     Object value = field.get(store);
-                    if (!(value instanceof List) || value instanceof AdFreeList) continue;
-                    field.set(store, new AdFreeList((List<?>) value));
+                    if (!(value instanceof List)) continue;
+                    if (value instanceof FeedFilteredList) continue;
+                    if (!feed && value instanceof AdFreeList) continue;
+                    field.set(store, feed
+                            ? new FeedFilteredList((List<?>) value)
+                            : new AdFreeList((List<?>) value));
                     wrapped = true;
                     Debug.print("feedfilter: storage list wrapped field="
                             + type.getSimpleName() + "." + field.getName()
-                            + " size=" + ((List<?>) value).size());
+                            + " size=" + ((List<?>) value).size()
+                            + (feed ? " feed" : ""));
                 } catch (Throwable ignored) {
                     // A field the runtime refuses to open is skipped; the other hooks still run.
                 }
@@ -259,6 +360,7 @@ public final class FeedFilter {
             FeedFilterStats.record(site + " an empty list", 0);
             return;
         }
+        if (items.size() > 1) pageLoaded = true;
         // A single item is the deep-link/current video being inserted; removing it leaves nothing
         // to open. A lone ad is still an ad, so that one goes through the normal filter.
         if (items.size() == 1 && !isAd(active, items.get(0))) {

@@ -2,6 +2,7 @@ package app.onlynazril.patches.tiktok.feedfilter
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.fieldAccess
+import app.morphe.patcher.methodCall
 import com.android.tools.smali.dexlib2.Opcode
 
 internal const val FEED_FILTER_CLASS =
@@ -51,6 +52,24 @@ internal val FeedItemListSetItemsFingerprint = Fingerprint(
             name = "items",
             opcode = Opcode.IPUT_OBJECT,
         ),
+    ),
+)
+
+/**
+ * The panel's cache restore: `loadCache` copies the last feed page from the global cache and gives
+ * it to `FeedItemList#setItems`. That setter is shared with profile/search, so it only drops ads,
+ * and the cached page could therefore bring a count-, LIVE- or drama-filtered item back on the next
+ * launch. The cache is a feed list of its own, so it is filtered in full before the copy is made.
+ *
+ * The method name survives obfuscation and the call to the real-named setter pins it; it is unique
+ * in the APK on 47.7.1 through 47.9.1.
+ */
+internal val FeedCacheLoadFingerprint = Fingerprint(
+    name = "loadCache",
+    returnType = "V",
+    parameters = listOf("[Ljava/lang/Object;"),
+    filters = listOf(
+        methodCall(definingClass = FEED_ITEM_LIST, name = "setItems"),
     ),
 )
 
