@@ -41,10 +41,19 @@ public final class CustomFontSettings {
 
     /** Where imported fonts live: the app's own directory, no permission needed. */
     private static final String FONTS_DIRECTORY = "fonts";
+    /** The same list under Android/media, which survives an uninstall and needs no permission. */
+    private static final String MEDIA_DIRECTORY = "fonts";
 
     private static volatile File servedFrom;
     private static volatile long servedStamp;
     private static volatile Typeface served;
+
+    /** The font directory and its listing, resolved once: this path runs on every text render. */
+    private static volatile File cachedDir;
+    private static volatile List<String> cachedNames;
+    private static volatile long cachedAt;
+    private static volatile boolean migrated;
+    private static final long LIST_TTL_MS = 2000L;
 
     private CustomFontSettings() {}
 
@@ -60,21 +69,73 @@ public final class CustomFontSettings {
         prefs(ctx).edit().putBoolean(KEY_ENABLED, value).apply();
     }
 
-    /** The imported fonts, the newest first. */
+    /**
+     * The imported fonts, the newest first. Read from the directory rather than prefs, so a font
+     * copied before an uninstall is still listed after the next install. A font left in the old
+     * files directory is moved across on the first look.
+     */
     public static List<String> names(Context ctx) {
-        List<String> names = new ArrayList<>();
-        JSONArray array = namesArray(prefs(ctx));
-        for (int i = 0; i < array.length(); i++) {
-            String name = array.optString(i, null);
-            if (name != null) names.add(name);
+        if (ctx == null) return new ArrayList<>();
+        long now = System.currentTimeMillis();
+        List<String> cached = cachedNames;
+        if (cached != null && now - cachedAt < LIST_TTL_MS) return new ArrayList<>(cached);
+        if (!migrated) {
+            migrated = true;
+            migrate(ctx);
         }
-        return names;
+        List<String> found = files(ctx);
+        cachedNames = found;
+        cachedAt = now;
+        return new ArrayList<>(found);
+    }
+
+    /** Moves fonts from the old files directory into the surviving one, once. */
+    private static void migrate(Context ctx) {
+        File media = mediaDir(ctx);
+        if (media == null) return;
+        File legacy = new File(ctx.getFilesDir(), FONTS_DIRECTORY);
+        if (!legacy.isDirectory() || legacy.equals(media)) return;
+        File[] old = legacy.listFiles();
+        if (old == null) return;
+        for (File file : old) {
+            String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+            if (!name.endsWith(".ttf") && !name.endsWith(".otf")) continue;
+            File target = new File(media, file.getName());
+            if (target.exists() || !file.renameTo(target)) {
+                try {
+                    copyFile(file, target);
+                } catch (IOException ignored) {
+                    continue;
+                }
+            }
+            deleteQuietly(file);
+        }
+    }
+
+    private static void copyFile(File source, File target) throws IOException {
+        try (InputStream in = new java.io.FileInputStream(source);
+                FileOutputStream out = new FileOutputStream(target)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
+        }
     }
 
     /** The font the feature serves, or null while none picked or the picked one is gone. */
     public static String selected(Context ctx) {
+        List<String> names = names(ctx);
+        if (names.isEmpty()) return null;
         String name = prefs(ctx).getString(KEY_SELECTED, null);
-        return name != null && names(ctx).contains(name) ? name : null;
+        if (name != null && names.contains(name)) return name;
+        // After an install the selection is gone but the files are not: the newest is used.
+        String newest = names.get(0);
+        prefs(ctx).edit().putString(KEY_SELECTED, newest).apply();
+        return newest;
+    }
+
+    /** The stored name, without the newest-file fallback: what a backup should carry. */
+    public static String storedSelection(Context ctx) {
+        return ctx == null ? null : prefs(ctx).getString(KEY_SELECTED, null);
     }
 
     public static void select(Context ctx, String name) {
@@ -111,6 +172,7 @@ public final class CustomFontSettings {
         names.add(0, name);
         saveNames(ctx, names);
         select(ctx, name);
+        cachedNames = null;
         return true;
     }
 
@@ -145,6 +207,7 @@ public final class CustomFontSettings {
         }
         saveNames(ctx, new ArrayList<>());
         prefs(ctx).edit().remove(KEY_SELECTED).apply();
+        cachedNames = null;
     }
 
     /**
@@ -227,8 +290,51 @@ public final class CustomFontSettings {
         prefs(ctx).edit().putString(KEY_NAMES, array.toString()).apply();
     }
 
+    /**
+     * Where imported fonts live. `Android/media/<package>` first: it is the one app directory an
+     * uninstall does not clear and the app may write without a permission, so a font picked once is
+     * still there after the next install. The files directory is the fallback.
+     */
     private static File fontsDir(Context ctx) {
-        return new File(ctx.getFilesDir(), FONTS_DIRECTORY);
+        File cached = cachedDir;
+        if (cached != null) return cached;
+        File media = mediaDir(ctx);
+        File dir = media != null ? media : new File(ctx.getFilesDir(), FONTS_DIRECTORY);
+        if (!dir.isDirectory()) dir.mkdirs();
+        cachedDir = dir;
+        return dir;
+    }
+
+    private static File mediaDir(Context ctx) {
+        try {
+            File root = android.os.Environment.getExternalStorageDirectory();
+            if (root == null) return null;
+            File dir = new File(new File(new File(root, "Android"), "media"),
+                    ctx.getPackageName() + "/" + MEDIA_DIRECTORY);
+            if (!dir.isDirectory() && !dir.mkdirs()) return null;
+            // The stub File has no isWritable(); a real write is the check anyway.
+            java.io.File probe = new java.io.File(dir, ".write-probe");
+            try (FileOutputStream out = new FileOutputStream(probe)) {
+                out.write(0);
+            }
+            deleteQuietly(probe);
+            return dir;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /** The names of the font files present, newest first. */
+    private static List<String> files(Context ctx) {
+        List<String> found = new ArrayList<>();
+        File[] files = fontsDir(ctx).listFiles();
+        if (files == null) return found;
+        java.util.Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+        for (File file : files) {
+            String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+            if (name.endsWith(".ttf") || name.endsWith(".otf")) found.add(file.getName());
+        }
+        return found;
     }
 
     /** The picker's name for the file, without the directory it came from. */

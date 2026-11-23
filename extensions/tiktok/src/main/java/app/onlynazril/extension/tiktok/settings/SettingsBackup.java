@@ -118,6 +118,8 @@ public final class SettingsBackup {
         root.put("captcha_hide_enabled", CaptchaSettings.isEnabled(context));
         root.put("comment_copy_without_username", CommentCopySettings.isEnabled(context));
         root.put("custom_font_enabled", CustomFontSettings.isEnabled(context));
+        String font = CustomFontSettings.storedSelection(context);
+        if (font != null) root.put("custom_font_selected", font);
 
         root.put("download_enabled", DownloadSettings.isEnabled(context));
         root.put("download_no_watermark", DownloadSettings.isNoWatermarkEnabled(context));
@@ -212,6 +214,13 @@ public final class SettingsBackup {
             }
             if (root.has("custom_font_enabled")) {
                 CustomFontSettings.setEnabled(context, root.optBoolean("custom_font_enabled"));
+            }
+            if (root.has("custom_font_selected")) {
+                // Only a name whose file is present: the backup carries the pick, not the bytes.
+                String font = root.optString("custom_font_selected", null);
+                if (font != null && CustomFontSettings.names(context).contains(font)) {
+                    CustomFontSettings.select(context, font);
+                }
             }
 
             if (root.has("download_enabled")) {
