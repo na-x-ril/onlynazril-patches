@@ -64,15 +64,16 @@ val tiktokFeedFilterPatch = bytecodePatch(
         classDefForEach { classDef ->
             val names = classDef.methods.map { it.name }.toSet()
             if (!names.containsAll(PAGER_MODEL_METHODS)) return@classDefForEach
-            val pageMethod = classDef.methods.firstOrNull { method ->
-                method.parameterTypes == listOf(FEED_ITEM_LIST) &&
-                    method.returnType == "V" &&
+            val handler = classDef.methods.firstOrNull { method ->
+                method.name == "handleData" &&
+                    method.parameterTypes == listOf("Ljava/lang/Object;") &&
                     method.implementation != null
             } ?: return@classDefForEach
-            mutableClassDefBy(classDef).findMutableMethodOf(pageMethod).addInstructions(
+            mutableClassDefBy(classDef).findMutableMethodOf(handler).addInstructions(
                 0,
-                "move-object/from16 v0, p1\n" +
-                    "invoke-static {v0}, $FEED_FILTER_CLASS->filterPage(Ljava/lang/Object;)V",
+                // `handleData` has no spare local: its regs=2 means v0 is `this`. p1 is v1 here,
+                // so it goes straight into the invoke. Moving it into v0 clobbered the receiver.
+                "invoke-static {p1}, $FEED_FILTER_CLASS->filterPage(Ljava/lang/Object;)V",
             )
             pageHooks++
         }

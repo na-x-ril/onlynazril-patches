@@ -66,8 +66,30 @@ public final class FeedFilter {
      * copied into the pager yet, so nothing shifts underneath a position the pager holds. An empty
      * result is left as an empty page, which the app already handles, and its next page follows.
      */
+    private static boolean firstPage;
+
+    @SuppressWarnings("unchecked")
     public static void filterPage(Object page) {
+        if (!firstPage) {
+            firstPage = true;
+            Debug.mark("first feed page");
+        }
+        List<?> items = asList(Reflect.property(page, "getItems", "items"));
+        Object first = null;
+        if (items != null) {
+            for (Object candidate : items) {
+                if (candidate != null) {
+                    first = candidate;
+                    break;
+                }
+            }
+        }
         filter(page, "page", false, false);
+        if (items == null || first == null || !items.isEmpty()) return;
+        // A page with no items is what the app draws as its own error view, and it waits for the
+        // next request before anything plays. One kept video is the cheaper failure.
+        ((List<Object>) items).add(first);
+        Debug.print("feedfilter: page kept=1, everything else was filtered");
     }
 
     public static void filterGenericSet(Object list) {
@@ -90,7 +112,7 @@ public final class FeedFilter {
     /** A list refused an ad at insertion, which is a path no page hook sees. */
     public static void logRefusedItem(Object item) {
         if (refusedItems++ >= MAX_ACTIONS) return;
-        Debug.print("feedfilter: list refused ad@" + handle(item) + " by=" + Debug.caller(6));
+        Debug.print("feedfilter: list refused ad@" + handle(item) + Debug.by(6));
     }
 
     private static int refusedItems;
@@ -171,7 +193,7 @@ public final class FeedFilter {
             String line = "insert source=" + source + " items=" + items.size()
                     + " kept=0 dropped=" + dropped;
             FeedFilterStats.record(line, items.size());
-            Debug.print("feedfilter: " + line + " by=" + Debug.caller(6));
+            Debug.print("feedfilter: " + line + Debug.by(6));
             return new ArrayList<>(0);
         }
 
@@ -216,7 +238,7 @@ public final class FeedFilter {
                 + " removed=" + removed
                 + " dropped=" + reasons;
         FeedFilterStats.record(line, removed);
-        Debug.print("feedfilter: " + line + " by=" + Debug.caller(6));
+        Debug.print("feedfilter: " + line + Debug.by(6));
         return kept;
     }
 
@@ -300,9 +322,9 @@ public final class FeedFilter {
                 items, before, removed, active, hits, unread, preloadCount, preloadCleared, reasons);
         FeedFilterStats.record(line, removed);
         if (removed > 0) {
-            if (actions++ < MAX_ACTIONS) Debug.print("feedfilter: " + line + " by=" + Debug.caller(6));
+            if (actions++ < MAX_ACTIONS) Debug.print("feedfilter: " + line + Debug.by(6));
         } else if (idle++ < MAX_IDLE) {
-            Debug.print("feedfilter: " + line + " by=" + Debug.caller(6));
+            Debug.print("feedfilter: " + line + Debug.by(6));
         }
     }
 
