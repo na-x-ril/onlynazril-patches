@@ -57,8 +57,35 @@ public final class CustomFontSettings {
 
     private CustomFontSettings() {}
 
+    private static volatile Boolean enabledCache;
+
+    /**
+     * Loads the switch off the main thread. The first SharedPreferences read costs a few hundred
+     * milliseconds on a cold start, and the font is asked for during the splash.
+     */
+    public static void warm(Context ctx) {
+        if (ctx == null || enabledCache != null) return;
+        Context app = ctx.getApplicationContext();
+        Thread thread = new Thread(() -> {
+            try {
+                enabledCache = prefs(app).getBoolean(KEY_ENABLED, false);
+                names(app);
+            } catch (Throwable ignored) {
+                enabledCache = Boolean.FALSE;
+            }
+        }, "tiktok-font-warm");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
     public static boolean isEnabled(Context ctx) {
-        return ctx != null && prefs(ctx).getBoolean(KEY_ENABLED, false);
+        if (ctx == null) return false;
+        Boolean cached = enabledCache;
+        if (cached != null) return cached;
+        // Not loaded yet: do not block the render thread for it. The warm thread answers in a few
+        // milliseconds and the faces that follow use it.
+        warm(ctx);
+        return false;
     }
 
     public static boolean isEnabled() {
@@ -66,6 +93,7 @@ public final class CustomFontSettings {
     }
 
     public static void setEnabled(Context ctx, boolean value) {
+        enabledCache = value;
         prefs(ctx).edit().putBoolean(KEY_ENABLED, value).apply();
     }
 
@@ -302,23 +330,22 @@ public final class CustomFontSettings {
         File dir = media != null ? media : new File(ctx.getFilesDir(), FONTS_DIRECTORY);
         if (!dir.isDirectory()) dir.mkdirs();
         cachedDir = dir;
+        Debug.mark("font dir resolved");
         return dir;
     }
 
+    /**
+     * The media directory, resolved with a single stat and nothing else. It used to create the
+     * directory and write a probe file here, and that cost about 400 ms on the launch path, which
+     * runs while the splash is still on screen. Creation is the import's job.
+     */
     private static File mediaDir(Context ctx) {
         try {
             File root = android.os.Environment.getExternalStorageDirectory();
             if (root == null) return null;
             File dir = new File(new File(new File(root, "Android"), "media"),
                     ctx.getPackageName() + "/" + MEDIA_DIRECTORY);
-            if (!dir.isDirectory() && !dir.mkdirs()) return null;
-            // The stub File has no isWritable(); a real write is the check anyway.
-            java.io.File probe = new java.io.File(dir, ".write-probe");
-            try (FileOutputStream out = new FileOutputStream(probe)) {
-                out.write(0);
-            }
-            deleteQuietly(probe);
-            return dir;
+            return dir.isDirectory() ? dir : null;
         } catch (Throwable ignored) {
             return null;
         }
