@@ -61,7 +61,7 @@ public final class SettingsBackup {
             out.write(toJson(context).getBytes(StandardCharsets.UTF_8));
             return true;
         } catch (IOException | JSONException | SecurityException e) {
-            Debug.print("settings: export failed (" + e + ")");
+            Debug.print("settings: export failed (" + e + ")" + Debug.by(4));
             return false;
         }
     }
@@ -80,7 +80,7 @@ public final class SettingsBackup {
             }
             return apply(context, buffer.toString(StandardCharsets.UTF_8.name()));
         } catch (IOException | SecurityException e) {
-            Debug.print("settings: import failed (" + e + ")");
+            Debug.print("settings: import failed (" + e + ")" + Debug.by(4));
             return false;
         }
     }
@@ -263,7 +263,7 @@ public final class SettingsBackup {
             HandleSettings.flush(context);
             return true;
         } catch (JSONException e) {
-            Debug.print("settings: invalid file (" + e + ")");
+            Debug.print("settings: invalid file (" + e + ")" + Debug.by(4));
             return false;
         }
     }

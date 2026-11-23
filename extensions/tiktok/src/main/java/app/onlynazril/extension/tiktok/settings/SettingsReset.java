@@ -28,6 +28,6 @@ public final class SettingsReset {
         // commit, not apply: a restart follows this call and must not race the write.
         prefs.edit().clear().commit();
         if (asked) prefs.edit().putLong(KEY_INSTALL, installed).commit();
-        Debug.print("settings: reset to defaults");
+        Debug.print("settings: reset to defaults" + Debug.by(4));
     }
 }

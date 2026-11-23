@@ -31,6 +31,7 @@ public final class BindBridge {
     private static final long SURFACE_WINDOW_MS = 200L;
 
     private static boolean announcedFeed;
+    private static int bindLogs = 60;
 
     private BindBridge() {}
 
@@ -51,10 +52,20 @@ public final class BindBridge {
     public static void onBind(Object videoItemParams) {
         if (!announcedFeed) {
             announcedFeed = true;
-            Debug.print("feed bind hook fired");
+            Debug.mark("first feed bind");
+            Debug.print("feed bind hook fired" + Debug.by(4));
         }
         markSurface(Surfaces.FEED);
         captureItem(videoItemParams);
+        // One line per bind: the same item bound twice in a row is what a re-render is, and this is
+        // the only place it can be seen.
+        if (bindLogs-- > 0) {
+            Object aweme = Reflect.property(videoItemParams, "getAweme", "mAweme");
+            Object author = Reflect.property(aweme, "getAuthor", "author");
+            Debug.print("feed bind @" + RegionSource.handleOf(author)
+                    + " aid=" + Reflect.string(aweme, "getAid", "aid")
+                    + " pos=" + Reflect.property(videoItemParams, "getCurrentPosition", "currentPosition") + Debug.by(4));
+        }
     }
 
     /** Secondary capture: any other place that touches the item's region. */

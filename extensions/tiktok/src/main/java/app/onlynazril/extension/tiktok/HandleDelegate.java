@@ -29,8 +29,8 @@ public final class HandleDelegate {
     private static final int MAX_RENDER_REPORTS = 120;
     private static final int MAX_SKIP_REPORTS = 40;
     /** Deep enough to see past the helpers a render goes through and reach the cell. */
-    private static final int MAX_RENDER_FRAMES = 6;
-    private static final int MAX_MISS_FRAMES = 4;
+    private static final int MAX_RENDER_FRAMES = 16;
+    private static final int MAX_MISS_FRAMES = 8;
 
     private static int reportedMisses;
     private static int reportedRenders;
@@ -213,6 +213,7 @@ public final class HandleDelegate {
      * VM's say nothing about who is rendering, and they are what filled the first report.
      */
     private static String frames(int limit) {
+        if (!Debug.verbose()) return "";
         StringBuilder chain = new StringBuilder();
         int taken = 0;
         for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {

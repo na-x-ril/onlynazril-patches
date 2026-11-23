@@ -47,6 +47,7 @@ import app.onlynazril.extension.tiktok.refreshrate.RefreshRate;
 import app.onlynazril.extension.tiktok.settings.CaptchaSettings;
 import app.onlynazril.extension.tiktok.settings.CommentCopySettings;
 import app.onlynazril.extension.tiktok.settings.CustomFontSettings;
+import app.onlynazril.extension.tiktok.settings.DebugSettings;
 import app.onlynazril.extension.tiktok.settings.DownloadSettings;
 import app.onlynazril.extension.tiktok.settings.FeedFilterSettings;
 import app.onlynazril.extension.tiktok.settings.FeedSearchSettings;
@@ -1014,6 +1015,17 @@ public final class TweaksScreen extends FrameLayout {
     }
 
     private void addAbout(LinearLayout page) {
+        page.addView(section(context, "Diagnostics"));
+        page.addView(new RowView(
+                context,
+                "Verbose diagnostics",
+                "Log every line with the app frames that name the caller, and raise the log "
+                        + "budgets. Costs CPU; off by default.",
+                toggle(context, DebugSettings.isVerbose(context), checked -> {
+                    DebugSettings.setVerbose(context, checked);
+                    Debug.setVerbose(checked);
+                })));
+        page.addView(divider(context));
         page.addView(description(
                 context,
                 "Tweaks for TikTok 47.7.1 to 47.7.3. "

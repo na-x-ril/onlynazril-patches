@@ -344,7 +344,12 @@ carried it (`ads=0`, look at `preload=` and the insert path), or it carried it a
 Everything goes through `Debug.print`: logcat via `Log.w`, plus the log file, prefix
 `TIKTOK_HANDLE`. `System.out` is not used, because a second channel per line was paid on every
 render. logcat stops at 2000 lines per process and the file at 600; a line identical to the one
-before it is dropped, because the loop that repeats it is exactly what costs. Each line type is capped so
+before it is dropped, because the loop that repeats it is exactly what costs.
+
+**Verbose diagnostics** (Tweaks, About section) is the switch for everything expensive: the app
+frames after `by=`, the `via` frames on a name render, the `surface miss` frames and the `startup:`
+marks are only captured when it is on, and the budgets rise to 20000 logcat / 8000 file lines. Off,
+`Debug.by` answers an empty string and `Debug.caller` returns before taking a stack trace. Each line type is capped so
 one session cannot flood the log:
 
 | line | meaning |

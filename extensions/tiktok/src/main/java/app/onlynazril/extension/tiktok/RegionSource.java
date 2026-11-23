@@ -143,7 +143,7 @@ public final class RegionSource {
         Debug.print("region: @" + (handle == null ? "?" : handle)
                 + " model=" + describeModel(user, raw)
                 + " -> " + (region == null ? "none" : region)
-                + " (from " + (source == null ? "nothing" : source) + ")");
+                + " (from " + (source == null ? "nothing" : source) + ")" + Debug.by(4));
     }
 
     private static String describeModel(Object user, Object raw) {

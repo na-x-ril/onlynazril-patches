@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 
+import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.Reflect;
 import app.onlynazril.extension.tiktok.settings.ResumePlaybackSettings;
 
@@ -435,8 +436,14 @@ public final class ResumePlayback {
      * the manager's {@code seek(float)} is the real-named method behind it. The guard is installed
      * before the call, so a tick racing the seek cannot overwrite the target.
      */
+    private static int firstFrameLogs = 20;
+
     public static synchronized void onFirstFrame(Object controller, String sourceId) {
         Context ctx = ResumePlaybackSettings.appContext();
+        if (firstFrameLogs-- > 0) {
+            Debug.print("resume: first frame on=" + ResumePlaybackSettings.isEnabled(ctx)
+                    + " id=" + sourceId);
+        }
         if (!ResumePlaybackSettings.isEnabled(ctx)) return;
 
         String aid = aid(controller, sourceId);
