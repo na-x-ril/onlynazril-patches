@@ -114,6 +114,6 @@ public final class PollDateBridge {
     private static void report(String what) {
         if (reported >= MAX_REPORTS) return;
         reported++;
-        Debug.print("poll date: " + what + " by=" + Debug.caller(4));
+        Debug.print("poll date: " + what);
     }
 }

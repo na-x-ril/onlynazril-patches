@@ -29,8 +29,8 @@ public final class HandleDelegate {
     private static final int MAX_RENDER_REPORTS = 120;
     private static final int MAX_SKIP_REPORTS = 40;
     /** Deep enough to see past the helpers a render goes through and reach the cell. */
-    private static final int MAX_RENDER_FRAMES = 16;
-    private static final int MAX_MISS_FRAMES = 8;
+    private static final int MAX_RENDER_FRAMES = 6;
+    private static final int MAX_MISS_FRAMES = 4;
 
     private static int reportedMisses;
     private static int reportedRenders;
@@ -97,9 +97,12 @@ public final class HandleDelegate {
 
     /** Where this render is happening, or null when it is not a surface we stamp. */
     private static String surface() {
+        String marked = BindBridge.currentSurface();
+        // The comment binder marks itself, so the list pays no stack walk per name. The stack check
+        // stays for the paths outside a comment bind.
+        if (Surfaces.COMMENTS.equals(marked)) return Surfaces.COMMENTS;
         // Specific surfaces first: a feed marker can still be fresh while another surface renders.
         if (onStackAny(Surfaces.COMMENT_CLASSES)) return Surfaces.COMMENTS;
-        String marked = BindBridge.currentSurface();
         if (marked != null) return marked;
         // Kept from the feed path: a render can slip just outside the binder's window.
         if (mentionsFeed()) return Surfaces.FEED;

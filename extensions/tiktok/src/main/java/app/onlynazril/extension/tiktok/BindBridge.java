@@ -34,6 +34,19 @@ public final class BindBridge {
 
     private BindBridge() {}
 
+    /**
+     * Comment cell bind entry and exit. Marks the surface for the duration of the bind, so the
+     * renderer does not have to walk the stack for every comment: that walk was the comment list's
+     * cost, once per name drawn.
+     */
+    public static void enterComments() {
+        CURRENT_SURFACE.set(Surfaces.COMMENTS);
+    }
+
+    public static void leaveComments() {
+        CURRENT_SURFACE.remove();
+    }
+
     /** Feed binder entry — the one place the item and its author are both in hand. */
     public static void onBind(Object videoItemParams) {
         if (!announcedFeed) {

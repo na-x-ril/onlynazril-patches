@@ -341,15 +341,17 @@ carried it (`ads=0`, look at `preload=` and the insert path), or it carried it a
 
 ## The trail on a device
 
-Everything goes through `Debug.print` — three channels (`System.out`, `Log.w`, and a file), prefix
-`TIKTOK_HANDLE`, so it can be grepped from logcat or from the log file. Each line type is capped so
+Everything goes through `Debug.print`: logcat via `Log.w`, plus the log file, prefix
+`TIKTOK_HANDLE`. `System.out` is not used, because a second channel per line was paid on every
+render. logcat stops at 2000 lines per process and the file at 600; a line identical to the one
+before it is dropped, because the loop that repeats it is exactly what costs. Each line type is capped so
 one session cannot flood the log:
 
 | line | meaning |
 |---|---|
 | `extension attached` | the extension is installed and the `Application#onCreate` hook fired |
 | `surface miss: ...` | a name render matched no surface, with the top 8 frames (max 8) |
-| `name render on <surface>: '<text>' via <frames>` | a name was stamped; 16 frames with method names, without the extension's own frames. A render goes through helpers, so the cell that drew it only appears a few frames down (max 8) |
+| `name render on <surface>: '<text>' via <frames>` | a name was stamped; 6 frames with method names, without the extension's own frames. A render goes through helpers, so the cell that drew it only appears a few frames down (max 8) |
 | `name region: @x model=... -> ID (from account\|bound\|nothing)` | the region for a surface other than the feed, the model's raw value (`'ID'`, `null (declared, unset)`, or `absent (no getter or field)`), and **where** the answer came from (max 12) |
 | `comment time: ...` | the outcome of writing a comment's time view: the written text, or no comment, no region, switches off (max 12) |
 | `header item: author=... createTime=... base='...' -> '...'` | one feed header render: the item's values against what was drawn (max 12) |

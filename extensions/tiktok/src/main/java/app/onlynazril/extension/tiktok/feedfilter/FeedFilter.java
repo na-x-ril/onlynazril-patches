@@ -169,9 +169,9 @@ public final class FeedFilter {
         if (survey || liveCard || dramaCard) {
             String dropped = survey ? "survey" : liveCard ? "live_card" : "drama";
             String line = "insert source=" + source + " items=" + items.size()
-                    + " kept=0 dropped=" + dropped + " by=" + Debug.caller(4);
+                    + " kept=0 dropped=" + dropped;
             FeedFilterStats.record(line, items.size());
-            Debug.print("feedfilter: " + line);
+            Debug.print("feedfilter: " + line + " by=" + Debug.caller(6));
             return new ArrayList<>(0);
         }
 
@@ -210,13 +210,13 @@ public final class FeedFilter {
 
         int removed = items.size() - kept.size();
         String line = "insert source=" + source
-                + " by=" + Debug.caller(4)
+               
                 + " items=" + items.size()
                 + " kept=" + kept.size()
                 + " removed=" + removed
                 + " dropped=" + reasons;
         FeedFilterStats.record(line, removed);
-        Debug.print("feedfilter: " + line);
+        Debug.print("feedfilter: " + line + " by=" + Debug.caller(6));
         return kept;
     }
 
@@ -300,9 +300,9 @@ public final class FeedFilter {
                 items, before, removed, active, hits, unread, preloadCount, preloadCleared, reasons);
         FeedFilterStats.record(line, removed);
         if (removed > 0) {
-            if (actions++ < MAX_ACTIONS) Debug.print("feedfilter: " + line);
+            if (actions++ < MAX_ACTIONS) Debug.print("feedfilter: " + line + " by=" + Debug.caller(6));
         } else if (idle++ < MAX_IDLE) {
-            Debug.print("feedfilter: " + line);
+            Debug.print("feedfilter: " + line + " by=" + Debug.caller(6));
         }
     }
 
@@ -408,10 +408,6 @@ public final class FeedFilter {
         line.append(" preload=").append(preload);
         if (preloadCleared) line.append(" cleared");
         if (!reasons.isEmpty()) {
-            // Only on a call that dropped something: the builder is what a fix has to reach, and the
-            // list it hands over is a fresh copy every time, so the frames are the only thing that
-            // names it.
-            line.append(" by=").append(Debug.caller(6));
             line.append(" dropped=").append(reasons);
         }
         return line.toString();

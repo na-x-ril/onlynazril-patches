@@ -29,6 +29,8 @@ public final class RegionSource {
     private static final int MAX_REPORTS = 120;
 
     private static final Map<String, String> SEEN_AT_BIND = new ConcurrentHashMap<>();
+    /** A handle's resolved region, so a name drawn again costs a map read and no reflection. */
+    private static final Map<String, String> REGION_BY_HANDLE = new ConcurrentHashMap<>();
     private static final Map<String, String> AUTHOR_REGION_BY_UID = new ConcurrentHashMap<>();
 
     private static int reported;
@@ -60,13 +62,21 @@ public final class RegionSource {
     /** A name or a comment: the account's field, then what was seen for that handle at bind. */
     public static String forUser(Object user, String handle) {
         if (user == null) return null;
+        if (handle != null) {
+            String cached = REGION_BY_HANDLE.get(key(handle));
+            if (cached != null) {
+                report(handle, user, null, cached, "cached");
+                return cached;
+            }
+        }
         Object raw = Reflect.property(user, "getRegion", "region");
-        String region = accountRegion(user);
+        String region = upper(raw instanceof String ? (String) raw : null);
         String source = region == null ? null : "account";
         if (region == null && handle != null) {
             region = SEEN_AT_BIND.get(key(handle));
             if (region != null) source = "bound";
         }
+        if (region != null && handle != null) REGION_BY_HANDLE.put(key(handle), region);
         report(handle, user, raw, region, source);
         return region;
     }
@@ -115,6 +125,7 @@ public final class RegionSource {
 
     /** Called at bind: the one moment the item and its author are both in hand. */
     public static void remember(String handle, String region) {
+        if (handle != null && region != null) REGION_BY_HANDLE.put(key(handle), region);
         if (region == null) return;
         if (handle == null || handle.isEmpty()) return;
         if (SEEN_AT_BIND.size() >= MAX_HANDLES) SEEN_AT_BIND.clear();

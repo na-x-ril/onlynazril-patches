@@ -200,3 +200,15 @@ private const val ITEM = "Lcom/ss/android/ugc/aweme/feed/model/Aweme;"
  * future build bypasses getNickname via direct iget, add a TextView.setText
  * fingerprint here. Kept minimal for feed-only stability.
  */
+
+/**
+ * The comment cell's bind: `BaseCommentCell#onBindItemView`, real-named in the app. Hooked only to
+ * mark the surface for the duration of the bind, so the name renderer does not walk the stack for
+ * every comment cell.
+ */
+object CommentCellBindFingerprint : Fingerprint(
+    definingClass = "Lcom/ss/android/ugc/aweme/commentv2/commentlist/powercell/BaseCommentCell;",
+    name = "onBindItemView",
+    returnType = "V",
+    custom = { method, _ -> method.implementation != null },
+)

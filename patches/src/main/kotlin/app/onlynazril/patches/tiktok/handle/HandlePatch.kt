@@ -156,6 +156,21 @@ val tiktokHandlePatch = bytecodePatch(
             """.trimIndent(),
         )
 
+        // Comment binds mark the surface themselves. The renderer used to walk the stack for every
+        // name to tell a comment from the feed, and that walk was the comment list's scroll cost.
+        CommentCellBindFingerprint.methodOrNull?.let { bind ->
+            bind.addInstructions(0, "invoke-static {}, $BIND_BRIDGE->enterComments()V")
+            val returns = bind.implementationOrPatchException("Handle")
+                .instructions
+                .withIndex()
+                .filter { it.value.opcode == Opcode.RETURN_VOID }
+                .map { it.index }
+                .sortedDescending()
+            for (index in returns) {
+                bind.addInstructions(index, "invoke-static {}, $BIND_BRIDGE->leaveComments()V")
+            }
+        }
+
         // Capture Aweme region for CC — DexKit verified 47.0.3 Aweme.getRegion real-named, 2 regs
         AwemeGetRegionFingerprint.method.addInstructions(
             0,
