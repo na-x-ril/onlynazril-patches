@@ -1,3 +1,23 @@
+## [1.7.0-dev.3](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.2...v1.7.0-dev.3) (2026-11-23)
+
+### 🐛 Bug Fixes
+
+* **TikTok - Feed filter:** Filter whole pages, keep links and open one ([c71af3b](https://github.com/na-x-ril/onlynazril-patches/commit/c71af3bdbd18d4f666d724b00d11765e30a59b10))
+* **TikTok - Feed filter:** Keep one video when a page filters to nothing ([259a681](https://github.com/na-x-ril/onlynazril-patches/commit/259a681b52ac8fabd2f76466609edc53e383f6df))
+
+### ✨ New Features
+
+* **TikTok - Custom font:** Keep imported fonts across installs ([ca54a0a](https://github.com/na-x-ril/onlynazril-patches/commit/ca54a0ac1c7209e99e4b81555f0926bd6c2064e7))
+* **TikTok:** Add a verbose diagnostics switch ([bb854e6](https://github.com/na-x-ril/onlynazril-patches/commit/bb854e617f7f336bb905ecc4f64b346529e32d51))
+
+### 🔧 Improvements
+
+* **TikTok - Custom font:** Warm the font switch off the launch path ([388f487](https://github.com/na-x-ril/onlynazril-patches/commit/388f4874a3244d2b8cc85ae8a141f98fec06df78))
+* **TikTok:** Cut logging and lookups from the render path ([09d684a](https://github.com/na-x-ril/onlynazril-patches/commit/09d684a3871471cc2c02771cfa5ad9783a4cdd67))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.7.0-dev.2](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.1...v1.7.0-dev.2) (2026-11-22)
 
 ### 🐛 Bug Fixes
