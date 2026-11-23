@@ -2,36 +2,11 @@ package app.onlynazril.patches.tiktok.feedfilter
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.fieldAccess
-import app.morphe.patcher.methodCall
 import com.android.tools.smali.dexlib2.Opcode
 
 internal const val FEED_FILTER_CLASS =
     "Lapp/onlynazril/extension/tiktok/feedfilter/FeedFilter;"
 internal const val FEED_ITEM_LIST = "Lcom/ss/android/ugc/aweme/feed/model/FeedItemList;"
-internal const val I_FEED_API = "Lcom/ss/android/ugc/aweme/feed/cache/IFeedApi;"
-
-/**
- * The feed page fetch: the one implementation of `IFeedApi#fetchFeedList`.
- *
- * The anchor is the contract, not the name. The class is real-named today
- * (`com.ss.android.ugc.aweme.feed.FeedApiService`) and the method still is too, but neither is
- * what this matches on: the interface, the single-parameter shape and a body are. The interface
- * declares the same return type with no body, so the body is what keeps the declaration out.
- *
- * Its return is the finished page. The fetch chain is
- * `FeedApiService#fetchFeedList → FeedApi#LIZIZ → FeedApi#LIZ`, and it is `LIZIZ` that reads the
- * page's `hasAd` and `preloadAds`, so by the time this returns the ads are already merged in.
- *
- * The patch calls `matchAllOrNull` rather than reading the single match: a build that grows a
- * second implementation has to fail here, not silently filter one of them.
- */
-internal val FeedApiFetchFingerprint = Fingerprint(
-    returnType = FEED_ITEM_LIST,
-    interfaces = listOf(I_FEED_API),
-    custom = { method, _ ->
-        method.implementation != null && method.parameterTypes.size == 1
-    },
-)
 
 /**
  * Every list that becomes a page's items , the generic model, shared by the profile, search and
@@ -56,24 +31,6 @@ internal val FeedItemListSetItemsFingerprint = Fingerprint(
 )
 
 /**
- * The panel's cache restore: `loadCache` copies the last feed page from the global cache and gives
- * it to `FeedItemList#setItems`. That setter is shared with profile/search, so it only drops ads,
- * and the cached page could therefore bring a count-, LIVE- or drama-filtered item back on the next
- * launch. The cache is a feed list of its own, so it is filtered in full before the copy is made.
- *
- * The method name survives obfuscation and the call to the real-named setter pins it; it is unique
- * in the APK on 47.7.1 through 47.9.1.
- */
-internal val FeedCacheLoadFingerprint = Fingerprint(
-    name = "loadCache",
-    returnType = "V",
-    parameters = listOf("[Ljava/lang/Object;"),
-    filters = listOf(
-        methodCall(definingClass = FEED_ITEM_LIST, name = "setItems"),
-    ),
-)
-
-/**
  * The page's copy , the write to `items` that is not a setter call. Hooked for the ad filter only,
  * for the same reason as the setter above.
  */
@@ -86,8 +43,8 @@ internal val FeedItemListCloneFingerprint = Fingerprint(
 
 /**
  * The feed panel's insert callback: `(int, String, List)`. The name moves between builds
- * (`yX2` on 47.7.1, `xX2` on 47.7.2, `zX2` on 47.7.3), so only the real-named panel class and the shape are
- * matched. The list is what `DataLayerAbility` hands over for an insert, including ads.
+ * (`yX2` on 47.7.1, `xX2` on 47.7.2, `zX2` on 47.7.3), so only the real-named panel class and the
+ * shape are matched. The list is what `DataLayerAbility` hands over for an insert, including ads.
  */
 internal val FeedPanelInsertFingerprint = Fingerprint(
     definingClass = "Lcom/ss/android/ugc/aweme/feed/panel/BaseListFragmentPanel;",
@@ -109,17 +66,9 @@ internal val FeedPanelSurveyFingerprint = Fingerprint(
 )
 
 /**
- * The pager's own item model , the list the feed actually renders, of which the fetched page is
- * only a snapshot.
- *
- * `X.07zq#getData` on 47.0.3 sets a page's items three times: the parsed list, the clone, then
- * `X.07zo#getItems()` , the model's own list, which overwrites everything the first two hooks
- * removed. So filtering the page is filtering a copy; the items have to be stopped where they enter
- * the model instead.
- *
- * Matched by the set of method names it carries, not by its (obfuscated) class name: this is the
- * one class that both exposes the list (`getItems`, `getListCount`) and takes items in
- * (`insertItemList`, `setItems`).
+ * The home pager model's own method names. The class that carries all four is the recommend feed's
+ * presenter/model, and its page entry is the only one the filter may hook; the shared base class is
+ * used by every presenter in the app, and hooking that filtered screens it has nothing to do with.
  */
 internal const val PAGER_MODEL_GET_ITEMS = "getItems"
 internal const val PAGER_MODEL_GET_COUNT = "getListCount"

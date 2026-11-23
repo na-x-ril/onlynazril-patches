@@ -37,7 +37,6 @@ public class VerifyAnchors {
             "com.ss.android.ugc.aweme.feed.assem.videoauthorinfo.VideoAuthorInfoRelationAssem";
     private static final String COMMENT_CELL_V2 =
             "com.ss.android.ugc.aweme.commentv2.commentlist.powercell.BaseCommentCell";
-    private static final String FEED_API = "com.ss.android.ugc.aweme.feed.cache.IFeedApi";
     private static final String PHOTO_SEARCH_SERVICE =
             "com.ss.android.ugc.aweme.vision.IPhotoSearchService";
     private static final String SEARCH_VISUAL_TAG_TRIGGER =
@@ -139,14 +138,10 @@ public class VerifyAnchors {
             // The comment list's time write, which the region is moved onto.
             requireCommentV2TimeWrite(bridge);
 
-            // Feed filter: the one implementation of IFeedApi#fetchFeedList, hooked at its return.
-            requireFeedFetch(bridge);
+            // Feed filter: the page's entry to the presenter, where every page is filtered.
+            requirePageHandler(bridge);
             // …and the setter, the only other way a page's list is replaced.
             requireItemsSetter(bridge);
-            // …and the cached page restored on the next launch, before it reaches that setter.
-            requireFeedCacheLoad(bridge);
-            // …and the pager's own storage, where the filter stops items entering the list.
-            requirePagerStorage(bridge);
             requireMethod(bridge, FEED_ITEM_LIST, "clone", FEED_ITEM_LIST, 0);
             // What the filter reads off an item, by name at runtime.
             requireMethod(bridge, AWEME, "isAd", "boolean", 0);
@@ -800,58 +795,37 @@ public class VerifyAnchors {
     }
 
     /**
-     * The panel's cache restore: `loadCache` hands the last feed page to the generic setter, and the
-     * cache list it reads is what the patch filters in full before that copy.
+     * The home presenter's page entry: the one class carrying the pager model's methods
+     * (`getItems`, `getListCount`, `insertItemList`, `setItems`) that also declares a
+     * `(FeedItemList) -> void` body. The filter hooks that method and nothing else, because the
+     * shared base class is used by every presenter in the app.
      */
-    private static void requireFeedCacheLoad(DexKitBridge bridge) {
-        MethodDataList candidates = bridge.findMethod(FindMethod.create()
-                .matcher(MethodMatcher.create()
-                        .name("loadCache")));
-        int matches = 0;
-        String found = null;
-        for (MethodData method : candidates) {
-            boolean callsSetter = method.getInvokes().stream().anyMatch(invoke ->
-                    FEED_ITEM_LIST.equals(invoke.getDeclaredClassName())
-                            && "setItems".equals(invoke.getName()));
-            if (!callsSetter) continue;
-            matches++;
-            found = method.getDeclaredClassName() + "#" + method.getName()
-                    + " " + method.getParamTypeNames();
-        }
-        if (matches == 1) {
-            pass("feed cache " + found);
-        } else {
-            fail("feed cache: expected one loadCache restore, matched " + matches);
-        }
-    }
-
-    private static void requireFeedFetch(DexKitBridge bridge) {
+    private static void requirePageHandler(DexKitBridge bridge) {
         ClassDataList classes = bridge.findClass(FindClass.create()
-                .matcher(ClassMatcher.create().addInterface(FEED_API)));
+                .matcher(ClassMatcher.create()));
         int matches = 0;
         String found = null;
         for (ClassData c : classes) {
+            java.util.Set<String> names = new java.util.HashSet<>();
+            for (MethodData m : c.getMethods()) names.add(m.getName());
+            if (!names.containsAll(List.of("getItems", "getListCount", "insertItemList", "setItems"))) {
+                continue;
+            }
             for (MethodData m : c.getMethods()) {
-                if (m.getName().startsWith("<")) continue;
-                if (!FEED_ITEM_LIST.equals(m.getReturnTypeName())) continue;
-                if (m.getParamTypeNames().size() != 1) continue;
+                if (!m.getParamTypeNames().equals(List.of(FEED_ITEM_LIST))) continue;
+                if (!"void".equals(m.getReturnTypeName())) continue;
                 if (m.getOpCodes().isEmpty()) continue;
                 matches++;
                 found = c.getName() + "#" + m.getName() + " " + m.getParamTypeNames();
             }
         }
         if (matches == 1) {
-            pass("feed filter fetch " + found);
+            pass("feed page handler " + found);
         } else {
-            fail("feed filter fetch: expected one IFeedApi return, matched " + matches);
+            fail("feed page handler: expected one home page entry, matched " + matches);
         }
     }
 
-    /**
-     * The page's item setter, matched as the patch's second fingerprint does: a void method on the
-     * page taking a List that writes the `items` field. The write is the anchor, not the name — the
-     * name only says which of the page's methods to look at.
-     */
     private static void requireItemsSetter(DexKitBridge bridge) {
         ClassDataList classes = bridge.findClass(FindClass.create()
                 .matcher(ClassMatcher.create().className(FEED_ITEM_LIST)));
@@ -872,80 +846,6 @@ public class VerifyAnchors {
             }
         }
         fail(FEED_ITEM_LIST + "#setItems (no void (List) method writing `items`)");
-    }
-
-    /**
-     * The pager item model and the storage behind it, matched as the feed filter patch does: the
-     * one class carrying `getItems` / `getListCount` / `insertItemList` / `setItems` whose
-     * `getItems` reads the list through a non-collection field, then an implementer of that
-     * contract that takes a list. Through 47.7.x the read goes through `getList()`; on 47.8.3 the
-     * accessor copies the field's `ArrayList` instead, so the field itself is the anchor.
-     */
-    private static void requirePagerStorage(DexKitBridge bridge) {
-        Set<String> collectionTypes = Set.of(
-                "java.util.List", "java.util.Collection", "java.util.ArrayList");
-        MethodDataList getItems = bridge.findMethod(FindMethod.create()
-                .matcher(MethodMatcher.create()
-                        .name("getItems")
-                        .paramCount(0)
-                        .returnType("java.util.List")));
-        int models = 0;
-        String model = null;
-        String contract = null;
-        for (MethodData m : getItems) {
-            ClassData c = m.getDeclaredClass();
-            boolean hasCount = false;
-            boolean hasInsert = false;
-            boolean hasSet = false;
-            for (MethodData other : c.getMethods()) {
-                switch (other.getName()) {
-                    case "getListCount" -> hasCount = true;
-                    case "insertItemList" -> hasInsert = true;
-                    case "setItems" -> hasSet = true;
-                    default -> { }
-                }
-            }
-            if (!hasCount || !hasInsert || !hasSet) continue;
-            Set<String> owners = new LinkedHashSet<>();
-            for (UsingFieldData used : m.getUsingFields()) {
-                String type = used.getField().getTypeName();
-                if (!collectionTypes.contains(type)) owners.add(type);
-            }
-            if (owners.size() != 1) continue;
-            models++;
-            model = c.getName();
-            contract = owners.iterator().next();
-        }
-        if (models != 1) {
-            fail("pager storage: expected one pager item model, matched " + models);
-            return;
-        }
-
-        ClassDataList impls = bridge.findClass(FindClass.create()
-                .matcher(ClassMatcher.create().addInterface(contract)));
-        int stores = 0;
-        for (ClassData c : impls) {
-            boolean hasListField = false;
-            boolean takesList = false;
-            boolean hasSetData = false;
-            for (FieldData f : c.getFields()) {
-                if (collectionTypes.contains(f.getTypeName())) hasListField = true;
-            }
-            for (MethodData m : c.getMethods()) {
-                if (!m.getParamTypeNames().contains("java.util.List")) continue;
-                if (!"void".equals(m.getReturnTypeName())) continue;
-                if (m.getParamTypeNames().size() == 1 && "setData".equals(m.getName())) {
-                    hasSetData = true;
-                }
-                takesList = true;
-            }
-            if (hasSetData || (hasListField && takesList)) stores++;
-        }
-        if (stores > 0) {
-            pass("pager storage " + model + " -> " + contract + " (" + stores + " store(s))");
-        } else {
-            fail("pager storage: no implementer of " + contract + " takes a list");
-        }
     }
 
     private static void requireClass(DexKitBridge bridge, String className) {

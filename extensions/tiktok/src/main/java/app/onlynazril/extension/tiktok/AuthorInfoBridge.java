@@ -216,7 +216,7 @@ public final class AuthorInfoBridge {
         if (reported >= MAX_REPORTS) return;
         reported++;
         Object author = Reflect.property(aweme, "getAuthor", "author");
-        Debug.print("header item: author=" + Reflect.string(author, "getUniqueId", "uniqueId")
+        Debug.print("header item: by=" + Debug.caller(4) + " author=" + Reflect.string(author, "getUniqueId", "uniqueId")
                 + " authorRegion=" + Reflect.string(author, "getRegion", "region")
                 + " itemRegion=" + Reflect.string(aweme, "getRegion", "region")
                 + " used=" + (region == null ? "none" : region)

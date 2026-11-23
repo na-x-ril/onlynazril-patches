@@ -42,7 +42,7 @@ public final class Debug {
      * a log says which build is actually installed: without it, "the change did nothing" and "the
      * APK was never replaced" look exactly the same.
      */
-    public static final String BUILD = "b56";
+    public static final String BUILD = "b73";
     private static final String TAG = "tiktokHandle";
     private static final String FILE_NAME = "tiktokhandle.log";
     /** A file past this size is moved aside as `.1` and a fresh one is started. */
@@ -56,6 +56,27 @@ public final class Debug {
     private static File file;
 
     private Debug() {}
+
+    /**
+     * The app-side frames that led to a hook, in one line. The extension's own frames are skipped,
+     * because the question is always "which app path reached this", not "which wrapper called it".
+     * `depth` is the number of app frames to keep: three is a summary, six names the producer.
+     */
+    public static String caller(int depth) {
+        StackTraceElement[] frames = new Throwable().getStackTrace();
+        StringBuilder out = new StringBuilder();
+        int shown = 0;
+        for (StackTraceElement frame : frames) {
+            String name = frame.getClassName();
+            if (name.startsWith("app.onlynazril.extension") || name.startsWith("java.lang.Thread")) {
+                continue;
+            }
+            if (shown++ >= depth) break;
+            if (out.length() > 0) out.append(" <- ");
+            out.append(name).append('#').append(frame.getMethodName());
+        }
+        return out.toString();
+    }
 
     public static void print(String message) {
         System.out.println(PREFIX + " " + message);

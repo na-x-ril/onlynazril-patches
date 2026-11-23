@@ -259,57 +259,44 @@ account is in the rollout.
 
 ## Feed filter
 
-See [feed-filter.md](feed-filter.md) for the full behaviour and the list-wrapper design.
+See [feed-filter.md](feed-filter.md) for the full behaviour.
 
-Six hooks, scoped by what each list is allowed to remove.
+Five hooks, scoped by what each list is allowed to remove.
 
-1. **The fetch's return**: `com.ss.android.ugc.aweme.feed.FeedApiService#fetchFeedList`.
-   The chain is `FeedApiService#fetchFeedList → FeedApi#LIZIZ → FeedApi#LIZ`, and `LIZIZ` is what
-   reads the page's `hasAd` and `preloadAds`. The hook also clears `preloadAds` before the page is
-   returned, so a slot the page carries on the side cannot be merged in during a later scroll.
+1. **The home presenter's page entry**, the `(FeedItemList) -> void` method on the class that carries
+   the pager model's methods (`getItems`, `getListCount`, `insertItemList`, `setItems`). The full
+   filter runs here, before any list holds the page, and it includes a one-item page: the page shown
+   at launch is exactly one item. It has to be that class and not the shared base: hooking the base
+   filtered every presenter in the app, and the log showed another screen losing every item of every
+   page to the drama filter.
 2. **`FeedItemList#setItems`**: the generic page model, shared with profile/search/repost. Only the
    **ad filter** runs here; a count, LIVE or drama filter would hide the profile owner's own posts.
 3. **`FeedItemList#clone`**: the same ad-only filter for the copy.
-4. **The feed panel's insert callback** (`yX2` on 47.7.1, `xX2` on 47.7.2, `zX2` on 47.7.3): the detail feed's
-   `DataLayerAbility` inserts an ad with a bare list here. Ads, survey cards, LIVE cards and drama
-   cards are selected by the batch's source string.
+4. **The feed panel's insert callback** (`yX2` on 47.7.1, `xX2` on 47.7.2, `zX2` on 47.7.3): the
+   detail feed's `DataLayerAbility` inserts an ad with a bare list here. Ads, survey cards, LIVE
+   cards and drama cards are selected by the batch's source string.
 5. **The direct survey insert** on the same panel: a `(int, Aweme)` method whose body carries the
    literal `"survey_card"`. It does not pass through the callback above; the hook returns early
    when the survey switch is on. The name is obfuscated, the literal and shape are the anchor.
-6. **The pager's list storage**: the list the feed renders from, full filter. Its own `ArrayList`
-   field is also replaced at construction with an `AdFreeList`, so a direct `add` from the ad SDK is
-   refused even when no insert callback runs. The wrapper is **ads-only**: the same storage and
-   adapter model are rebuilt for the detail feed and a profile's video list, where refusing the
-   opened LIVE or drama item leaves a black screen or the previous surface's video. The storage's
-   `getList` returns a copy, so the field is found by its declared `ArrayList` type, never through
-   that getter.
+6. **The adapter's item list**, wrapped at construction with an **ads-only** list (`AdFreeList`): an
+   ad can be added straight into the list, and the profile feed does it with no page or setter
+   before it. The adapter is found structurally (a panel field with `setData`, `getCount`,
+   `getItem`), then its item model (an `ArrayList` field plus a no-arg `List` getter). Only ads are
+   refused; the full filter never runs on a live list.
 
-The fetch hook alone did not hold. The page model's `getData` sets a page's items three times: the
-parsed list, the clone, then the model's own list, and the last overwrites everything the fetch
-removed. The items have to be stopped where they enter the model's storage.
-
-That storage is reached without writing an obfuscated name down. The pager model is the class
-carrying `getItems` / `getListCount` / `insertItemList` / `setItems` that no other such class sits
-above; its `getItems` reads the list through one non-collection field, and that field's type is the
-list contract. Through 47.7.x the accessor calls `getList()` on it; on 47.8.3 it casts the field to
-its implementation and copies the `ArrayList`, so the field itself is the anchor. The contract's
-implementations that take a list are the storage: those with `setData(List)`, or (on 47.8.3, where
-that name is gone) those holding a collection field and any void `(List)` method. Every void
-method there that takes a `java.util.List` is hooked, because the storage is filled by additions
-and not by the setter alone (the setter carried 2 of 200 calls in a session).
-
-`FeedItemList#setItems` and `#clone` are generic to every `AwemeList`, so they run the ad filter
-only. The profile/search/repost lists must never take a like/view range; the feed's own hooks carry
-those.
+No full filter touches a list the pager counts. Editing one shifts the positions it holds, and
+refusing the last item empties the feed, which the app draws as its own error view. Both failures
+were produced by earlier builds, along with a link that opened nothing when its video was outside
+the range.
 
 **Filtering the read is wrong, and was tried.** Removing from the list `getItems` returns shrinks
 what the pager counts, so its positions shift and it runs to *No more results* while items remain —
 the loading spinner after every few scrolls is that, not TikTok's paging. A drop only belongs where
 no position holds the item yet.
 
-A single-item batch is never filtered unless that item is an ad. That batch is the deep-link or
-current video being inserted; removing it leaves the surface with nothing to open. A lone ad still
-goes.
+A single-item batch is exempt from the page filter only on the ad-only sites (`setItems`/`clone`).
+The page entry has no exemption, because the page TikTok shows at launch is exactly one item; the
+list wrapper refuses ads only, so a link's video opens whatever its counts are.
 
 The census line says what happened: `ads=0` with `preload=` above zero means the ad came from a slot
 the page did not carry in `items`; `preload=N cleared` means it was removed before the merge.
@@ -328,7 +315,7 @@ A count filter carries its bound in the line, so a drop and the reason for it ar
 `dropped=[likes=17913]` under `likes[10000..MAX]` says the item was *kept* by that bound, and under
 `likes[50000..MAX]` says it was dropped by it. Without the bound the line records that something went
 and not why — which is the one thing a report has to settle. `unreadCounts` is how many items had no
-statistics at all; those are kept. If the tally says `no list seen this run` after scrolling, no hook
+statistics at all; those count as outside the range and are dropped. If the tally says `no list seen this run` after scrolling, no hook
 ran, which is a different fault from "it ran and matched nothing".
 
 **The log spends its lines on actions, not on arrival order.** A line is written for every call that
@@ -366,6 +353,11 @@ one session cannot flood the log:
 | `name region: @x model=... -> ID (from account\|bound\|nothing)` | the region for a surface other than the feed, the model's raw value (`'ID'`, `null (declared, unset)`, or `absent (no getter or field)`), and **where** the answer came from (max 12) |
 | `comment time: ...` | the outcome of writing a comment's time view: the written text, or no comment, no region, switches off (max 12) |
 | `header item: author=... createTime=... base='...' -> '...'` | one feed header render: the item's values against what was drawn (max 12) |
+| `feedfilter: list refused ad@user by=…` | an ad was refused at insertion, with six app frames. The ad paths that have no page or setter above them are named here (max 100) |
+| `feedfilter: launch preload skipped by the switch` | the preload gate answered `false`; the feed starts on a normal request (max 100) |
+| `feedfilter: cache items=N kept=K removed=R dropped=[…]` | the feed cache as it is written: what the copy kept and what it dropped, so the launch page's content is known before it is stored (max 100) |
+| `feedfilter: first feed insert @user by=…` | an item was accepted into an **empty** feed list, with the three frames that put it there. The launch video's path is named here instead of guessed; the first three only |
+| `feedfilter: feed storage refused item@user` | a filtered item was refused at a list insert. With the refusal absolute, this line means the item is gone, not kept |
 | `feedfilter: items=N removed=R ads=A likes[M..MAX]=L … dropped=[…]` | one list: how many items it held, how many each filter removed (each count filter with the bound it enforced), how many had no readable statistics, how many ad slots the page carried, and the reason for the first few drops. Written for every call that dropped something (max 100) and the first few that did not (6) |
 | `state: Build bN … Log: <path>` | the About block, written when it is tapped for copying |
 | `file sink: <path>` | where the log file went, once per process |

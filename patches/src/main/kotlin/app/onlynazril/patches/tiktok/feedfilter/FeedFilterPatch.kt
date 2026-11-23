@@ -8,10 +8,7 @@ import app.morphe.util.findMutableMethodOf
 import app.morphe.util.implementationOrPatchException
 import app.onlynazril.patches.shared.Constants.COMPATIBILITY_TIKTOK
 import com.android.tools.smali.dexlib2.Opcode
-import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
-import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 
 /** The field types that hold the list itself, not the contract the model reads it through. */
 private val COLLECTION_TYPES = setOf(
@@ -24,21 +21,21 @@ private val COLLECTION_TYPES = setOf(
 /**
  * Drops ads, survey cards, LIVE items, drama videos and out-of-range videos from the feed page.
  *
- * Six hooks, scoped by what the list is allowed to remove:
+ * Two hooks, both before an item can reach a list the pager counts:
  *
- *  1. the fetch's return: full filter, after the app has merged its preloaded ads into the page;
- *  2. `FeedItemList#setItems`: the generic page model, shared with the profile, search and repost
- *     lists, so **ads only**; a count, LIVE or drama filter would hide the profile owner's own posts;
- *  3. `FeedItemList#clone`: the same ad-only filter for the copy;
- *  4. the feed panel's insert callback: ads, survey cards, LIVE cards and drama cards, selected by
- *     the batch's source string;
- *  5. the direct survey-card insert on the same panel: skipped when the survey switch is on;
- *  6. the pager item model's storage, where the list the feed renders is taking items in: full
- *     filter. The storage's live `ArrayList`, and the adapter model's list behind it, are wrapped
- *     separately to refuse a direct ad; that wrapper is ads-only because the same list is rebuilt
- *     for the detail feed and a profile's video list.
+ *  1. the fetch's return: the full filter, after the app has merged its preloaded ads into the page.
+ *     A one-item page is filtered like any other, because the page TikTok shows at launch is
+ *     exactly one item and exempting it left that video on screen regardless of the switches;
+ *  2. \`FeedItemList#setItems\` and \`#clone\`: the **ad filter only**. The generic page model is
+ *     shared with the profile, search and repost lists, where a count range would hide the profile
+ *     owner's own posts.
  *
- * The extension reads its own switches, so a build with everything off pays six calls per page.
+ * The panel's insert callback and the direct survey insert handle the card paths that never touch
+ * the page.
+ *
+ * Nothing is wrapped and nothing is removed after it has entered a list: that shift positions the
+ * pager holds, and refusing the last item empties the feed, which the app draws as its own error
+ * view. The docs keep both attempts for the next reader.
  */
 @Suppress("unused")
 val tiktokFeedFilterPatch = bytecodePatch(
@@ -53,14 +50,90 @@ val tiktokFeedFilterPatch = bytecodePatch(
     extendWith("extensions/tiktok.mpe")
 
     execute {
-        val matches = FeedApiFetchFingerprint.matchAllOrNull() ?: emptyList()
-        if (matches.size != 1) {
+        // The page's entry to the presenter: the one point every page passes before it is copied
+        // into a list, and the only place the full filter runs. The fetch return is not used: its
+        // hook never fired on 47.9.3 (zero lines in every session).
+        //
+        // It is scoped to the **home** presenter, and that is the whole reason for the shape below.
+        // Hooking the shared base class filtered every presenter in the app: the log showed another
+        // screen (`X.0OKB`) losing every item of every page to the drama filter. The home presenter
+        // is the class that carries the pager model's own methods (`getItems`, `getListCount`,
+        // `insertItemList`, `setItems`); its `(FeedItemList) -> void` override is its own page entry,
+        // so other presenters never reach this hook.
+        var pageHooks = 0
+        classDefForEach { classDef ->
+            val names = classDef.methods.map { it.name }.toSet()
+            if (!names.containsAll(PAGER_MODEL_METHODS)) return@classDefForEach
+            val pageMethod = classDef.methods.firstOrNull { method ->
+                method.parameterTypes == listOf(FEED_ITEM_LIST) &&
+                    method.returnType == "V" &&
+                    method.implementation != null
+            } ?: return@classDefForEach
+            mutableClassDefBy(classDef).findMutableMethodOf(pageMethod).addInstructions(
+                0,
+                "move-object/from16 v0, p1\n" +
+                    "invoke-static {v0}, $FEED_FILTER_CLASS->filterPage(Ljava/lang/Object;)V",
+            )
+            pageHooks++
+        }
+        if (pageHooks != 1) {
             throw PatchException(
-                "Feed filter: expected one implementation of $I_FEED_API#fetchFeedList, " +
-                    "found ${matches.size}.",
+                "Feed filter: expected one home page entry, found $pageHooks.",
             )
         }
-        matches.single().method.filterOnReturns("filterFetch")
+
+        // Ads are the one thing a page hook cannot cover. An ad can be added straight into a list's
+        // `ArrayList`, and the profile feed does exactly that: the log shows the ad rendered with no
+        // page or setter line before it. Every storage that takes a list, and the adapter model
+        // behind it, is wrapped at construction with an ads-only list. It refuses **ads only**: the
+        // same storage backs the detail feed and a profile's own feed, where refusing a LIVE, drama
+        // or out-of-range item drops the video the user just opened.
+        val panel = classDefByOrNull(
+            "Lcom/ss/android/ugc/aweme/feed/panel/BaseListFragmentPanel;",
+        ) ?: throw PatchException("Feed filter: the feed panel was not found.")
+        val adapter = panel.fields
+            .mapNotNull { classDefByOrNull(it.type) }
+            .firstOrNull { candidate ->
+                candidate.methods.any {
+                    it.name == "setData" && it.parameterTypes == listOf("Ljava/util/List;")
+                } &&
+                    candidate.methods.any { it.name == "getCount" && it.parameterTypes.isEmpty() } &&
+                    candidate.methods.any { it.name == "getItem" && it.parameterTypes == listOf("I") }
+            } ?: throw PatchException("Feed filter: the feed adapter was not found.")
+        val adapterModel = adapter.fields
+            .mapNotNull { classDefByOrNull(it.type) }
+            .firstOrNull { candidate ->
+                candidate.fields.any { it.type == "Ljava/util/ArrayList;" } &&
+                    candidate.methods.any {
+                        it.returnType == "Ljava/util/List;" && it.parameterTypes.isEmpty()
+                    }
+            } ?: throw PatchException("Feed filter: the adapter's item list was not found.")
+
+        var wrapped = 0
+        for (target in listOf(adapterModel)) {
+            val mutableTarget = mutableClassDefBy(target)
+            for (method in target.methods) {
+                if (method.name != "<init>" || method.implementation == null) continue
+                val mutableInit = mutableTarget.findMutableMethodOf(method)
+                val returns = mutableInit.implementation
+                    ?.instructions
+                    ?.withIndex()
+                    ?.filter { it.value.opcode == com.android.tools.smali.dexlib2.Opcode.RETURN_VOID }
+                    ?.map { it.index }
+                    ?.sortedDescending()
+                    ?: emptyList()
+                for (index in returns) {
+                    mutableInit.addInstructions(
+                        index,
+                        "invoke-static {p0}, $FEED_FILTER_CLASS->wrapStorage(Ljava/lang/Object;)V",
+                    )
+                }
+                wrapped++
+            }
+        }
+        if (wrapped == 0) {
+            throw PatchException("Feed filter: the adapter list has no constructor to wrap.")
+        }
 
         // The generic page model is shared with the profile, search and repost lists. Only the ad
         // filter is safe there: a like/view range would drop the profile owner's own posts, but an
@@ -75,24 +148,6 @@ val tiktokFeedFilterPatch = bytecodePatch(
         val clone = FeedItemListCloneFingerprint.methodOrNull
             ?: throw PatchException("Feed filter: FeedItemList#clone was not found.")
         clone.filterOnReturns("filterGenericClone")
-
-        // The page restored on the next launch comes from the feed's own cache and is handed to
-        // `setItems`, which is ad-only because profile and search share it. Filter that cache in
-        // full at the restore, so a count-, LIVE- or drama-filtered item cannot come back with the
-        // cached page.
-        val cacheLoad = FeedCacheLoadFingerprint.methodOrNull
-            ?: throw PatchException("Feed filter: the panel's cache restore was not found.")
-        val cacheField = cacheLoad.implementationOrPatchException("Feed filter").instructions
-            .mapNotNull { instruction ->
-                (instruction as? ReferenceInstruction)?.reference as? FieldReference
-            }
-            .singleOrNull { it.type in COLLECTION_TYPES }
-            ?: throw PatchException("Feed filter: the cache restore reads no single cached list.")
-        cacheLoad.addInstructions(
-            0,
-            "sget-object v0, $cacheField\n" +
-                "invoke-static {v0}, $FEED_FILTER_CLASS->filterStore(Ljava/lang/Object;)V",
-        )
 
         // The feed panel's insert callback. The ad path in the detail feed does not touch
         // `FeedItemList` or the pager storage; it inserts the ad through `DataLayerAbility`, which
@@ -117,248 +172,6 @@ val tiktokFeedFilterPatch = bytecodePatch(
                 ":onlynazril_survey_keep",
         )
 
-        // The pager's own item model , the list the feed renders from, behind the fetched page.
-        //
-        // Filtering where items are *taken in* was tried and did nothing: the two hooks fired but
-        // never removed anything, and the page kept rebuilding from this model. So the filter goes
-        // where the pager *reads* the list instead , the model's own accessor, which returns the
-        // live list (`X.07zq#getItems` → `X.07sw#getList` on 47.0.3), so a removal changes what the
-        // next read sees rather than a copy that is replaced.
-        val models = mutableListOf<ClassDef>()
-        classDefForEach { classDef ->
-            // One pass, no set allocated per class, and an early exit as soon as the
-            // four names and the taking method have been seen: the pager's class has
-            // hundreds of methods, and most classes have none of these.
-            var hasGetItems = false
-            var hasCount = false
-            var hasInsert = false
-            var hasSet = false
-            var takesItems = false
-            for (method in classDef.methods) {
-                when (method.name) {
-                    PAGER_MODEL_GET_ITEMS -> hasGetItems = true
-                    PAGER_MODEL_GET_COUNT -> hasCount = true
-                    PAGER_MODEL_SET -> hasSet = true
-                    PAGER_MODEL_INSERT -> {
-                        hasInsert = true
-                        if (!takesItems &&
-                            method.parameterTypes.size == 2 &&
-                            method.implementation != null
-                        ) {
-                            takesItems = true
-                        }
-                    }
-                }
-                if (hasGetItems && hasCount && hasInsert && hasSet && takesItems) break
-            }
-            if (hasGetItems && hasCount && hasInsert && hasSet && takesItems) models += classDef
-        }
-
-        // The contract, and any base class above it, carries the same method names. The pager holds
-        // the most derived one, so the base classes are those that appear in another candidate's
-        // superclass chain and are dropped.
-        fun supertypesOf(classDef: ClassDef): List<String> {
-            val chain = mutableListOf<String>()
-            var current = classDef.superclass?.let { classDefByOrNull(it) }
-            var guard = 0
-            while (current != null && guard++ < 32) {
-                chain += current.type
-                current = current.superclass?.let { classDefByOrNull(it) }
-            }
-            return chain
-        }
-
-        val mostDerived = models.filter { candidate ->
-            models.none { other -> other != candidate && supertypesOf(other).contains(candidate.type) }
-        }
-        val model = mostDerived.singleOrNull()
-            ?: throw PatchException(
-                "Feed filter: expected one pager item model carrying $PAGER_MODEL_METHODS, found " +
-                    "${models.joinToString { it.type }}, of which ${mostDerived.size} are most derived.",
-            )
-
-        val mutableModel = mutableClassDefBy(model)
-        if (model.methods.none { it.name == "getItems" && it.returnType == "Ljava/util/List;" }) {
-            throw PatchException("Feed filter: ${model.type} exposes no item list to read.")
-        }
-
-        // The list's own storage, behind the contract the model reads through.
-        //
-        // Filtering the *read* was tried and is wrong: the pager counts the list it is handed, so a
-        // shorter list shifts its positions, and it runs to "No more results" while items remain. The
-        // filter belongs where items enter the storage instead, as if the page had never carried
-        // them , nothing is ever removed under a position the pager already has.
-        //
-        // The contract is the type of the field the model reads its list from. Through 47.7.x
-        // the accessor calls `getList()` on it; on 47.8.3 the same field is cast to its
-        // implementation and its `ArrayList` is copied. In both shapes the field's declared type
-        // is the contract, and the collection it holds is never that type, so the collection
-        // reads are dropped.
-        val contract = model.methods
-            .singleOrNull { it.name == "getItems" && it.returnType == "Ljava/util/List;" }
-            ?.implementationOrPatchException("Feed filter")
-            ?.instructions
-            ?.mapNotNull { instruction ->
-                ((instruction as? ReferenceInstruction)?.reference as? FieldReference)
-                    ?.type
-                    ?.takeUnless { it in COLLECTION_TYPES }
-            }
-            ?.distinct()
-            ?.singleOrNull()
-            ?: throw PatchException(
-                "Feed filter: ${model.type} reads its list through more than one contract.",
-            )
-
-        val stores = mutableListOf<ClassDef>()
-        classDefForEach { classDef ->
-            val holds = classDef.interfaces.contains(contract) &&
-                classDef.methods.any { method ->
-                    method.name == "setData" &&
-                        method.parameterTypes == listOf("Ljava/util/List;") &&
-                        method.implementation != null
-                }
-            if (holds) stores += classDef
-        }
-        if (stores.isEmpty()) {
-            // 47.8.3 dropped `setData`: the storage's own list is filled by its other void
-            // (List) methods, so the list field and one such method identify it instead.
-            classDefForEach { classDef ->
-                val holds = classDef.interfaces.contains(contract) &&
-                    classDef.fields.any { it.type in COLLECTION_TYPES } &&
-                    classDef.methods.any { method ->
-                        method.returnType == "V" &&
-                            method.parameterTypes.contains("Ljava/util/List;") &&
-                            method.implementation != null
-                    }
-                if (holds) stores += classDef
-            }
-        }
-        if (stores.isEmpty()) {
-            throw PatchException("Feed filter: no storage behind $contract takes a list.")
-        }
-
-        var hooks = 0
-        for (store in stores) {
-            val mutableStore = mutableClassDefBy(store)
-            for (method in store.methods) {
-                // Every void method that takes a list adds items: the setter, the bulk add, and the
-                // indexed insert. Filtering each is what keeps the storage from ever holding one.
-                if (method.returnType != "V" || method.implementation == null) continue
-                val index = method.parameterTypes.indexOf("Ljava/util/List;")
-                if (index < 0) continue
-                mutableStore.findMutableMethodOf(method).addInstructions(
-                    0,
-                    "invoke-static {p${index + 1}}, $FEED_FILTER_CLASS->filterStore(Ljava/lang/Object;)V",
-                )
-                hooks++
-            }
-
-            // The storage's own list, replaced at construction with one that applies the feed's
-            // filters. This is the path a cached/current item uses without calling any of the
-            // methods above: it is added straight to the ArrayList. The feed store is the one
-            // `RecommendFeedFragmentPanel` builds; detail and profile use their own stores.
-            for (method in store.methods) {
-                if (method.name != "<init>" || method.implementation == null) continue
-                val mutableInit = mutableStore.findMutableMethodOf(method)
-                val returns = mutableInit.implementation
-                    ?.instructions
-                    ?.withIndex()
-                    ?.filter { it.value.opcode == Opcode.RETURN_VOID }
-                    ?.map { it.index }
-                    ?.sortedDescending()
-                    ?: emptyList()
-                for (index in returns) {
-                    mutableInit.addInstructions(
-                        index,
-                        "invoke-static {p0}, $FEED_FILTER_CLASS->wrapFeedStorage(Ljava/lang/Object;)V",
-                    )
-                }
-            }
-        }
-        if (hooks == 0) {
-            throw PatchException("Feed filter: $contract stores take no list to filter.")
-        }
-
-        // The adapter's own item model, one step behind the panel: `X.09e6` (adapter) holds
-        // `X.09gj`, whose `ArrayList` is what the pager binds from. Ads can be added there directly,
-        // after the storage, so its constructor is wrapped the same way. This list is shared with
-        // the detail feed, so the wrapper stays ads-only there too.
-        val panel = classDefByOrNull(insert.definingClass)
-        val adapter = panel?.fields
-            ?.mapNotNull { classDefByOrNull(it.type) }
-            ?.singleOrNull { candidate ->
-                candidate.methods.any {
-                    it.name == "setData" && it.parameterTypes == listOf("Ljava/util/List;")
-                } &&
-                    candidate.methods.any { it.name == "getCount" && it.parameterTypes.isEmpty() } &&
-                    candidate.methods.any { it.name == "getItem" && it.parameterTypes == listOf("I") }
-            }
-        val adapterModel = adapter?.fields
-            ?.mapNotNull { classDefByOrNull(it.type) }
-            ?.singleOrNull { candidate ->
-                candidate.fields.any { it.type == "Ljava/util/ArrayList;" } &&
-                    candidate.methods.any {
-                        it.returnType == "Ljava/util/List;" && it.parameterTypes.isEmpty()
-                    }
-            }
-        if (adapterModel != null) {
-            val mutableModel = mutableClassDefBy(adapterModel)
-            for (method in adapterModel.methods) {
-                if (method.name != "<init>" || method.implementation == null) continue
-                val mutableInit = mutableModel.findMutableMethodOf(method)
-                val returns = mutableInit.implementation
-                    ?.instructions
-                    ?.withIndex()
-                    ?.filter { it.value.opcode == Opcode.RETURN_VOID }
-                    ?.map { it.index }
-                    ?.sortedDescending()
-                    ?: emptyList()
-                for (index in returns) {
-                    mutableInit.addInstructions(
-                        index,
-                        "invoke-static {p0}, $FEED_FILTER_CLASS->wrapStorage(Ljava/lang/Object;)V",
-                    )
-                }
-            }
-        }
-
-        // The feed adapter's own list is also filled directly, without a setter or callback: that is
-        // how the last page comes back the moment the app opens. The wrapper above refuses ads only,
-        // because the same model serves the detail feed and profiles. This hook keeps that wrapper
-        // there and upgrades the feed adapter's instance to the full filters, identified by the
-        // adapter's own event type.
-        if (adapter != null && adapterModel != null) {
-            val mutableAdapter = mutableClassDefBy(adapter)
-            for (method in adapter.methods) {
-                if (method.name != "<init>" || method.implementation == null) continue
-                val mutableInit = mutableAdapter.findMutableMethodOf(method)
-                val locals = (mutableInit.implementation?.registerCount ?: 0) -
-                    method.parameterTypes.size
-                if (locals < 3) {
-                    throw PatchException(
-                        "Feed filter: ${adapter.type} constructor has no room for the adapter hook.",
-                    )
-                }
-                val returns = mutableInit.implementation
-                    ?.instructions
-                    ?.withIndex()
-                    ?.filter { it.value.opcode == Opcode.RETURN_VOID }
-                    ?.map { it.index }
-                    ?.sortedDescending()
-                    ?: emptyList()
-                for (index in returns) {
-                    mutableInit.addInstructions(
-                        index,
-                        """
-                            const-string v1, "${adapterModel.type}"
-                            const-string v2, "$contract"
-                            move-object/from16 v0, p0
-                            invoke-static {v0, v1, v2}, $FEED_FILTER_CLASS->wrapFeedAdapter(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V
-                        """.trimIndent(),
-                    )
-                }
-            }
-        }
     }
 }
 
