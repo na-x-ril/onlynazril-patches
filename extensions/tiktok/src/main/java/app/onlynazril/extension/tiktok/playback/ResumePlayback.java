@@ -12,21 +12,27 @@ import app.onlynazril.extension.tiktok.internal.Reflect;
 import app.onlynazril.extension.tiktok.settings.ResumePlaybackSettings;
 
 /**
- * Remembers where a video was left and seeks back to it when the video is opened again.
+ * Remembers where a video was left and gives the position back when the video is opened again.
  * <p>
- * Two hooks feed this: the feed player's progress tick hands over the position and duration, and
- * the first rendered frame is the moment the seek can be applied. Pause is hooked on both of the
- * controller's overloads, because the exact play head is read there and one overload may run after
- * the other has already changed the player's state.
+ * The search result grid autoplays a card through its own player, so its progress is saved through
+ * `onExternalProgress` under the same item id.
+ * <p>
+ * The main path is the app's own play request: `preferNative` hands it the saved millisecond, so
+ * the player prepares at that point instead of being seeked after its first frame. The first frame
+ * remains as a fallback for a path whose request did not carry the position. The progress tick
+ * hands over the position and duration, and pause is hooked on both controller overloads, because
+ * the exact play head is read there and one overload may run after the other has changed the
+ * player's state.
  * <p>
  * The map is an in-memory LRU of twelve items: the item touched most recently is the last one
  * dropped, and killing the process clears every position. The duration is stored with the position
  * and is deliberately not replaced by a wildly different reading, which is how a neighbouring
  * preloaded item's duration is kept out of the seek percentage.
  * <p>
- * A restore has a guard of its own. The seek is issued on the first frame, and progress ticks stay
- * ignored until the player reports a position at the target (or the guard times out), so the first
- * ticks, which still describe the pre-seek play head, cannot move the resume point backwards.
+ * A restore has a guard of its own. A request that carried the position marks the item, so the
+ * first frame does not seek a second time. When the fallback does seek, progress ticks stay ignored
+ * until the player reports a position at the target (or the guard times out), so the first ticks,
+ * which still describe the pre-seek play head, cannot move the resume point backwards.
  * <p>
  * A position below the start threshold is never saved, and a pause there clears an older resume
  * point only after the video has actually played past that threshold in this open. That keeps the
@@ -59,6 +65,10 @@ public final class ResumePlayback {
     private static int userSeeks;
     private static int clears;
     private static int evictions;
+    private static String previewAid = "";
+    private static long previewLoggedAt;
+    /** The event type of the play request being built; read here because only the controller has it. */
+    private static volatile String requestEvent;
     private static String last = "no position seen this run";
 
     private ResumePlayback() {}
@@ -80,6 +90,10 @@ public final class ResumePlayback {
         boolean suspect;
         /** Whether this open has already played past the start threshold. */
         boolean started;
+        /** When the play request last carried this position as its start time, 0 if never. */
+        long nativeAtMs;
+        /** Last position written to the log, so a preview tick does not spam the file. */
+        long lastLogMs;
     }
 
     /**
@@ -202,6 +216,7 @@ public final class ResumePlayback {
 
         String aid = aid(controller, sourceId);
         if (aid == null) return;
+        if (isSearchContext(controller)) return;
         remove(aid, "clear completed " + aid);
     }
 
@@ -212,6 +227,9 @@ public final class ResumePlayback {
 
         String aid = aid(controller, sourceId);
         if (aid == null) return;
+        // A search card autoplay loops while it is on screen; clearing the point there would lose
+        // the position the card was about to hand to the detail.
+        if (isSearchContext(controller)) return;
         remove(aid, "clear loop " + aid);
     }
 
@@ -332,6 +350,18 @@ public final class ResumePlayback {
             entry.suspect = false;
         }
 
+        if (entry != null && entry.nativeAtMs != 0L
+                && now - entry.nativeAtMs < 10000L
+                && entry.positionMs - positionMs > SEEK_LAND_TOLERANCE_MS) {
+            // The play request carried the target; this tick is still the old play head.
+            return;
+        }
+        if (entry != null && !entry.userSeeking && entry.started
+                && entry.positionMs - positionMs > 5000L) {
+            // A preview or a second player reports the same item from an earlier point. Keep the
+            // point the visible playback wrote; a real user seek is marked and bypasses this.
+            return;
+        }
         if (positionMs < start) {
             // A real seek back to the start clears the old point. Before the video has played past
             // this threshold the tick is the pre-seek play head, and the entry stays untouched.
@@ -429,6 +459,121 @@ public final class ResumePlayback {
         evict();
     }
 
+    /** The play request is being built; keep its event type for the start-time decision. */
+    public static void onPlayRequest(Object controller) {
+        requestEvent = Reflect.string(controller, "getEventType", "mEventType");
+    }
+
+    /** Whether this controller belongs to the search surface, which has its own handoff. */
+    private static boolean isSearchContext(Object controller) {
+        String event = Reflect.string(controller, "getEventType", "mEventType");
+        return event != null && event.contains("search");
+    }
+
+    /**
+     * Progress from a surface that is not the feed controller, such as the search result card's
+     * autoplay. The source id is the item id, the same key the feed uses, so opening the item
+     * later finds this point.
+     */
+    public static synchronized void onExternalProgress(
+            String sourceId, long positionMs, long durationMs) {
+        if (!ResumePlaybackSettings.isEnabled()) return;
+
+        long start = ResumePlaybackSettings.startSeconds(ctx()) * 1000L;
+        long end = ResumePlaybackSettings.endSeconds(ctx()) * 1000L;
+        long now = SystemClock.elapsedRealtime();
+        boolean valid = sourceId != null && !sourceId.isEmpty()
+                && durationMs > 0 && positionMs >= 0;
+        boolean keep = valid && positionMs >= start && durationMs - positionMs >= end;
+        String reason = !valid
+                ? (durationMs <= 0 ? "no-duration" : "no-position")
+                : (keep ? "saved" : (positionMs < start ? "below-start" : "near-end"));
+        // Log before any guard: a preview whose player reports no duration is otherwise invisible,
+        // and the values are what make the handoff problem readable.
+        String id = sourceId == null ? "" : sourceId;
+        if (Debug.verbose() && (!id.equals(previewAid) || now - previewLoggedAt >= 3000L)) {
+            previewAid = id;
+            previewLoggedAt = now;
+            Debug.print("resume: preview aid=" + sourceId + " pos=" + positionMs + "ms dur="
+                    + durationMs + "ms start=" + start + "ms end=" + end + "ms " + reason);
+        }
+        if (!keep) return;
+
+        Entry entry = ENTRIES.get(sourceId);
+        if (entry == null) {
+            entry = new Entry();
+            ENTRIES.put(sourceId, entry);
+        }
+        entry.durationMs = chooseDuration(entry, durationMs);
+        entry.lastKnownPositionMs = positionMs;
+        if (Math.abs(positionMs - entry.positionMs) >= MIN_UPDATE_DELTA_MS) {
+            entry.positionMs = positionMs;
+            saves++;
+            last = "preview " + sourceId + " pos=" + positionMs;
+        }
+        entry.started = true;
+        evict();
+    }
+
+    /** The process context for a save that arrives on a surface without a controller. */
+    private static Context ctx() {
+        return ResumePlaybackSettings.appContext();
+    }
+
+    /**
+     * The position the app should put in its play request, or the app's own value when this item
+     * has no saved point. The play request carries the result as `initialStartTimeMs`, so the
+     * player prepares at the position instead of being seeked after its first frame.
+     */
+    public static synchronized int preferNative(Object aweme, int fallback) {
+        Context ctx = ResumePlaybackSettings.appContext();
+        if (!ResumePlaybackSettings.isEnabled(ctx)) return fallback;
+
+        String aid = Reflect.string(aweme, "getAid", "aid");
+        if (aid == null || aid.isEmpty()) return fallback;
+
+        // A detail opened from search has its own preview-to-detail handoff, and forcing a saved
+        // point over it starts the video at the wrong place and can leave the card player at the
+        // end of the item. The search copy of the item carries searchInfo; leave that surface to
+        // the app and keep this patch for the feed.
+        String event = requestEvent;
+        boolean search = (event != null && event.contains("search"))
+                || Reflect.property(aweme, "getSearchInfo", "searchInfo") != null;
+
+        Entry entry = ENTRIES.get(aid);
+        if (entry == null || entry.positionMs <= 0) {
+            Debug.print("resume: native aid=" + aid + " event=" + event + " search="
+                    + (search ? "yes" : "no") + " ours=none app=" + fallback + "ms -> app");
+            return fallback;
+        }
+        if (search) {
+            Debug.print("resume: native aid=" + aid + " event=" + event + " search=yes ours="
+                    + entry.positionMs + "ms -> app (search handoff)");
+            return fallback;
+        }
+
+        long start = ResumePlaybackSettings.startSeconds(ctx) * 1000L;
+        long end = ResumePlaybackSettings.endSeconds(ctx) * 1000L;
+        if (entry.positionMs < start) {
+            Debug.print("resume: native aid=" + aid + " ours=" + entry.positionMs
+                    + "ms start=" + start + "ms app=" + fallback + "ms -> app (below start)");
+            return fallback;
+        }
+        if (entry.durationMs > 0 && entry.durationMs - entry.positionMs < end) {
+            Debug.print("resume: native aid=" + aid + " ours=" + entry.positionMs
+                    + "ms dur=" + entry.durationMs + "ms end=" + end + "ms app=" + fallback
+                    + "ms -> app (near end)");
+            return fallback;
+        }
+
+        entry.nativeAtMs = SystemClock.elapsedRealtime();
+        last = "native " + aid + " pos=" + entry.positionMs;
+        Debug.print("resume: native aid=" + aid + " event=" + event + " search=no ours="
+                + entry.positionMs + "ms dur=" + entry.durationMs + "ms start=" + start
+                + "ms end=" + end + "ms app=" + fallback + "ms -> ours");
+        return (int) Math.min(Integer.MAX_VALUE, entry.positionMs);
+    }
+
     /**
      * Applies the saved position on the video's first frame, once per item.
      * <p>
@@ -452,6 +597,16 @@ public final class ResumePlayback {
         Entry entry = ENTRIES.get(aid);
         if (entry == null || entry.positionMs <= 0) return;
         if (entry.userSeeking) return;
+        long nativeAt = entry.nativeAtMs;
+        if (nativeAt != 0L) {
+            entry.nativeAtMs = 0L;
+            // The play request already asked the player to start here. A seek now would be a
+            // second one, and that visible jump is exactly what this path removes.
+            if (SystemClock.elapsedRealtime() - nativeAt < 10000L) {
+                Debug.print("resume: first frame aid=" + aid + " native=yes no-seek");
+                return;
+            }
+        }
         entry.started = false;
         entry.suspect = false;
 

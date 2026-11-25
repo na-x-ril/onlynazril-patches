@@ -2,6 +2,7 @@ package app.onlynazril.patches.tiktok.playback
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.fieldAccess
+import app.morphe.patcher.string
 import com.android.tools.smali.dexlib2.Opcode
 
 /**
@@ -17,7 +18,7 @@ internal const val FEED_PLAYER_CONTROLLER =
     "Lcom/ss/android/ugc/aweme/feed/controller/PlayerController;"
 
 /** The real-named source id every feed player callback carries first. */
-private const val SOURCE_ID = "Ljava/lang/String;"
+internal const val SOURCE_ID = "Ljava/lang/String;"
 
 /**
  * Any reference type. The event/error/state types in these callbacks are obfuscated and rename
@@ -238,4 +239,25 @@ internal val FeedPauseEventFingerprint = Fingerprint(
     name = "onPausePlay",
     returnType = "V",
     parameters = listOf(SOURCE_ID, ANY_OBJECT),
+)
+
+/**
+ * The play-request builder: `(Aweme, int, boolean, boolean) -> String`.
+ *
+ * This is the method that decides where a video starts. Its name is obfuscated and moves between
+ * builds (`E` on 47.7.1, `B` on 47.9.3), but the signature is unique in the real-named controller
+ * and the `"resumePlay"` log string is inside it on every supported build. In the body, the app
+ * asks its progress-continue helper for a position and hands the answer to the play request as
+ * `initialStartTimeMs`, so the player starts there without a seek.
+ */
+internal val FeedPlayRequestFingerprint = Fingerprint(
+    definingClass = FEED_PLAYER_CONTROLLER,
+    returnType = "Ljava/lang/String;",
+    parameters = listOf(
+        "Lcom/ss/android/ugc/aweme/feed/model/Aweme;",
+        "I",
+        "Z",
+        "Z",
+    ),
+    strings = listOf(string("resumePlay")),
 )
