@@ -4,7 +4,7 @@ The `Resume playback` patch keeps the play head of the last twelve videos in mem
 to it when a video is opened again. It is a bytecode patch plus the
 `extensions/tiktok/playback` code.
 
-Version scope: 47.7.1, 47.7.2 and 47.7.3.
+Version scope: 47.9.1, 47.9.2, 47.9.3, 48.0.1 and 48.0.2.
 
 ## Hooks
 
@@ -22,7 +22,8 @@ every position change:
 | `onLoopPlay(String, int)` | the video looped: the entry goes, the reset is not a user seek |
 | `onPlayRelease(String)` / `onStopPlay(String)` | the final save when no pause callback arrives |
 | `onPlayFailed(...)` / `onRetryOnError(...)` / `onResolutionSwitchComplete(...)` | the surface is recovering; a temporary zero must not erase the point |
-| `onRenderFirstFrame(String, event)` / `onRenderFirstFrameFromResume(String)` | the restore seek |
+| `onPlayPrepared(String)` | the restore seek, issued before the first frame is shown |
+| `onRenderFirstFrame(String, event)` / `onRenderFirstFrameFromResume(String)` | the fallback restore seek when prepared could not seek |
 
 `onPlayStop` is deliberately not used as the main save; at that point the controller's position has
 already fallen back to the older `lastPosition`. The release/stop hooks above only make a final
@@ -37,12 +38,11 @@ The class exposes more callbacks than the feature needs. These are deliberately 
 | `onPlayCompletedFirstTime` | a subset of `onPlayCompleted`; clearing there as well would be duplicate work |
 | `onPlayStop(...)` (four overloads) | the position has already fallen back to `lastPosition`; `onPlayRelease` / `onStopPlay` are the final-save paths |
 | `onPlayPause`, `onPause()`, `onResume()`, `onPlaying`, `onResumePlay` | state notifications; no position change that the progress/pause hooks do not see first |
-| `onPlayPrepare`, `onPlayPrepared` | prepare aliases; `onPreparePlay` is the open boundary |
+| `onPlayPrepare` | a prepare alias; `onPreparePlay` is the open boundary |
 | `onSpeedChanged` | changes the tick cadence, not the position unit (still milliseconds) |
 | `onResolutionSwitchStart` | the completion callback already marks the item suspect |
 | `onBuffering`, `onDecoderBuffering` | buffering state, not a play head |
 | `onVideoSecondFrame`, `onVideoSizeChanged`, `onFrameAboutToBeRendered`, `onRenderReady`, `onPreRenderReady`, `onPreRenderSessionMissed`, `onLiveRenderFirstFrame` | rendering/metrics, not a position to remember |
-| `onRenderFirstFrame(event)` | the event-only overload has no source id; the two-parameter overload is the hooked one |
 | `onPlayerInternalEvent`, `onBufferedPercent`, `onBufferedTimeMs`, `onVideoBitrateChanged`, `onBrightnessChanged`, `onMaskInfoCallback`, `onCrosstalkHappened` | telemetry/player metrics |
 | `onPageScrollStateChanged` | pager scroll, not playback |
 | `onAttach`, `onDetach`, `onDestroyView`, `onPause()`, `onResume()` | lifecycle without a source id; the per-item callbacks carry the id |
@@ -78,8 +78,8 @@ when the activity is not one of those.
 
 ```text
 Entry {
-  positionMs, durationMs, updatedAtMs, lastKnownPositionMs,
-  openedAtMs, seeking, seekStartedAtMs, seekTargetMs,
+  positionMs, durationMs, lastKnownPositionMs, openedAtMs,
+  userSeekStartedAtMs, pendingDurationMs, pendingDurationCount,
   userSeeking, suspect, started
 }
 ```
@@ -102,15 +102,15 @@ The same thresholds apply to progress ticks, pauses and seek completion:
 Progress ticks smaller than 250 ms do not rewrite the entry; pause and user-seek completion always
 store the exact value. The duration is accepted at once when it is close to the stored one (within
 two seconds). A larger jump is held back until the same new value repeats for three readings: one
-neighbouring preloaded item's duration cannot become this item's seek denominator, but a genuine
+neighbouring preloaded item's duration cannot become this item's end-threshold denominator, but a genuine
 server-side duration change still lands after a few ticks.
 
 A progress tick below the start threshold removes an older resume point only when this open has
-already played past that threshold. Before that, the tick is the pre-seek play head and must leave
-the point it is about to restore alone.
+already played past that threshold. Before that, the tick describes the player preparing at the
+saved point and must leave the point it is about to restore alone.
 
 A pause or a successful user seek below the start threshold clears the point explicitly: those
-callbacks are user actions, not the pre-seek tick.
+callbacks are user actions, not a preparing player.
 
 A reported position of `0` is a real position, not a missing one. The manager's value is kept
 unclamped: only a negative value means "position unavailable", and only then does a save fall back
@@ -133,11 +133,17 @@ clearing it.
 
 ## Restore
 
-On the first frame:
+The seek is issued at `onPlayPrepared`, when the media is ready and the duration is known but no
+frame has been rendered. That is what keeps the restore from showing the first frame at zero and
+then jumping. A position past the item's duration belongs to another player, so that callback is
+skipped instead of seeking the wrong video. The step:
 
 1. read the entry, its stored duration and the player's current position;
-2. if the current position is already within one second of the target, do not seek;
-3. otherwise install the guard **before** calling the manager's `seek(float)`:
+2. at prepared, seek even when the player reports the target: that reading still belongs to the old
+   session, so it cannot prove the new one will start there. At the first-frame fallback, skip the
+   seek when the current position is already within one second, because by then it is the new
+   session's position;
+3. install the guard **before** calling the manager's `seek(float)`:
 
 ```text
 seeking = true
@@ -146,13 +152,32 @@ seekTarget = clamp(saved position, start, duration - 1s)
 seek(seekTarget * 100 / duration)
 ```
 
+`onRenderFirstFrame` and `onRenderFirstFrameFromResume` run the same step as a fallback, for a
+player that was not ready at prepared time. A repeated callback while the guard is active does not
+issue a second seek; only a landed target ends it early.
+
+A prepared seek that the player ignores is retried on the first frame, and again from the progress
+timeout, up to three attempts. That keeps a slow restore from leaving the video playing from zero
+for the rest of the open. After the third failed attempt the entry keeps its saved point and the
+player is left where it is.
+
 While `seeking` is true, progress ticks are ignored until the player reports a position within one
 second of the target, or five seconds pass. This is what keeps the first ticks, which still
 describe the pre-seek play head, from moving the resume point backwards. A pause during the guard
 keeps the target; it does not save the pre-seek position.
 
-The guard is per item, not global: a repeated first-frame callback while the first seek is in
-flight does not issue a second seek.
+## Why the play request is not used
+
+The app's play-request builder computes a value and, on 47.9.x and 48.x, passes it into the play
+config (`LX/07zK.LIZLLL` on 47.9.3, `LX/08Jm` on 48.0.2). On 47.7.x and 47.8.3 that value stops at
+`isPlayFromStart` and never reaches the player.
+
+Replacing it with the saved millisecond was tried on 47.9.3 and 48.0.1. On 47.9.3 the manager copies
+it to `X/05vV.LJIIJJI` and `X/02sw#LJJIIZI` puts it into the engine params as
+`init_start_time_ms`, but at runtime playback still started at 0. The same nonzero value also takes
+the app's "play from start" view-config path, which brings the cover image flash back on pause.
+Since the value does not move the playhead on any supported build, the seek is the only restore
+path that works.
 
 ## Example
 

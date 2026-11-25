@@ -3,33 +3,15 @@ package app.onlynazril.patches.tiktok.playback
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.util.findMutableMethodOf
-import app.morphe.util.implementationOrPatchException
 import app.onlynazril.patches.shared.Constants.COMPATIBILITY_TIKTOK
-import com.android.tools.smali.dexlib2.Opcode
-import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
-import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val RESUME_PLAYBACK =
     "Lapp/onlynazril/extension/tiktok/playback/ResumePlayback;"
-
-private const val AWEME = "Lcom/ss/android/ugc/aweme/feed/model/Aweme;"
-
-/** The nested observer keeps its search name while the player it points at is obfuscated. */
-private const val SEARCH_PLAYER_OBSERVER =
-    "Lcom/ss/android/ugc/aweme/search/common/ui/component/SearchPlayerCore\$initLifeCycleObserver\$1;"
 
 /**
  * Remembers where a video was left and seeks back to it on the next open.
  *
  * The hooks cover the position's whole life, not only the progress tick:
- *  0. the play-request builder: the position is handed to the player as `initialStartTimeMs`, so
- *     the video starts there natively instead of being seeked after its first frame;
- *  0b. the search result card's own player: its progress is saved under the same item id, so a
- *     preview that played in the grid becomes a resume point when the item is opened;
  *  1. `onPreparePlay`: the open boundary, so a pre-seek tick is not mistaken for a seek to zero;
  *  2. `onSeekStart` / `onSeekEnd` / `onRenderSeekComplete`: the explicit user seek, including a
  *     seek while the video is paused and a seek to the start;
@@ -39,8 +21,8 @@ private const val SEARCH_PLAYER_OBSERVER =
  *  6. `onPlayRelease` / `onStopPlay`: the final save when no pause callback arrives;
  *  7. `onPlayFailed` / `onRetryOnError` / `onResolutionSwitchComplete`: the surface is recovering,
  *     do not let a temporary zero erase the point;
- *  8. `onRenderFirstFrame` and `onRenderFirstFrameFromResume`: the fallback seek, once per open,
- *     for a path whose play request did not take the saved position.
+ *  8. `onPlayPrepared` and `onRenderFirstFrame` / `onRenderFirstFrameFromResume`: the restore seek,
+ *     issued before the first frame when possible and on the frame as the fallback.
  *
  * All are entry hooks, so no register is invented: the progress callback already has the whole
  * argument list at its first instruction, and passing `p0..p5` forwards `this` plus the string and
@@ -59,102 +41,6 @@ val tiktokResumePlaybackPatch = bytecodePatch(
     extendWith("extensions/tiktok.mpe")
 
     execute {
-        // The native resume: the app builds a play request for every video and passes it the
-        // position it should start at. Substituting that one long makes the player prepare at the
-        // saved point, so no seek is issued after the first frame.
-        val playRequest = FeedPlayRequestFingerprint.methodOrNull
-            ?: throw PatchException("Resume playback: the play-request builder was not found.")
-        val mutableRequest = mutableClassDefBy(playRequest.definingClass)
-            .findMutableMethodOf(playRequest)
-        // The receiver carries the event type ("search_result" and similar). Remembering it here
-        // lets the start-time substitution leave the search surface to the app's own handoff. The
-        // receiver is addressed as a range: the inline compiler does not accept a `p` register in
-        // this method's wrapper.
-        val isStaticMethod = (playRequest.accessFlags and 0x0008) != 0
-        val receiver = mutableRequest.implementationOrPatchException("Resume playback").registerCount -
-            (playRequest.parameterTypes.size + if (isStaticMethod) 0 else 1)
-        mutableRequest.addInstructions(
-            0,
-            "invoke-static/range {v$receiver .. v$receiver}, " +
-                "$RESUME_PLAYBACK->onPlayRequest(Ljava/lang/Object;)V",
-        )
-        val instructions = mutableRequest.implementationOrPatchException("Resume playback")
-            .instructions.toList()
-        val helperCalls = instructions.withIndex().filter { (_, instruction) ->
-            instruction is ReferenceInstruction &&
-                (instruction.reference as? MethodReference)?.let { reference ->
-                    reference.returnType == "J" &&
-                        reference.parameterTypes.firstOrNull() == AWEME
-                } == true
-        }
-        if (helperCalls.size != 1) {
-            throw PatchException(
-                "Resume playback: expected one progress-continue call, found ${helperCalls.size}.",
-            )
-        }
-        val callIndex = helperCalls.single().index
-        val wideResult = instructions.getOrNull(callIndex + 1)
-        if (wideResult?.opcode != Opcode.MOVE_RESULT_WIDE) {
-            throw PatchException(
-                "Resume playback: the progress-continue call does not return a wide result.",
-            )
-        }
-        // The app casts the long to the millisecond int the play request takes; the int is the
-        // value to replace, and an int call keeps the injection inside the 4-bit register list.
-        val position = instructions.getOrNull(callIndex + 2)
-        if (position?.opcode != Opcode.LONG_TO_INT || position !is OneRegisterInstruction) {
-            throw PatchException(
-                "Resume playback: the progress-continue result is not cast to a start time.",
-            )
-        }
-        val positionRegister = position.registerA
-        // The helper call's first argument is the Aweme. Taking it from the instruction avoids a
-        // `p` register in the snippet, which the inline compiler cannot name for this method.
-        val awemeRegister = when (val call = instructions[callIndex]) {
-            is FiveRegisterInstruction -> call.registerC
-            is RegisterRangeInstruction -> call.startRegister
-            else -> throw PatchException(
-                "Resume playback: the progress-continue call has no readable argument list.",
-            )
-        }
-        if (positionRegister > 15 || awemeRegister > 15) {
-            throw PatchException(
-                "Resume playback: the start-time call needs v0..v15, got " +
-                    "v$awemeRegister and v$positionRegister.",
-            )
-        }
-        mutableRequest.addInstructions(
-            callIndex + 3,
-            "invoke-static {v$awemeRegister, v$positionRegister}, " +
-                "$RESUME_PLAYBACK->preferNative(Ljava/lang/Object;I)I\n" +
-                "move-result v$positionRegister",
-        )
-
-        // The search result grid autoplays a card through its own player, not PlayerController.
-        // Its progress reports the same aid, so saving it here makes the position available when
-        // the card is opened. The player class is obfuscated; the nested observer is not, and its
-        // only field is that player.
-        val observer = classDefByOrNull(SEARCH_PLAYER_OBSERVER)
-            ?: throw PatchException("Resume playback: the search player observer was not found.")
-        val searchPlayer = observer.fields
-            .map { it.type }
-            .filter { it.startsWith("L") }
-            .mapNotNull { classDefByOrNull(it) }
-            .firstOrNull { candidate ->
-                candidate.methods.any { method ->
-                    method.name == "onPlayProgressChange" &&
-                        method.parameterTypes == listOf(SOURCE_ID, "J", "J")
-                }
-            } ?: throw PatchException("Resume playback: the search player's progress hook was not found.")
-        val searchProgress = searchPlayer.methods.first {
-            it.name == "onPlayProgressChange" && it.parameterTypes == listOf(SOURCE_ID, "J", "J")
-        }
-        mutableClassDefBy(searchPlayer).findMutableMethodOf(searchProgress).addInstructions(
-            0,
-            "invoke-static/range {p1 .. p5}, $RESUME_PLAYBACK->onExternalProgress(" +
-                "Ljava/lang/String;JJ)V",
-        )
-
         val progress = FeedPlayProgressFingerprint.methodOrNull
             ?: throw PatchException(
                 "Resume playback: the feed player's progress tick was not found.",
@@ -189,6 +75,13 @@ val tiktokResumePlaybackPatch = bytecodePatch(
             ?: throw PatchException(
                 "Resume playback: the feed player's first-frame callback was not found.",
             )
+        // The primary restore: the media is prepared, the duration is known, and no frame has been
+        // shown yet. Optional, so the first frame stays as the fallback on a build without it.
+        FeedPlayPreparedFingerprint.methodOrNull?.addInstructions(
+            0,
+            "invoke-static/range {p0 .. p1}, $RESUME_PLAYBACK->onPrepared(" +
+                "Ljava/lang/Object;Ljava/lang/String;)V",
+        )
         firstFrame.addInstructions(
             0,
             "invoke-static/range {p0 .. p1}, $RESUME_PLAYBACK->onFirstFrame(" +
