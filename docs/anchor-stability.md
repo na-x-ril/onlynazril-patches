@@ -5,9 +5,11 @@ Every anchor the patches depend on, why it was chosen, and what happens when it 
 a non-zero exit means an anchor is missing. `app` defaults to `tiktok`, and each app has its own set
 of checks inside the probe.
 
-Support is narrowed to **47.7.1, 47.7.2, 47.7.3, 47.8.3, 47.9.1, 47.9.2 and 47.9.3**. The per-feature dumps that used to sit beside this
+Support is narrowed to **47.9.1, 47.9.2, 47.9.3, 48.0.1 and 48.0.2**. The per-feature dumps that used to sit beside this
 file were retired with the older versions; the sections below carry the behaviour worth keeping, and
-the code that implements each hook is the source of truth for its shape.
+the code that implements each hook is the source of truth for its shape. Obfuscated names from
+47.7.x and 47.8.3 still appear in some notes as historical evidence; those versions are no longer
+supported.
 
 ## The rules behind the choices
 
