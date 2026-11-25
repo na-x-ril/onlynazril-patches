@@ -127,7 +127,7 @@ public final class CommentDateBridge {
             timeView.setText(target);
             report((time.isEmpty() ? "no time on the view -> '" : "'") + target + "'");
         } catch (Throwable t) {
-            Log.w(TAG, "comment time failed", t);
+            if (Debug.verbose()) Log.w(TAG, "comment time failed", t);
             report("failed: " + t);
         }
     }

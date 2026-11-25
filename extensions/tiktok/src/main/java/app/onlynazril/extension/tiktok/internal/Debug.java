@@ -42,7 +42,7 @@ public final class Debug {
      * a log says which build is actually installed: without it, "the change did nothing" and "the
      * APK was never replaced" look exactly the same.
      */
-    public static final String BUILD = "b88";
+    public static final String BUILD = "b96";
     private static final String TAG = "tiktokHandle";
     private static final String FILE_NAME = "tiktokhandle.log";
     /** A file past this size is moved aside as `.1` and a fresh one is started. */
@@ -121,6 +121,9 @@ public final class Debug {
     }
 
     public static void print(String message) {
+        // The diagnostics switch owns every line: off is silent, on is the full log. Exception
+        // traces in the bridges stay separate, because those name a failure rather than a tick.
+        if (!verbose) return;
         // A repeated line says nothing new, and the loop that repeats it is exactly what costs.
         if (message.equals(lastMessage)) return;
         lastMessage = message;

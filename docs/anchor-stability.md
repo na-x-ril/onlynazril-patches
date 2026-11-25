@@ -67,7 +67,9 @@ the code that implements each hook is the source of truth for its shape.
 | `PlayerController#onPlayCompleted(String)` / `(String, int)` and `#onLoopPlay(String, int)` | resume playback's end/loop clears, so a finished or restarted video leaves no point | exact real-named signatures; both completion overloads are kept because one is a compatibility forward | the patch fails (`onPlayCompleted` / `onLoopPlay` not found) |
 | `PlayerController#onPlayRelease(String)` and `#onStopPlay(String)` | resume playback's final save when no pause callback arrives | exact real-named signatures; the position is read before it is reset | the patch fails (`no release or stop callback was found`) |
 | `PlayerController#onPlayFailed(...)`, `#onRetryOnError(...)`, `#onResolutionSwitchComplete(...)` | resume playback's recovery markers: a temporary zero must not erase a real point | the source-id first parameter and the arity are matched; the error/event/reason types are obfuscated and never written down | the marker is not set; a recovery zero can clear the point |
-| `PlayerController#onRenderFirstFrame(String, event)` and `#onRenderFirstFrameFromResume(String)` | resume playback's apply hook: the saved position is sought to on the item's first frame and after a background resume | real-named controller and method; the obfuscated event type (`X.0BKd` on 47.7.1, `X.0BKZ` on 47.7.2, `X.0BKb` on 47.7.3) is never written down, only the real-named source-id parameter and the two-parameter shape | the patch fails (`onRenderFirstFrame … was not found`); the resume callback is optional |
+| `SearchPlayerCore$initLifeCycleObserver$1` (nested class) → its only field's class, `onPlayProgressChange(String, J, J)` | saving the search result card's autoplay position under the item id, so a preview becomes a resume point | the nested observer keeps its search name on every supported build while the player it points at is obfuscated (`X/0J2R` on 47.7.1, `X/0Ib4` on 47.9.3); the callback is the real-named `OnUIPlayListener` shape | the patch fails (`the search player observer / progress hook was not found`) |
+| `PlayerController` play-request builder `(Aweme, int, boolean, boolean) -> String` containing `"resumePlay"` | resume playback's native start: the saved millisecond replaces the app's progress-continue value, so the play request carries it as `initialStartTimeMs` | the class and signature are real-named; only the method name is obfuscated and moves (`E` on 47.7.1, `B` on 47.9.3); the `(Aweme, …) -> J` helper call is unique, and `move-result-wide` + `long-to-int` follow it on every supported build | the patch fails (`the play-request builder was not found` / `expected one progress-continue call`) |
+| `PlayerController#onRenderFirstFrame(String, event)` and `#onRenderFirstFrameFromResume(String)` | resume playback's fallback apply hook: seek only when the play request did not carry the position, and after a background resume | real-named controller and method; the obfuscated event type (`X.0BKd` on 47.7.1, `X.0BKZ` on 47.7.2, `X.0BKb` on 47.7.3) is never written down, only the real-named source-id parameter and the two-parameter shape | the patch fails (`onRenderFirstFrame … was not found`); the resume callback is optional |
 | `Aweme#isAd`, `#isSoftAd`, `#isWithPromotionalMusic`, `#getAwemeRawAd` | what the ad filter drops | real-named flags and payload read by the extension through reflection, so checked here | that signal stops matching (the item is kept) |
 | `Aweme#getStatistics` → `AwemeStatistics#getPlayCount` / `#getDiggCount` | the view and like ranges | real-named getters, same reading | that count stops filtering (the item is kept, never dropped wrongly) |
 | `ACLCommonShare#getCode()` / `#getShowType()` / `#getTranscode()` | the app's download restriction and the watermark | real-named getters on the real-named model, two instructions each; the values are adapted from ReVanced's TikTok download patch | the download stays restricted and the file keeps its watermark |
@@ -346,10 +348,11 @@ Everything goes through `Debug.print`: logcat via `Log.w`, plus the log file, pr
 render. logcat stops at 2000 lines per process and the file at 600; a line identical to the one
 before it is dropped, because the loop that repeats it is exactly what costs.
 
-**Verbose diagnostics** (Tweaks, About section) is the switch for everything expensive: the app
-frames after `by=`, the `via` frames on a name render, the `surface miss` frames and the `startup:`
-marks are only captured when it is on, and the budgets rise to 20000 logcat / 8000 file lines. Off,
-`Debug.by` answers an empty string and `Debug.caller` returns before taking a stack trace. Each line type is capped so
+**Verbose diagnostics** (Tweaks, About section) owns every extension log line. Off, `Debug.print`
+returns before it writes anything, `Debug.by` answers an empty string, `Debug.caller` returns
+before taking a stack trace, the `via`/`surface miss`/`startup:` frames are not captured, and the
+bridge exception lines stay quiet. On, every line is written and the budgets are 20000 logcat /
+8000 file lines. The build marker lives in the About text, so it is readable with logging off. Each line type is capped so
 one session cannot flood the log:
 
 | line | meaning |

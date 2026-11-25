@@ -1,5 +1,6 @@
 package app.onlynazril.extension.tiktok.internal;
 
+import app.onlynazril.extension.tiktok.internal.Debug;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -63,7 +64,7 @@ public final class RestartPrompt {
             Debug.print("restart prompt: asked, install=" + installed + Debug.by(4));
             Prompt.show(activity, INSTALL_TITLE, INSTALL_MESSAGE, () -> restart(activity));
         } catch (Throwable t) {
-            Log.w(TAG, "restart prompt failed", t);
+            if (Debug.verbose()) Log.w(TAG, "restart prompt failed", t);
         }
     }
 
@@ -77,7 +78,7 @@ public final class RestartPrompt {
             if (activity == null) return;
             Prompt.show(activity, CHANGE_TITLE, null, () -> restart(activity));
         } catch (Throwable t) {
-            Log.w(TAG, "restart prompt failed", t);
+            if (Debug.verbose()) Log.w(TAG, "restart prompt failed", t);
         }
     }
 
@@ -88,7 +89,7 @@ public final class RestartPrompt {
             if (activity == null) return;
             restart(activity);
         } catch (Throwable t) {
-            Log.w(TAG, "restart failed", t);
+            if (Debug.verbose()) Log.w(TAG, "restart failed", t);
         }
     }
 

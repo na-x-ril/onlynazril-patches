@@ -103,7 +103,7 @@ public final class AuthorInfoBridge {
             }
             TIME_VIEWS.put(assem, new WeakReference<>(time));
         } catch (Throwable t) {
-            Log.w(TAG, "post-time view lookup failed", t);
+            if (Debug.verbose()) Log.w(TAG, "post-time view lookup failed", t);
         }
     }
 
@@ -127,7 +127,7 @@ public final class AuthorInfoBridge {
                     Reflect.string(author, "getUniqueId", "uniqueId"));
             apply(time, aweme);
         } catch (Throwable t) {
-            Log.w(TAG, "post-time write failed", t);
+            if (Debug.verbose()) Log.w(TAG, "post-time write failed", t);
         }
     }
 
@@ -186,7 +186,7 @@ public final class AuthorInfoBridge {
             timeView.setText(target);
             timeView.setVisibility(View.VISIBLE);
         } catch (Throwable t) {
-            Log.w(TAG, "post-time / region write failed", t);
+            if (Debug.verbose()) Log.w(TAG, "post-time / region write failed", t);
         }
     }
 
@@ -305,7 +305,7 @@ public final class AuthorInfoBridge {
                 view.setText(target);
                 if (view.getVisibility() != View.VISIBLE) view.setVisibility(View.VISIBLE);
             } catch (Throwable t) {
-                Log.w(TAG, "post-time re-assert failed", t);
+                if (Debug.verbose()) Log.w(TAG, "post-time re-assert failed", t);
             } finally {
                 writing = false;
             }
@@ -358,7 +358,7 @@ public final class AuthorInfoBridge {
             timeViewId = id;
             return timeViewId;
         }
-        Log.w(TAG, "no post-time view id resolved — post time and region stay off");
+        if (Debug.verbose()) Log.w(TAG, "no post-time view id resolved - post time and region stay off");
         return 0;
     }
 

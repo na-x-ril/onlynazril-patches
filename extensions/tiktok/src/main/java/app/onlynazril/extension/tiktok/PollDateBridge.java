@@ -78,7 +78,7 @@ public final class PollDateBridge {
             dateView.setText(target);
             report((time.isEmpty() ? "no time on the view -> '" : "'") + target + "'");
         } catch (Throwable t) {
-            Log.w(TAG, "poll date failed", t);
+            if (Debug.verbose()) Log.w(TAG, "poll date failed", t);
             report("failed: " + t);
         }
     }

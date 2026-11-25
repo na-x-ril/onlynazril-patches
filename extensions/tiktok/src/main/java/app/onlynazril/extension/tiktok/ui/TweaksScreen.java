@@ -1019,8 +1019,8 @@ public final class TweaksScreen extends FrameLayout {
         page.addView(new RowView(
                 context,
                 "Verbose diagnostics",
-                "Log every line with the app frames that name the caller, and raise the log "
-                        + "budgets. Costs CPU; off by default.",
+                "On, the extension logs every line, the app frames and the higher budgets. Off, "
+                        + "it writes nothing. Costs CPU; off by default.",
                 toggle(context, DebugSettings.isVerbose(context), checked -> {
                     DebugSettings.setVerbose(context, checked);
                     Debug.setVerbose(checked);
@@ -1029,7 +1029,7 @@ public final class TweaksScreen extends FrameLayout {
         page.addView(description(
                 context,
                 "Tweaks for TikTok 47.7.1 to 47.7.3. "
-                        + "The display name is read, never rewritten."));
+                        + "The display name is read, never rewritten. Build " + Debug.BUILD + "."));
         page.addView(diagnostics(context));
         page.addView(actions(context));
     }
