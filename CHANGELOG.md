@@ -1,3 +1,13 @@
+## [1.7.0-dev.4](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.3...v1.7.0-dev.4) (2026-11-25)
+
+### ✨ New Features
+
+* **TikTok - Resume playback:** Give the saved position to the play request ([77585c0](https://github.com/na-x-ril/onlynazril-patches/commit/77585c0bcfaa54825b618557fab3569c90af0554))
+* **TikTok:** Put every extension log behind the diagnostics switch ([d9c9457](https://github.com/na-x-ril/onlynazril-patches/commit/d9c94578742139497333380e2f1282040c721021))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.7.0-dev.3](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.2...v1.7.0-dev.3) (2026-11-23)
 
 ### 🐛 Bug Fixes
