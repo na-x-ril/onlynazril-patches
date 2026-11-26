@@ -1086,7 +1086,7 @@ public final class TweaksScreen extends FrameLayout {
         page.addView(divider(context));
         page.addView(description(
                 context,
-                "Tweaks for TikTok 47.7.1 to 47.7.3. "
+                "Tweaks for TikTok" + appVersionSuffix(context) + ". "
                         + "The display name is read, never rewritten. Build " + Debug.BUILD + "."));
         page.addView(diagnostics(context));
         page.addView(actions(context));
@@ -1359,6 +1359,17 @@ public final class TweaksScreen extends FrameLayout {
                 "application/x-font-ttf", "application/x-font-otf",
                 "application/octet-stream"});
         activity.startActivityForResult(pick, CustomFontBridge.REQUEST_PICK_FONT);
+    }
+
+    /** " 48.0.2" from the installed package, or "" when the name cannot be read. */
+    private static String appVersionSuffix(Context context) {
+        try {
+            String version = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0).versionName;
+            return version == null || version.isEmpty() ? "" : " " + version;
+        } catch (Throwable t) {
+            return "";
+        }
     }
 
     private static void exportSettings(Context context) {
