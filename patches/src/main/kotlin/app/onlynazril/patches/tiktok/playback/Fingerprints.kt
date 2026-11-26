@@ -2,15 +2,16 @@ package app.onlynazril.patches.tiktok.playback
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.fieldAccess
+import app.morphe.util.getReference
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.Opcode
 
 /**
  * The feed's playback controller: the one object the feed player reports progress through.
  *
  * Real-named and carried by both supported builds (`com.ss.android.ugc.aweme.feed.controller.
- * PlayerController` on 47.7.1 through 47.7.3). It is the class that owns the current item's id
- * (`mCurrentAid`), the last position (`lastPosition`) and the player manager
- * (`getPlayerManager()`), so every resume-playback hook belongs here rather than on the
+ * PlayerController`). It is the class that owns the current item's id (`mCurrentAid`) and the last
+ * position (`lastPosition`), so the two hooks that classify an item belong here rather than on the
  * per-cell views whose names are obfuscated and change every build.
  */
 internal const val FEED_PLAYER_CONTROLLER =
@@ -20,19 +21,12 @@ internal const val FEED_PLAYER_CONTROLLER =
 private const val SOURCE_ID = "Ljava/lang/String;"
 
 /**
- * Any reference type. The event/error/state types in these callbacks are obfuscated and rename
- * between builds, so the parameter position is matched and the type is not written down.
- */
-private const val ANY_OBJECT = "L"
-
-/**
  * The playback tick: `onPlayProgressChange(sourceId, positionMs, durationMs)`.
  *
  * The two longs were read off the method body: `lastPosition` is written from the first, and the
  * second is divided by 100 after `long-to-float` to make the progress percentage, with the first
  * divided by it, that makes the first the position and the second the duration, both in
- * milliseconds. The method also reads `mCurrentAid`, but the callback's `sourceId` is the key both
- * save and restore use, because the controller field can lag behind on a preloaded cell.
+ * milliseconds.
  *
  * Matched on the real-named class, the exact three-parameter shape and the two field accesses, not
  * on the class's position in the feed stack. The single-float overload (`onPlayProgressChange(F)V`)
@@ -59,97 +53,6 @@ internal val FeedPlayProgressFingerprint = Fingerprint(
     ),
 )
 
-/**
- * The media is prepared but no frame has been rendered yet: the first point where the stored
- * duration can be applied as a seek. The controller's body is a short forward, which does not
- * matter for an entry hook.
- */
-internal val FeedPlayPreparedFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onPlayPrepared",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID),
-)
-
-/**
- * The video's first rendered frame: where a saved position can be applied.
- *
- * The player is ready but has not been seen yet, which is the same point TikTok's own detail
- * player uses to seek back (`DetailFragmentPanel#onRenderFirstFrame`). Hooking `onPlayPrepared` is
- * not an option, it has an empty body on both builds.
- *
- * The event type (`X.0BKd` on 47.7.1, `X.0BKZ` on 47.7.2, `X.0BKb` on 47.7.3) is obfuscated and renamed between
- * builds, so the shape is matched instead: the two-parameter overload of a real-named method whose
- * first parameter is the real-named source id. The one-parameter overload is a different callback
- * and takes the event alone.
- */
-internal val FeedFirstFrameFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onRenderFirstFrame",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, ANY_OBJECT),
-)
-
-/**
- * The pause callback: the last moment the playhead is exact.
- *
- * The progress tick trails the player, so a position read here is the closest value to where the
- * user actually left. The stop callback is deliberately not used: at that point the controller's
- * position has already fallen back to `lastPosition`, which is older than the pause value.
- *
- * The player dispatches both pause overloads, the event one first and this one second. Hooking
- * both means the position is saved before the event handler can touch the player, and this
- * one-string overload still covers a build whose dispatcher only calls the legacy method.
- */
-internal val FeedPauseFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onPausePlay",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID),
-)
-
-/**
- * The item is being prepared: the open boundary the progress callback cannot provide. The
- * one-string overload is the non-event path; the event overload carries the same source id.
- */
-internal val FeedPrepareFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onPreparePlay",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID),
-)
-
-internal val FeedPrepareEventFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onPreparePlay",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, ANY_OBJECT),
-)
-
-/** The user drags or taps the seek bar: `(sourceId, offset, progress)`. */
-internal val FeedSeekStartFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onSeekStart",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, "I", "F"),
-)
-
-/** The user seek has ended: `(sourceId, success)`. */
-internal val FeedSeekEndFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onSeekEnd",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, "Z"),
-)
-
-/** The seek's rendered frame; a second completion point when the player skips `onSeekEnd`. */
-internal val FeedRenderSeekCompleteFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onRenderSeekComplete",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, "Z"),
-)
-
 /** The video reached its end: `(sourceId)` and the compatibility `(sourceId, reason)` overload. */
 internal val FeedPlayCompletedFingerprint = Fingerprint(
     definingClass = FEED_PLAYER_CONTROLLER,
@@ -165,91 +68,38 @@ internal val FeedPlayCompletedCountFingerprint = Fingerprint(
     parameters = listOf(SOURCE_ID, "I"),
 )
 
-/** The video looped: the position is about to reset without a user seek. */
-internal val FeedLoopPlayFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onLoopPlay",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, "I"),
-)
+private const val CONTINUE_CONFIG =
+    "Lcom/ss/android/ugc/aweme/feed/experiment/FeedPlayProgressContinueConfig;"
 
-/** The player is released, and the stop callback before it: the last chance to save. */
-internal val FeedPlayReleaseFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onPlayRelease",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID),
-)
-
-internal val FeedStopPlayFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onStopPlay",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID),
+/**
+ * The lambda that answers whether TikTok may resume a video at its stored position. It reads
+ * `FeedPlayProgressContinueConfig.enable`; the class name of the lambda moves every build, so the
+ * field read is the anchor.
+ */
+internal val FeedProgressContinueGateFingerprint = Fingerprint(
+    name = "invoke",
+    filters = listOf(fieldAccess(definingClass = CONTINUE_CONFIG, name = "enable")),
+    returnType = "Ljava/lang/Object;",
+    parameters = emptyList(),
+    custom = { method, _ ->
+        method.implementation?.instructions?.any { instruction ->
+            instruction.getReference<FieldReference>()?.let { field ->
+                field.definingClass == CONTINUE_CONFIG && field.name == "enable"
+            } == true
+        } == true
+    },
 )
 
 /**
- * A play failure and a retry: both can report a position of zero while the surface recovers.
- * The error type is obfuscated, so the source-id first parameter and the arity are the anchor.
+ * The method that answers "where should this video start". It is found by its only read of the
+ * config's `event_type_list`; the patch overrides the `contains` answer so feeds outside TikTok's
+ * allow list still resume.
  */
-internal val FeedPlayFailedFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onPlayFailed",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, ANY_OBJECT, ANY_OBJECT),
+internal val FeedProgressResumePositionFingerprint = Fingerprint(
+    returnType = "J",
+    filters = listOf(fieldAccess(definingClass = CONTINUE_CONFIG, name = "event_type_list")),
+    custom = { method, _ ->
+        method.parameterTypes.firstOrNull()?.toString() ==
+            "Lcom/ss/android/ugc/aweme/feed/model/Aweme;"
+    },
 )
-
-internal val FeedPlayFailedShortFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onPlayFailed",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, ANY_OBJECT),
-)
-
-internal val FeedRetryFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onRetryOnError",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, ANY_OBJECT),
-)
-
-internal val FeedRetryShortFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onRetryOnError",
-    returnType = "V",
-    parameters = listOf(ANY_OBJECT),
-)
-
-/** A resolution switch can re-prepare the player and report a zero position for a moment. */
-internal val FeedResolutionSwitchFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onResolutionSwitchComplete",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, ANY_OBJECT, "Z", SOURCE_ID),
-)
-
-/** A first frame after the app resumes from the background, not the item's first open. */
-internal val FeedFirstFrameFromResumeFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onRenderFirstFrameFromResume",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID),
-)
-
-/**
- * The event pause overload: `onPausePlay(sourceId, event)`.
- *
- * The event type is obfuscated and renamed between builds (`X.0AIw` on 47.7.1, `X.0AIt` on
- * 47.7.2, `X.0AIx` on 47.7.3), so only the real-named method, the source-id first parameter and
- * the two-parameter
- * shape are matched. Its body runs before the legacy one-string callback is forwarded, which is
- * where the player's position is still the pause playhead.
- */
-internal val FeedPauseEventFingerprint = Fingerprint(
-    definingClass = FEED_PLAYER_CONTROLLER,
-    name = "onPausePlay",
-    returnType = "V",
-    parameters = listOf(SOURCE_ID, ANY_OBJECT),
-)
-
-

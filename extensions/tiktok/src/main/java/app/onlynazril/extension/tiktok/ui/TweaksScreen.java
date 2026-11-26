@@ -792,25 +792,25 @@ public final class TweaksScreen extends FrameLayout {
         RowView startRow = new RowView(
                 context,
                 "Skip from start",
-                "Seconds before a position is remembered.",
+                "Seconds before a stored position is used.",
                 NumberAction.create(context, "Skip from start",
-                        "Seconds counted from the beginning of the video.",
+                        "Shorter watch does not resume; the video starts over.",
                         "s", ResumePlaybackSettings.startSeconds(context),
                         seconds -> ResumePlaybackSettings.setStartSeconds(context, seconds)));
         RowView endRow = new RowView(
                 context,
                 "Skip from end",
-                "Seconds before the end that are not remembered.",
+                "Seconds before the end that are not resumed.",
                 NumberAction.create(context, "Skip from end",
-                        "Seconds counted back from the end of the video.",
+                        "A video left this close to its end starts over.",
                         "s", ResumePlaybackSettings.endSeconds(context),
                         seconds -> ResumePlaybackSettings.setEndSeconds(context, seconds)));
 
         page.addView(new RowView(
                 context,
                 "Resume playback",
-                "Continue a video from where you stopped. The twelve most recently opened videos "
-                        + "are kept until the app closes.",
+                "Continue a video from where you stopped. The position is the one TikTok keeps; "
+                        + "a video that reached its end starts over.",
                 resumeToggle));
         page.addView(divider(context));
         page.addView(startRow);
