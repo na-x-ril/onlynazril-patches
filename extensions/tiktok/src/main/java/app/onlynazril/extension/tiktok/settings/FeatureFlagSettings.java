@@ -68,6 +68,14 @@ public final class FeatureFlagSettings {
         save(ctx, KEY_OVERRIDES, OVERRIDES);
     }
 
+    /** Replaces every override at once, which is what a settings import does. */
+    public static synchronized void replaceOverrides(Context ctx, Map<String, String> values) {
+        load();
+        OVERRIDES.clear();
+        if (values != null) OVERRIDES.putAll(values);
+        save(ctx, KEY_OVERRIDES, OVERRIDES);
+    }
+
     public static synchronized void clearOverrides(Context ctx) {
         load();
         if (OVERRIDES.isEmpty()) return;

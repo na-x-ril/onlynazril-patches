@@ -114,7 +114,9 @@ cannot be overridden; it is shown so the list stays complete rather than hiding 
 The About page reads the installed app's version name from the package manager, so it names the
 build actually running rather than a hardcoded range.
 
-Overrides are not part of the settings export/import (that backup names its keys one by one).
+Overrides are part of the settings export/import: the backup carries a `flag_overrides` object with
+the same key and value pairs, and an import replaces the whole set. The recorded list is not
+backed up, because it is only the registry of what the app has read.
 
 ## Diagnostics
 

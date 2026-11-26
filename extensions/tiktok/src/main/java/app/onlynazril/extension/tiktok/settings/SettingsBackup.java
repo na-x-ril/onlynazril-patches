@@ -18,6 +18,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Exports every switch to one JSON object and loads it back.
@@ -132,6 +135,12 @@ public final class SettingsBackup {
         root.put("pause_image_search_disabled", PauseImageSearchSettings.isDisabled(context));
         root.put("feed_search_hidden", FeedSearchSettings.isHidden(context));
         root.put("copy_handle_on_hold", HandleSettings.isCopyOnHoldEnabled(context));
+
+        JSONObject flags = new JSONObject();
+        for (Map.Entry<String, String> entry : FeatureFlagSettings.overrides().entrySet()) {
+            flags.put(entry.getKey(), entry.getValue());
+        }
+        root.put("flag_overrides", flags);
         return root.toString(2);
     }
 
@@ -254,6 +263,19 @@ public final class SettingsBackup {
             }
             if (root.has("feed_search_hidden")) {
                 FeedSearchSettings.setHidden(context, root.optBoolean("feed_search_hidden"));
+            }
+            if (root.has("flag_overrides")) {
+                JSONObject flags = root.optJSONObject("flag_overrides");
+                Map<String, String> overrides = new LinkedHashMap<>();
+                if (flags != null) {
+                    Iterator<String> names = flags.keys();
+                    while (names.hasNext()) {
+                        String key = names.next();
+                        String value = flags.optString(key, null);
+                        if (value != null) overrides.put(key, value);
+                    }
+                }
+                FeatureFlagSettings.replaceOverrides(context, overrides);
             }
             if (root.has("copy_handle_on_hold")) {
                 HandleSettings.setCopyOnHoldEnabled(
