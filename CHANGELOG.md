@@ -1,3 +1,23 @@
+## [1.7.0-dev.5](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.4...v1.7.0-dev.5) (2026-11-26)
+
+### 🐛 Bug Fixes
+
+* **TikTok - Handle stamp:** Keep a single leading @ ([ed89478](https://github.com/na-x-ril/onlynazril-patches/commit/ed89478829596c654ba616bd3c542111b09a484e))
+* **TikTok - Resume playback:** Restore with a seek before the first frame ([4207513](https://github.com/na-x-ril/onlynazril-patches/commit/420751353cbd43d15c3c685a63d75f5808bc1a58))
+* **TikTok - Resume playback:** Restore with TikTok's own continue gates ([de3ebd9](https://github.com/na-x-ril/onlynazril-patches/commit/de3ebd997b411511565030318d5af213875a2b74))
+* **TikTok - Tweaks screen:** Read the installed version in About ([60bcc7d](https://github.com/na-x-ril/onlynazril-patches/commit/60bcc7def0cae2731a7c514fc8e1a277f038a4b6))
+
+### ✨ New Features
+
+* **TikTok - Feature flags:** Hook every getter of the AB classes ([65fe7da](https://github.com/na-x-ril/onlynazril-patches/commit/65fe7dacd53ca193d6a39002e15e4ac3d027cb56))
+* **TikTok - Settings backup:** Carry the flag overrides ([7712699](https://github.com/na-x-ril/onlynazril-patches/commit/771269938777eb28b4a0e9d53e3a8334619ecc87))
+* **TikTok - Tweaks screen:** Let a row tap work its control ([aa0b3a9](https://github.com/na-x-ril/onlynazril-patches/commit/aa0b3a996d9e803e47513bc0151ba97d2132ead8))
+* **TikTok:** Add a feature flags override patch ([35c6991](https://github.com/na-x-ril/onlynazril-patches/commit/35c69915f797e1e23b0a6b2eba307d2e00becdf2))
+* **TikTok:** Target 47.9.x and 48.0.x ([91d5fca](https://github.com/na-x-ril/onlynazril-patches/commit/91d5fcaeed8ed04d00ecdae4974078c4395bcee4))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.7.0-dev.4](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.3...v1.7.0-dev.4) (2026-11-25)
 
 ### ✨ New Features
