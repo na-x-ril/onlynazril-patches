@@ -1469,6 +1469,7 @@ public final class TweaksScreen extends FrameLayout {
                 {"number", "Whole"},
                 {"decimal", "Decimal"},
                 {"s", "Text"},
+                {"o", "Object"},
         };
         HorizontalScrollView scroller = new HorizontalScrollView(context);
         scroller.setHorizontalScrollBarEnabled(false);
@@ -1662,11 +1663,13 @@ public final class TweaksScreen extends FrameLayout {
     }
 
     private View flagRow(FlagEntry entry, Runnable refresh) {
+        boolean overridable = !"o".equals(entry.type);
         String summary = FlagDialog.typeName(entry.type) + " \u00b7 default "
                 + entry.appValue
                 + (entry.override != null ? " \u00b7 override " + entry.override : "");
-        RowView row = new RowView(context, entry.key, summary, chevron());
+        RowView row = new RowView(context, entry.key, summary, overridable ? chevron() : null);
         row.capTitleWidth(0.62f);
+        if (!overridable) return row;
         row.setOnClickListener(view -> FlagDialog.show(
                 context, entry.key, entry.type, entry.appValue, entry.override, value -> {
                     if (value == null) {

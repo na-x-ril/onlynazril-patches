@@ -34,6 +34,8 @@ private val STRING = Shape(
 /** All six typed getters together name the AB class; the raw getter is not needed for the hook. */
 private val AB_SHAPES = setOf(BOOLEAN, INT, LONG, FLOAT, DOUBLE, STRING)
 
+private const val OBJECT = "Ljava/lang/Object;"
+
 private data class Hook(val method: String, val descriptor: String) {
     /** A long or a double comes back in a register pair and needs `move-result-wide`. */
     val wide: Boolean get() = descriptor.endsWith("J") || descriptor.endsWith("D")
@@ -51,6 +53,64 @@ private val HOOKS = listOf(
         "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
     ),
 )
+
+private val OBJECT_HOOK = Hook(
+    "overrideObject",
+    "(Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;",
+)
+
+/** The helper each return type goes through. */
+private val HOOK_FOR = mapOf(
+    "Z" to Hook("overrideBoolean", "(Ljava/lang/String;Z)Z"),
+    "I" to Hook("overrideInt", "(Ljava/lang/String;I)I"),
+    "J" to Hook("overrideLong", "(Ljava/lang/String;J)J"),
+    "F" to Hook("overrideFloat", "(Ljava/lang/String;F)F"),
+    "D" to Hook("overrideDouble", "(Ljava/lang/String;D)D"),
+    "Ljava/lang/String;" to Hook(
+        "overrideString",
+        "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+    ),
+    "Ljava/lang/Object;" to OBJECT_HOOK,
+)
+
+/** The typed getters the AB class is recognised by; each one must be hooked. */
+private val REQUIRED_SHAPES = AB_SHAPES
+
+private const val CLASS = "Ljava/lang/Class;"
+
+/**
+ * Two getters the general rule cannot reach: a default value before the key, and a key followed by
+ * a default string. Both are still flags; only the key's position needs writing down.
+ */
+private val EXTRA_SHAPES = listOf(
+    Shape(OBJECT, listOf(CLASS, OBJECT, "Ljava/lang/String;", "Z"), 2),
+    Shape("Ljava/lang/String;", listOf("I", "I", "Ljava/lang/String;",
+        "Ljava/lang/String;", "Z"), 2),
+)
+
+/**
+ * Whether a method is one more getter of the same class, and where its key is.
+ *
+ * The class also answers flags through shapes beside the six typed ones: a string key with no int,
+ * an extra boolean, and values returned as a parsed `Object`. The rule is one `String` parameter
+ * that is not preceded by a stored value, plus a return type one of the helpers handles. The two
+ * string parameters of the typed string getter are skipped here and hooked by [HOOKS].
+ *
+ * A method that takes a value before the key is a setter returning the previous value; it is left
+ * alone, because replacing that answer would confuse the store rather than override a flag.
+ */
+private fun extraShapeOf(method: Method): Shape? {
+    if (AccessFlags.STATIC.isSet(method.accessFlags)) return null
+    if (method.returnType == "V") return null
+    if (method.returnType !in HOOK_FOR) return null
+    val params = method.parameterTypes.map(CharSequence::toString)
+    if (params.count { it == "Ljava/lang/String;" } != 1) return null
+    val key = params.indexOf("Ljava/lang/String;")
+    if (key < 0) return null
+    if (params.take(key).any { it.startsWith("L") && it != "Ljava/lang/Class;" }) return null
+    if (params.count { it == "Ljava/lang/Class;" } > 1) return null
+    return Shape(method.returnType, params, key)
+}
 
 /**
  * Overrides TikTok's AB feature flags from the Tweaks screen and records every flag the app reads.
@@ -85,15 +145,33 @@ val tiktokFeatureFlagsPatch = bytecodePatch(
             }.toSet()
             if (!AB_SHAPES.all { it in shapes }) return@classDefForEach
 
+            val mutableClass = mutableClassDefBy(classDef.type)
             HOOKS.forEach { (shape, hook) ->
                 val method = classDef.methods.singleOrNull { it.matches(shape) }
                     ?: throw PatchException(
                         "Feature flags: expected one ${shape.returnType} getter on " +
                             "${classDef.type}.",
                     )
-                val mutable = mutableClassDefBy(classDef.type).findMutableMethodOf(method)
-                hookReturns(mutable, method, shape, hook)
+                hookReturns(mutableClass.findMutableMethodOf(method), method, shape, hook)
                 hooked++
+            }
+            // Every remaining getter of the class, whatever its shape, as long as a helper can
+            // answer its type.
+            classDef.methods.forEach { method ->
+                if (REQUIRED_SHAPES.any { method.matches(it) }) return@forEach
+                val shape = extraShapeOf(method) ?: return@forEach
+                val hook = HOOK_FOR[method.returnType] ?: return@forEach
+                hookReturns(mutableClass.findMutableMethodOf(method), method, shape, hook)
+                hooked++
+            }
+            EXTRA_SHAPES.forEach { shape ->
+                val hook = HOOK_FOR[shape.returnType] ?: return@forEach
+                classDef.methods
+                    .filter { it.matches(shape) }
+                    .forEach { method ->
+                        hookReturns(mutableClass.findMutableMethodOf(method), method, shape, hook)
+                        hooked++
+                    }
             }
             classes++
         }
@@ -174,12 +252,14 @@ private fun replaceValue(key: Int, value: Int, hook: Hook, registers: Int): Stri
     // cannot be read after being overwritten.
     val scratch = (1..3).firstOrNull { it != key && it < registers }
         ?: throw PatchException("Feature flags: no low register for ${hook.method}.")
+    // A reference is moved with the opcode that tells the runtime it is one.
+    val move = if (hook.objectResult) "move-object/from16" else "move/from16"
     return """
-        move/from16 v$scratch, v$value
-        move/from16 v0, v$key
+        $move v$scratch, v$value
+        $move v0, v$key
         ${call.replace("REGS", "v0, v$scratch")}
         $read v$scratch
-        move/from16 v$value, v$scratch
+        $move v$value, v$scratch
     """
 }
 

@@ -21,6 +21,27 @@ getters together.
 | double | `(double, int, String, boolean) -> double` | `p3` |
 | string | `(int, String, String, boolean) -> String` | `p2` |
 
+The six typed getters only *name* the class. Every other getter in it is hooked too, whatever its
+shape: a string key without an int, an extra boolean, and values returned as a parsed `Object`. On
+the checked builds that adds, among others:
+
+| Shape | Helper |
+|---|---|
+| `(String, boolean, boolean) -> boolean` | boolean |
+| `(String, int, boolean) -> int` | int |
+| `(int, String, boolean) -> Object` | object |
+| `(String, boolean) -> Object` | object |
+| `(String, boolean, boolean, Class, int) -> Object` | object |
+| `(String, boolean, Class, Object) -> Object` | object |
+| `(Class, Object, String, boolean) -> Object` | object |
+
+A method that takes a stored value before the key is a setter returning the previous value, and is
+left alone. The rule needs the key to be the only `String` parameter, except for the two shapes
+written out by hand: a default value before the key, and a key followed by a default string.
+
+Both AB classes on 48.0.2 are covered (`X.09mi` and `ls4.m`), and the second one carries more
+shapes than the first.
+
 Each getter is hooked at its `return`, not at its entry: the app's own answer is already in a
 register there, so the helper either replaces it with the override or returns it unchanged. Nothing
 is recomputed and no early-return branch is added.
@@ -84,6 +105,14 @@ per frame, so neither the parallax nor the scroll drops frames.
 The list is a runtime registry: it holds the flags TikTok has read in this or an earlier run. A flag
 that exists in the dex but was never requested does not appear. A complete static list would need a
 separate scan of every getter call site, per build.
+
+A value returned as an `Object` that is not a boolean, number or string is listed as `object` and
+cannot be overridden; it is shown so the list stays complete rather than hiding a flag.
+
+## About
+
+The About page reads the installed app's version name from the package manager, so it names the
+build actually running rather than a hardcoded range.
 
 Overrides are not part of the settings export/import (that backup names its keys one by one).
 

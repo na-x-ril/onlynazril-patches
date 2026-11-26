@@ -101,6 +101,8 @@ public final class FlagDialog {
                 return "decimal";
             case "s":
                 return "text";
+            case "o":
+                return "object";
             default:
                 return "flag";
         }
