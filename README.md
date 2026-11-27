@@ -25,9 +25,9 @@ off. More apps are planned.
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.7.0-dev.5](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.7.0-dev.5)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;15 patches total
+> **[v1.7.0-dev.6](https://github.com/na-x-ril/onlynazril-patches/releases/tag/v1.7.0-dev.6)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;16 patches total
 <details open>
-<summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;15 patches</summary>
+<summary>📦 TikTok&nbsp;&nbsp;•&nbsp;&nbsp;16 patches</summary>
 <br>
 
 **🎯 Supported versions:**
@@ -51,6 +51,7 @@ off. More apps are planned.
 | [Pause image search](#pause-image-search) | Adds a switch to disable the image-search entries TikTok shows while a video is paused, including the pause-panel row and the visual search pill. On by default; turn it off to show them again. |
 | [Profile background](#profile-background) | Answers the AB gate that carries the profile background, so a static image or a video can be set on accounts the rollout has not reached. The switch is in Tweaks; the feature is off by default. |
 | [Resume playback](#resume-playback) | Continues a video from the position TikTok stored. The first and last seconds, set in Tweaks, are skipped. |
+| [Speed up only](#speed-up-only) | Holding the like or comment button only speeds the video up. It no longer likes, opens the comment sheet, reposts or opens reactions; a tap still does. On by default; the switch is in Tweaks. |
 | [Tweaks screen](#tweaks-screen) | Hosts the Tweaks screen, where every other patch in this bundle is switched on or off: the @handle stamp and its surfaces, the region, the post time, the comment copy, the captcha, the feed filter, the download, the profile background and the custom font. Hold the Home tab in the bottom bar to open it. |
 
 </details>

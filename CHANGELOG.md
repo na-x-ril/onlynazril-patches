@@ -1,3 +1,13 @@
+## [1.7.0-dev.6](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.5...v1.7.0-dev.6) (2026-11-27)
+
+### ✨ New Features
+
+* **TikTok - Custom font:** Carry the font in the backup ([b7f7ef5](https://github.com/na-x-ril/onlynazril-patches/commit/b7f7ef583806bf6a2288853c3149ec4f0b154b72))
+* **TikTok - Speed up only:** Hold like and comment for 2x only ([20c936f](https://github.com/na-x-ril/onlynazril-patches/commit/20c936f8223ad1b0f9baf460af6bb2b4da76d342))
+
+
+### [Add to Morphe](https://morphe.software/add-source?github=na-x-ril/onlynazril-patches)
+
 ## [1.7.0-dev.5](https://github.com/na-x-ril/onlynazril-patches/compare/v1.7.0-dev.4...v1.7.0-dev.5) (2026-11-26)
 
 ### 🐛 Bug Fixes
