@@ -1046,13 +1046,13 @@ public final class TweaksScreen extends FrameLayout {
         page.addView(new RowView(
                 context,
                 "Export settings",
-                "Save every setting to a JSON file.",
+                "Save every setting and the imported fonts to a JSON file.",
                 new ActionView(context, "Export", () -> exportSettings(context))));
         page.addView(divider(context));
         page.addView(new RowView(
                 context,
                 "Import settings",
-                "Load settings from a JSON file.",
+                "Load settings and the imported fonts from a JSON file.",
                 new ActionView(context, "Import", () -> importSettings(context))));
         page.addView(divider(context));
         page.addView(new RowView(
@@ -1251,7 +1251,9 @@ public final class TweaksScreen extends FrameLayout {
      */
     private static void fillFontList(Context context, LinearLayout list) {
         list.removeAllViews();
-        List<String> names = CustomFontSettings.names(context);
+        // The rows are rebuilt right after a delete, so the listing must not come from its cache.
+        CustomFontSettings.refresh();
+        List<String> names = CustomFontSettings.list(context);
         if (names.isEmpty()) {
             RowView hint = new RowView(
                     context,

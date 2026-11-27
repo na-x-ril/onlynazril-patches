@@ -4,15 +4,18 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.util.Base64;
 import android.widget.Toast;
 
 import app.onlynazril.extension.tiktok.Surfaces;
 import app.onlynazril.extension.tiktok.internal.Debug;
 import app.onlynazril.extension.tiktok.internal.RestartPrompt;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,19 +24,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Exports every switch to one JSON object and loads it back.
  * <p>
  * The format is flat and versioned. Import only touches keys the file carries, so an older or
- * partial file leaves the rest of the settings alone.
+ * partial file leaves the rest of the settings alone. The imported fonts ride along as gzipped
+ * base64, because no storage location survives an uninstall on every ROM, and a font cannot be
+ * rebuilt from its name.
  */
 public final class SettingsBackup {
     public static final int REQUEST_EXPORT = 0x4F4E55;
     public static final int REQUEST_IMPORT = 0x4F4E56;
 
     private static final int VERSION = 1;
-    private static final int MAX_BYTES = 256 * 1024;
+    /** The whole file: a few kilobytes of switches plus the gzipped fonts. */
+    private static final int MAX_BYTES = 16 * 1024 * 1024;
+    /** How much gzipped font data one export carries. */
+    private static final long MAX_FONTS_BYTES = 12L * 1024 * 1024;
 
     private SettingsBackup() {}
 
@@ -50,12 +60,32 @@ public final class SettingsBackup {
             Toast.makeText(activity, done ? "Settings exported" : "Export failed",
                     Toast.LENGTH_SHORT).show();
         } else {
-            boolean done = read(activity, uri);
-            Toast.makeText(activity, done ? "Settings imported" : "Import failed",
-                    Toast.LENGTH_SHORT).show();
-            if (done) RestartPrompt.askNow(activity);
+            Imported imported = read(activity, uri);
+            String message;
+            if (!imported.ok) {
+                message = "Import failed";
+            } else if (imported.fontMissing != null) {
+                message = "Settings imported, but the font " + imported.fontMissing
+                        + " is not on this device. Pick it again.";
+            } else {
+                message = "Settings imported";
+            }
+            Toast.makeText(activity, message,
+                    imported.fontMissing != null ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT).show();
+            if (imported.ok) RestartPrompt.askNow(activity);
         }
         return true;
+    }
+
+    /** What an import did, and the font it named but could not find on this device. */
+    private static final class Imported {
+        final boolean ok;
+        final String fontMissing;
+
+        Imported(boolean ok, String fontMissing) {
+            this.ok = ok;
+            this.fontMissing = fontMissing;
+        }
     }
 
     private static boolean write(Context context, Uri uri) {
@@ -69,22 +99,25 @@ public final class SettingsBackup {
         }
     }
 
-    private static boolean read(Context context, Uri uri) {
+    private static Imported read(Context context, Uri uri) {
         try (InputStream in = context.getContentResolver().openInputStream(uri)) {
-            if (in == null) return false;
+            if (in == null) return new Imported(false, null);
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             byte[] chunk = new byte[8192];
             int total = 0;
             int count;
             while ((count = in.read(chunk)) != -1) {
                 total += count;
-                if (total > MAX_BYTES) return false;
+                if (total > MAX_BYTES) {
+                    Debug.print("settings: file is larger than " + MAX_BYTES + " bytes");
+                    return new Imported(false, null);
+                }
                 buffer.write(chunk, 0, count);
             }
             return apply(context, buffer.toString(StandardCharsets.UTF_8.name()));
         } catch (IOException | SecurityException e) {
             Debug.print("settings: import failed (" + e + ")" + Debug.by(4));
-            return false;
+            return new Imported(false, null);
         }
     }
 
@@ -123,6 +156,8 @@ public final class SettingsBackup {
         root.put("custom_font_enabled", CustomFontSettings.isEnabled(context));
         String font = CustomFontSettings.storedSelection(context);
         if (font != null) root.put("custom_font_selected", font);
+        JSONArray fonts = fonts(context);
+        if (fonts.length() > 0) root.put("fonts", fonts);
 
         root.put("download_enabled", DownloadSettings.isEnabled(context));
         root.put("download_no_watermark", DownloadSettings.isNoWatermarkEnabled(context));
@@ -144,10 +179,11 @@ public final class SettingsBackup {
         return root.toString(2);
     }
 
-    private static boolean apply(Context context, String json) {
+    private static Imported apply(Context context, String json) {
+        String fontMissing = null;
         try {
             JSONObject root = new JSONObject(json);
-            if (root.optInt("version", VERSION) > VERSION) return false;
+            if (root.optInt("version", VERSION) > VERSION) return new Imported(false, null);
 
             if (root.has("handle_enabled")) {
                 HandleSettings.setEnabled(context, root.optBoolean("handle_enabled"));
@@ -221,14 +257,20 @@ public final class SettingsBackup {
                 CommentCopySettings.setEnabled(
                         context, root.optBoolean("comment_copy_without_username"));
             }
+            restoreFonts(context, root);
             if (root.has("custom_font_enabled")) {
                 CustomFontSettings.setEnabled(context, root.optBoolean("custom_font_enabled"));
             }
             if (root.has("custom_font_selected")) {
-                // Only a name whose file is present: the backup carries the pick, not the bytes.
+                // The bytes came with the backup, so the file is here unless the entry was
+                // dropped by the size budget. A name with no file left is said out loud.
                 String font = root.optString("custom_font_selected", null);
-                if (font != null && CustomFontSettings.names(context).contains(font)) {
-                    CustomFontSettings.select(context, font);
+                if (font != null) {
+                    if (CustomFontSettings.has(context, font)) {
+                        CustomFontSettings.select(context, font);
+                    } else {
+                        fontMissing = font;
+                    }
                 }
             }
 
@@ -283,10 +325,96 @@ public final class SettingsBackup {
             }
 
             HandleSettings.flush(context);
-            return true;
+            return new Imported(true, fontMissing);
         } catch (JSONException e) {
             Debug.print("settings: invalid file (" + e + ")" + Debug.by(4));
-            return false;
+            return new Imported(false, null);
+        }
+    }
+
+    /**
+     * The imported fonts themselves, gzipped and base64'd into the file. A font is the one part of
+     * the settings that cannot be rebuilt from a name, and no storage location survives an
+     * uninstall on every ROM, so the backup carries the bytes.
+     */
+    private static JSONArray fonts(Context context) throws JSONException {
+        JSONArray fonts = new JSONArray();
+        long carried = 0;
+        for (String name : CustomFontSettings.names(context)) {
+            byte[] raw = CustomFontSettings.bytes(context, name);
+            if (raw == null) {
+                Debug.print("settings: font " + name + " is too heavy for the export");
+                continue;
+            }
+            byte[] packed = gzip(raw);
+            if (packed == null) continue;
+            if (carried + packed.length > MAX_FONTS_BYTES) {
+                Debug.print("settings: font " + name + " exceeds the export budget");
+                continue;
+            }
+            carried += packed.length;
+            JSONObject entry = new JSONObject();
+            entry.put("name", name);
+            entry.put("gzip", true);
+            entry.put("data", Base64.encodeToString(packed, Base64.NO_WRAP));
+            fonts.put(entry);
+        }
+        return fonts;
+    }
+
+    /**
+     * Writes the fonts a backup carries back into the working directory. A plain base64 entry,
+     * which the first build wrote, is accepted as well as the gzipped one written now.
+     */
+    private static void restoreFonts(Context context, JSONObject root) {
+        JSONArray fonts = root.optJSONArray("fonts");
+        if (fonts == null) return;
+        for (int i = 0; i < fonts.length(); i++) {
+            JSONObject entry = fonts.optJSONObject(i);
+            if (entry == null) continue;
+            String name = entry.optString("name", null);
+            String data = entry.optString("data", null);
+            if (name == null || data == null) continue;
+            byte[] bytes;
+            try {
+                bytes = Base64.decode(data, Base64.DEFAULT);
+            } catch (IllegalArgumentException | OutOfMemoryError e) {
+                Debug.print("settings: font " + name + " is not readable");
+                continue;
+            }
+            if (entry.optBoolean("gzip", false)) {
+                bytes = gunzip(bytes);
+                if (bytes == null) {
+                    Debug.print("settings: font " + name + " will not unpack");
+                    continue;
+                }
+            }
+            if (CustomFontSettings.restore(context, name, bytes) == null) {
+                Debug.print("settings: font " + name + " is not a font file");
+            }
+        }
+    }
+
+    private static byte[] gzip(byte[] raw) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream(raw.length / 2 + 64);
+                GZIPOutputStream zip = new GZIPOutputStream(out)) {
+            zip.write(raw);
+            zip.finish();
+            return out.toByteArray();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private static byte[] gunzip(byte[] packed) {
+        try (GZIPInputStream zip = new GZIPInputStream(new ByteArrayInputStream(packed))) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream(packed.length * 2);
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = zip.read(buffer)) > 0) out.write(buffer, 0, read);
+            return out.toByteArray();
+        } catch (IOException e) {
+            return null;
         }
     }
 

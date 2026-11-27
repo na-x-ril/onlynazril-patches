@@ -21,6 +21,9 @@ public final class SettingsReset {
 
     public static void reset(Context ctx) {
         if (ctx == null) return;
+        // The imported fonts are files, not prefs, and the prompt promises they go too.
+        CustomFontSettings.reset(ctx);
+
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         boolean asked = prefs.contains(KEY_INSTALL);
         long installed = prefs.getLong(KEY_INSTALL, 0L);
