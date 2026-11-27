@@ -23,6 +23,7 @@ public final class SettingsReset {
         if (ctx == null) return;
         // The imported fonts are files, not prefs, and the prompt promises they go too.
         CustomFontSettings.reset(ctx);
+        SpeedOnlySettings.invalidate();
 
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         boolean asked = prefs.contains(KEY_INSTALL);

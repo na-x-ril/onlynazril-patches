@@ -63,6 +63,7 @@ import app.onlynazril.extension.tiktok.settings.RefreshRateSettings;
 import app.onlynazril.extension.tiktok.settings.ResumePlaybackSettings;
 import app.onlynazril.extension.tiktok.settings.SettingsBackup;
 import app.onlynazril.extension.tiktok.settings.SettingsReset;
+import app.onlynazril.extension.tiktok.settings.SpeedOnlySettings;
 
 /**
  * Tweaks screen: a root category list and one full page per category.
@@ -871,6 +872,15 @@ public final class TweaksScreen extends FrameLayout {
         });
         startRow.setRowEnabled(resumeOn);
         endRow.setRowEnabled(resumeOn);
+
+        page.addView(section(context, "Speed up"));
+        page.addView(new RowView(
+                context,
+                "Speed up only",
+                "A hold on the like or comment button speeds the video up without liking it or "
+                        + "opening its comments. A tap still does both.",
+                toggle(context, SpeedOnlySettings.isEnabled(context),
+                        checked -> SpeedOnlySettings.setEnabled(context, checked))));
 
         page.addView(section(context, "Pause"));
         page.addView(new RowView(

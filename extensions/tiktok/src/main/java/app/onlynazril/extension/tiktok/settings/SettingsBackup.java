@@ -147,6 +147,7 @@ public final class SettingsBackup {
         root.put("feed_filter_likes_min", likes[0]);
         root.put("feed_filter_likes_max", likes[1]);
 
+        root.put("speed_up_only", SpeedOnlySettings.isEnabled(context));
         root.put("resume_playback_enabled", ResumePlaybackSettings.isEnabled(context));
         root.put("resume_playback_start_s", ResumePlaybackSettings.startSeconds(context));
         root.put("resume_playback_end_s", ResumePlaybackSettings.endSeconds(context));
@@ -237,6 +238,9 @@ public final class SettingsBackup {
             applyRange(context, root, "feed_filter_views", true);
             applyRange(context, root, "feed_filter_likes", false);
 
+            if (root.has("speed_up_only")) {
+                SpeedOnlySettings.setEnabled(context, root.optBoolean("speed_up_only"));
+            }
             if (root.has("resume_playback_enabled")) {
                 ResumePlaybackSettings.setEnabled(
                         context, root.optBoolean("resume_playback_enabled"));

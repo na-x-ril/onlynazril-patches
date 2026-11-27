@@ -1,6 +1,7 @@
 package app.onlynazril.patches.tiktok.handle
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
@@ -367,7 +368,9 @@ val tiktokHandlePatch = bytecodePatch(
             ?: throw PatchException("Handle: the feed cell root's touch dispatch was not found.")
         val touchSuper = classDefByOrNull(touch.definingClass)?.superclass
             ?: throw PatchException("Handle: ${touch.definingClass} has no superclass to dispatch to.")
-        touch.addInstructions(
+        // The labels must be real labels of this method: another patch inserts its own guard
+        // ahead of this block, and a compiled-in label would then point into the middle of it.
+        touch.addInstructionsWithLabels(
             0,
             """
                 invoke-static {p0, p1}, $HANDLE_COPY->blocksCellGesture(Landroid/view/View;Landroid/view/MotionEvent;)Z
